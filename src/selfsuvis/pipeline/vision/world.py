@@ -166,26 +166,45 @@ class WorldModel:
         for candidate_id in candidate_ids:
             source = _resolve_local_world_model_path(candidate_id)
             source_label = str(source) if isinstance(source, Path) else candidate_id
-            if isinstance(source, Path) and not (source / "preprocessor_config.json").exists():
-                logger.info(
-                    "World model cache for %s is incomplete; retrying from repo id.",
-                    candidate_id,
+            # Incomplete-cache check: look for any preprocessor/feature-extractor
+            # config, not just preprocessor_config.json — VideoMAE-based models
+            # (e.g. InternVideo2) may only have feature_extractor_type.json or
+            # store it inside config.json.
+            if isinstance(source, Path):
+                _has_preprocessor = any(
+                    (source / f).exists()
+                    for f in ("preprocessor_config.json", "feature_extractor_config.json", "config.json")
                 )
-                source = candidate_id
-                source_label = candidate_id
+                if not _has_preprocessor:
+                    logger.info(
+                        "World model cache for %s is incomplete; retrying from repo id.",
+                        candidate_id,
+                    )
+                    source = candidate_id
+                    source_label = candidate_id
             logger.info("Loading world model: %s", source_label)
             try:
                 import torch
-                from transformers import AutoFeatureExtractor, AutoImageProcessor, AutoModel, AutoProcessor
+                from transformers import AutoImageProcessor, AutoModel, AutoProcessor
 
                 device = _get_device()
-                load_kwargs = {"local_files_only": isinstance(source, Path)}
+                load_kwargs = {
+                    "local_files_only": isinstance(source, Path),
+                    "trust_remote_code": True,
+                }
+                # VideoMAEImageProcessor is the correct preprocessor for InternVideo2
+                # and other VideoMAE-family models. AutoProcessor fails on these
+                # because their config.json has no auto_map / model_type entry that
+                # transformers recognises.
+                try:
+                    from transformers import VideoMAEImageProcessor
+                    _preprocessor_loaders: tuple = (VideoMAEImageProcessor, AutoImageProcessor, AutoProcessor)
+                except ImportError:
+                    _preprocessor_loaders = (AutoImageProcessor, AutoProcessor)
                 self._feature_extractor = _load_world_preprocessor(
                     source_label,
                     load_kwargs,
-                    AutoImageProcessor,
-                    AutoProcessor,
-                    AutoFeatureExtractor,
+                    *_preprocessor_loaders,
                 )
                 self._model = AutoModel.from_pretrained(
                     source_label,
@@ -332,6 +351,33 @@ def _candidate_model_ids(model_id: str) -> List[str]:
     return [model_id, supported]
 
 
+class _SimpleVideoPreprocessor:
+    """Minimal fallback preprocessor for models without a transformers-compatible
+    preprocessor_config.json (e.g. InternVideo2-Stage2).
+
+    Applies standard ImageNet normalisation and returns pixel_values in
+    (1, T, C, H, W) layout so _normalise_video_pixel_values can handle it.
+    """
+
+    _MEAN = [0.485, 0.456, 0.406]
+    _STD  = [0.229, 0.224, 0.225]
+    _SIZE = (224, 224)
+
+    def __call__(self, images, return_tensors: str = "pt", **_kwargs):
+        import torch
+        from torchvision import transforms  # type: ignore[import]
+
+        tfm = transforms.Compose([
+            transforms.Resize(self._SIZE),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=self._MEAN, std=self._STD),
+        ])
+        frames = [tfm(img.convert("RGB")) for img in images]  # each: (C, H, W)
+        # Stack → (T, C, H, W) → unsqueeze batch → (1, T, C, H, W)
+        pixel_values = torch.stack(frames, dim=0).unsqueeze(0)
+        return {"pixel_values": pixel_values}
+
+
 def _load_world_preprocessor(source_label: str, load_kwargs: Dict[str, Any], *loader_classes):
     last_exc: Optional[Exception] = None
     for loader_cls in loader_classes:
@@ -339,9 +385,16 @@ def _load_world_preprocessor(source_label: str, load_kwargs: Dict[str, Any], *lo
             return loader_cls.from_pretrained(source_label, **load_kwargs)
         except Exception as exc:
             last_exc = exc
-    if last_exc is not None:
-        raise last_exc
-    raise RuntimeError(f"No preprocessor loader available for {source_label}")
+    # All standard loaders failed (common for models like InternVideo2 that
+    # ship no preprocessor_config.json and have no auto_map entry).
+    # Fall back to simple ImageNet-normalised preprocessing which is compatible
+    # with VideoMAE/InternVideo2 input expectations.
+    logger.warning(
+        "No transformers preprocessor found for %s (%s) — using _SimpleVideoPreprocessor fallback",
+        source_label,
+        last_exc,
+    )
+    return _SimpleVideoPreprocessor()
 
 
 def _get_device() -> str:

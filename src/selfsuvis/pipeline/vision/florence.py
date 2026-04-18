@@ -29,12 +29,12 @@ logger = get_logger(__name__)
 
 
 def _best_attn_impl() -> str:
-    """Return the best available attention backend: flash_attention_2 > sdpa."""
-    try:
-        import flash_attn  # noqa: F401
-        return "flash_attention_2"
-    except ImportError:
-        return "sdpa"
+    """Return the best available attention backend for Florence-2.
+
+    Florence-2 does not support flash_attention_2 (upstream limitation), so we
+    always use sdpa regardless of whether flash-attn is installed.
+    """
+    return "sdpa"
 
 
 class FlorenceModel:
