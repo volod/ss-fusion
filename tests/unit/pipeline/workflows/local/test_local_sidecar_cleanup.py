@@ -1,7 +1,5 @@
-from __future__ import annotations
 
 from types import SimpleNamespace
-
 import torch
 
 from selfsuvis.pipeline.vision import unidrive

@@ -3,10 +3,8 @@
 Tests compute_semantic_diff, generate_change_explanation, and the
 integration of semantic_diff_json into detect_changes output.
 """
-from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pytest
 

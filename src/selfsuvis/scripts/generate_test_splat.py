@@ -5,10 +5,8 @@ Usage:
                                           [--lat 48.0] [--lon 11.0] [--alt 100.0]
                                           [--radius 10.0]
 """
-from __future__ import annotations
 
 import argparse
-
 import numpy as np
 
 from selfsuvis.pipeline.mapping.splat_io import _SPLAT_DTYPE, write_splat, write_splat_metadata

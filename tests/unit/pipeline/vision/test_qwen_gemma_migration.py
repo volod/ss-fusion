@@ -4,10 +4,8 @@ Validates that QwenModel now prefers GEMMA_API_URL/GEMMA_API_MODEL/GEMMA_API_BAC
 over the legacy QWEN_* settings, while remaining backward-compatible when only
 QWEN_API_URL is set.
 """
-from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-
 import pytest
 from PIL import Image
 

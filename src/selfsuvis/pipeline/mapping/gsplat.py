@@ -27,7 +27,6 @@ dict:
     skipped     : bool
     reason      : str | None
 """
-from __future__ import annotations
 
 import math
 import time

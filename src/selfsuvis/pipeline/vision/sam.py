@@ -26,7 +26,6 @@ Disabled gracefully (returns empty list) when:
 - No SAM package is installed
 - ``SAM_CHECKPOINT`` file is missing for the original SAM backend
 """
-from __future__ import annotations
 
 import gc
 from typing import Any, Dict, List, Optional, Tuple

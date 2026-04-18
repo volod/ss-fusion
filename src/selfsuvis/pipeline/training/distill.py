@@ -18,7 +18,6 @@ student backbone state dict is saved.  The student is initialised from pretraine
 DINOv2 hub weights so it already has strong representations before distillation.
 """
 
-from __future__ import annotations
 
 import logging
 import time

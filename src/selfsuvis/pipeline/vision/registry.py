@@ -12,7 +12,6 @@ Usage::
     model_id = auto_select("asr", resources)
     # → "openai/whisper-large-v3-turbo"
 """
-from __future__ import annotations
 
 import os
 import subprocess

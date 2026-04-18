@@ -11,7 +11,6 @@ caption_batch() contract:
     - confidence: mean of softmax(scores[i])[generated_token_id] across all generated
       tokens, clamped to [0.0, 1.0]. Falls back to 0.5 when scores unavailable.
 """
-from __future__ import annotations
 
 import logging
 from pathlib import Path

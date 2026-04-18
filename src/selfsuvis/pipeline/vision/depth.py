@@ -25,7 +25,6 @@ CLI override::
 
     DEPTH_ENABLED=true DEPTH_MODEL=depth-anything/Depth-Anything-V2-Large-hf
 """
-from __future__ import annotations
 
 import gc
 from typing import Any, Dict, List, Optional

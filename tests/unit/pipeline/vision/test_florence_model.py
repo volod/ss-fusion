@@ -6,7 +6,6 @@ They are skipped automatically when torch.cuda.is_available() is False.
 Non-GPU tests cover the confidence computation logic with mocked tensors so they
 can run anywhere without model weights.
 """
-from __future__ import annotations
 
 import pytest
 import torch

@@ -35,7 +35,6 @@ CLI override examples::
     ASR_MODEL=openai/whisper-large-v3 ASR_LANGUAGE=en python worker/main.py
     ASR_MODEL=distil-whisper/distil-large-v3 ASR_BATCH_SIZE=4 python worker/main.py
 """
-from __future__ import annotations
 
 import contextlib
 import subprocess

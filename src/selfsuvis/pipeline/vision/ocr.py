@@ -36,7 +36,6 @@ CLI override examples::
     OCR_ENABLED=true OCR_API_URL=http://localhost:8010/v1 python worker/main.py
     OCR_ENABLED=true OCR_MODEL=auto python worker/main.py   # GPU auto-select
 """
-from __future__ import annotations
 
 import base64
 import io

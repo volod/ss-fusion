@@ -46,7 +46,6 @@ CLI override::
     WORLD_MODEL_ENABLED=true WORLD_MODEL=MCG-NJU/videomae-large
     WORLD_MODEL_ENABLED=true WORLD_MODEL=nvidia/Cosmos-1.0-Autoregressive-4B
 """
-from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional

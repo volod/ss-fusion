@@ -6,7 +6,6 @@ integration lightweight for selfsuvis by treating UniDrive as an external
 OpenAI-compatible vision endpoint and normalising its response into a stable
 JSON shape that local and production workflows can consume.
 """
-from __future__ import annotations
 
 import base64
 import gc

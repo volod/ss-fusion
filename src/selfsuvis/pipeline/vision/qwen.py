@@ -11,7 +11,6 @@ interface to preserve backward compatibility with callers in ``indexer.py``,
 
 The contract: ``extract_frame_facts`` never returns None.
 """
-from __future__ import annotations
 
 import base64
 import io

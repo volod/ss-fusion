@@ -27,7 +27,6 @@ CLI override::
     DETECTION_ENABLED=true DETECTION_MODEL=IDEA-Research/grounding-dino-tiny
     DETECTION_ENABLED=true DETECTION_LABELS="vehicle,person,weapon,infrastructure"
 """
-from __future__ import annotations
 
 import contextlib
 import gc

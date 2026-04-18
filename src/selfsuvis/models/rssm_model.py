@@ -35,7 +35,6 @@ Graceful degradation:
   If torch is unavailable or training fails, falls back to an EMA-based
   surprise estimate (no gradient computation required).
 """
-from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional, Tuple

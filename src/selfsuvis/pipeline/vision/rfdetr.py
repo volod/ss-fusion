@@ -22,7 +22,6 @@ IDs reset to 1 for each new video/sequence.
 
 Disabled gracefully when ``rfdetr`` is not installed or ``RFDETR_ENABLED=false``.
 """
-from __future__ import annotations
 
 import gc
 import logging

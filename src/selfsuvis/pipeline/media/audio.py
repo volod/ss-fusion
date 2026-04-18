@@ -12,7 +12,6 @@ Usage::
     subtitle_map = map_subtitles_to_frames(segments, frame_timestamps)
     # subtitle_map: {t_sec: "text spoken near this frame"}
 """
-from __future__ import annotations
 
 import os
 import subprocess

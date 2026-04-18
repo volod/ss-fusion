@@ -15,7 +15,6 @@ Requirements:
     pip install transformers accelerate
     (torch is installed via the project environment)
 """
-from __future__ import annotations
 
 import hashlib
 import logging

@@ -1,7 +1,5 @@
-from __future__ import annotations
 
 import selfsuvis.scripts.prepare_models as pm
-
 
 def test_resolve_unidrive_backend_fails_without_runtimes(monkeypatch):
     monkeypatch.setattr(pm, "_has_ollama_installed", lambda: False)

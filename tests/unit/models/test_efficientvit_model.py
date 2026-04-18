@@ -2,10 +2,8 @@
 
 All tests mock torch/timm to avoid model downloads.
 """
-from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pytest
 from PIL import Image

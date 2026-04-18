@@ -3,7 +3,6 @@
 Tests the pure utility functions — recall_at_1, _collect_frames, gate logic.
 No model loading or GPU required.
 """
-from __future__ import annotations
 
 import tempfile
 from pathlib import Path

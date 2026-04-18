@@ -8,7 +8,6 @@ another are merged into persistent object nodes; co-visible or spatially close
 nodes are connected with ``near`` edges.
 """
 
-from __future__ import annotations
 
 import json
 import math

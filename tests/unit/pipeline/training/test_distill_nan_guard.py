@@ -3,10 +3,8 @@
 Ensures that all-NaN teacher embeddings (e.g. from Gemma on edge-case inputs)
 produce a finite RKD loss rather than NaN/inf that would corrupt training.
 """
-from __future__ import annotations
 
 import math
-
 import numpy as np
 import pytest
 import torch

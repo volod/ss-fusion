@@ -7,8 +7,6 @@ Centralises three patterns that were previously copy-pasted into every model fil
 - :func:`pipeline_device_arg` — convert a device string to the integer HuggingFace
   ``pipeline()`` expects (``-1`` for CPU, ``0`` for CUDA/MPS)
 """
-from __future__ import annotations
-
 
 def is_cuda_oom(exc: Exception) -> bool:
     """Return True if *exc* is a CUDA out-of-memory error.

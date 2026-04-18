@@ -20,7 +20,6 @@ For distillation (Stage 1→2 — DINOv3 teacher → EfficientViT student)::
     stats = run_distillation_efficientvit(teacher_backbone, frame_paths, ckpt_dir, cfg)
 """
 
-from __future__ import annotations
 
 import logging
 from typing import List

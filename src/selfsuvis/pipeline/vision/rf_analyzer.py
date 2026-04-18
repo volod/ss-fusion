@@ -34,7 +34,6 @@ TorchScript ``.pt`` file.  Point ``RF_CLASSIFIER_CHECKPOINT`` at that file to
 enable modulation classification.  Without it the pass still runs and stores
 the four signal-quality metrics above.
 """
-from __future__ import annotations
 
 import gc
 import json

@@ -3,7 +3,6 @@
 All tests mock the HTTP layer or test pure functions — no model loading required.
 Compatible with: pip install openai httpx pillow pytest
 """
-from __future__ import annotations
 
 import base64
 import json
