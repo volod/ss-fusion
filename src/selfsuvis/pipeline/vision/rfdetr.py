@@ -56,6 +56,47 @@ _PRIORITY_LABEL = {
     PRIORITY_OTHER:      "other",
 }
 
+_TARGET_LABEL_ALIASES: Dict[str, frozenset[str]] = {
+    "person": frozenset({"person", "pedestrian", "people", "human", "worker", "rider", "child"}),
+    "vehicle": frozenset(
+        {
+            "vehicle", "car", "truck", "bus", "van", "pickup", "pickup truck",
+            "motorcycle", "motorbike", "bike", "bicycle", "train", "boat", "airplane",
+        }
+    ),
+    "building": frozenset({"building", "house", "shed", "warehouse", "garage"}),
+    "road": frozenset({"road", "street"}),
+    "sign": frozenset({"sign", "stop sign", "traffic sign"}),
+}
+
+
+def _normalise_target_label(label: str) -> str:
+    return " ".join(label.lower().replace("-", " ").replace("_", " ").split())
+
+
+def _expand_target_labels(target_labels: List[str]) -> List[str]:
+    """Expand Gemma-style abstract labels into detector-matchable synonyms."""
+    expanded: List[str] = []
+    seen: set[str] = set()
+    for raw in target_labels:
+        norm = _normalise_target_label(raw)
+        if not norm:
+            continue
+        candidates = {norm}
+        for family, aliases in _TARGET_LABEL_ALIASES.items():
+            if norm == family or norm in aliases or family in norm:
+                candidates.update(aliases)
+                candidates.add(family)
+        for token in norm.split():
+            if token in _TARGET_LABEL_ALIASES:
+                candidates.update(_TARGET_LABEL_ALIASES[token])
+                candidates.add(token)
+        for candidate in candidates:
+            if candidate not in seen:
+                expanded.append(candidate)
+                seen.add(candidate)
+    return expanded
+
 
 def _rfdetr_weights_path(variant: str) -> str:
     """Return the shared RF-DETR checkpoint path outside the repo root.
@@ -183,13 +224,14 @@ class RFDETRTracker:
         model = self._get_model()
         if model is None:
             return []
+        expanded_targets = _expand_target_labels(target_labels) if target_labels is not None else None
         w, h = image.size
         try:
             dets = self._run_inference(model, image)
             results: List[Dict[str, Any]] = []
             for label, conf, (x1, y1, x2, y2) in dets:
                 bbox_norm = [x1 / w, y1 / h, x2 / w, y2 / h]
-                if target_labels is not None and not _label_matches_any(label, target_labels):
+                if expanded_targets is not None and not _label_matches_any(label, expanded_targets):
                     continue
                 priority = _classify_priority(label)
                 results.append({
@@ -412,9 +454,9 @@ class RFDETRTracker:
 
 def _label_matches_any(label: str, target_labels: List[str]) -> bool:
     """Return True when *label* appears in or overlaps with any target label."""
-    label_lower = label.lower()
+    label_lower = _normalise_target_label(label)
     for target in target_labels:
-        target_lower = target.lower()
+        target_lower = _normalise_target_label(target)
         if target_lower in label_lower or label_lower in target_lower:
             return True
     return False

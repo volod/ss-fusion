@@ -1,0 +1,163 @@
+"""Tests for local-run analytics loader."""
+
+from __future__ import annotations
+
+import json
+
+import numpy as np
+
+
+def _write(path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def test_local_run_loader_parses_key_artifacts(tmp_path):
+    from selfsuvis.analytics import LocalRunLoader
+
+    run_dir = tmp_path / "mission_a"
+    _write(
+        run_dir / "frames_metadata.json",
+        json.dumps(
+            {
+                "video_id": "mission_a",
+                "fps": 2.0,
+                "frame_count": 2,
+                "duration_sec": 1.0,
+                "frames": [
+                    {"path": "frame_1.jpg", "t_sec": 0.0},
+                    {"path": "frame_2.jpg", "t_sec": 0.5},
+                ],
+            }
+        ),
+    )
+    _write(
+        run_dir / "yolo_sam_results.json",
+        json.dumps(
+            {
+                "model": "yolo11l",
+                "n_frames": 2,
+                "total_objects": 3,
+                "by_priority": {"vehicle": 3},
+                "frames": [
+                    {"t_sec": 0.0, "n_detections": 1},
+                    {"t_sec": 0.5, "n_detections": 2},
+                ],
+            }
+        ),
+    )
+    _write(
+        run_dir / "rssm_temporal.json",
+        json.dumps(
+            {
+                "method": "rssm",
+                "n_frames": 2,
+                "surprise_scores": [0.1, 0.9],
+            }
+        ),
+    )
+    _write(
+        run_dir / "video_ontology.json",
+        json.dumps({"domain": "aerial_reconnaissance", "scene_complexity": "low"}),
+    )
+    _write(
+        run_dir / "scene_captions.md",
+        "\n".join(
+            [
+                "| Frame | t (s) | Seg | Sim | Confidence | Caption |",
+                "| `frame_1.jpg` | 0.0 | 1 | — | 0.800 | road |",
+                "| `frame_2.jpg` | 0.5 | 1 | 1.00 | 0.700 | highway |",
+            ]
+        ),
+    )
+    _write(
+        run_dir / "detailed_captions.md",
+        "\n".join(
+            [
+                "| Frame | t (s) | Seg | Δ Changes | Caption / Scene Facts | Audio Context |",
+                "| `frame_1.jpg` | 0.0 | 1 | first | detailed road caption | hello |",
+                "| `frame_2.jpg` | 0.5 | 1 | — | detailed highway caption | hello |",
+            ]
+        ),
+    )
+    _write(
+        run_dir / "asr_subtitles.md",
+        "\n".join(
+            [
+                "| Start (s) | End (s) | Text |",
+                "| 0.00 | 1.00 | hello |",
+            ]
+        ),
+    )
+    _write(
+        run_dir / "gemma_tracking_results.json",
+        json.dumps(
+            {
+                "model": "rfdetr_base",
+                "gemma_scene_type": "urban_street",
+                "tracking_priority": ["vehicle"],
+                "tracking_targets_effective": ["vehicle"],
+                "tracking_filter_retry_mode": "reduced",
+                "sam_masks_total": 4,
+                "n_unique_track_ids": 2,
+                "total_detections": 2,
+                "mean_track_length_frames": 2.0,
+                "median_track_length_frames": 2.0,
+                "elapsed_sec": 12.0,
+                "frames": [
+                    {"t_sec": 0.0, "n_detections": 1, "sam_masks": [{}, {}]},
+                    {"t_sec": 0.5, "n_detections": 1, "sam_masks": [{}, {}]},
+                ],
+            }
+        ),
+    )
+    _write(
+        run_dir / "finetune_stats.md",
+        "\n".join(
+            [
+                "| Metric | Value |",
+                "| Best loss | 1.2345 |",
+                "| Checkpoint size | 123.4 MB |",
+                "| Epoch | Loss |",
+                "| 1 | 1.4000 |",
+                "| 2 | 1.2345 |",
+            ]
+        ),
+    )
+    _write(
+        run_dir / "distill_stats.md",
+        "\n".join(
+            [
+                "| Metric | Value |",
+                "| Best total loss | 0.9876 |",
+                "| Best Recall@1 (student vs teacher) | 0.321 |",
+                "| Compression ratio | 3.9× (86M → 22M params) |",
+            ]
+        ),
+    )
+    _write(run_dir / "multimodal_features.md", "OCR: 1/2 frames have text\nWorld model unavailable\n")
+    _write(run_dir / "3d_map" / "map_stats.json", json.dumps({"method": "sfm", "points": 10, "poses": 5}))
+    _write(run_dir / "3d_map" / "gaussian_splat.ply", "ply")
+    _write(run_dir / "edge_models" / "dino_local.onnx", "onnx")
+    np.savez(run_dir / "edge_models" / "gallery.npz", embeddings=np.ones((2, 4), dtype=np.float32))
+
+    summary = LocalRunLoader(run_dir).load()
+
+    assert summary.video_name == "mission_a"
+    assert summary.detection_stats is not None
+    assert summary.detection_stats.total_objects == 3
+    assert summary.frames[0].caption == "road"
+    assert summary.frames[1].qwen_caption == "detailed highway caption"
+    assert summary.frames[0].asr_text == "hello"
+    assert summary.tracking_stats is not None
+    assert summary.tracking_stats.unique_track_ids == 2
+    assert summary.run_health.tracking_filter_fallback_used is True
+    assert summary.embedding_stats is not None
+    assert summary.embedding_stats.embedding_dim == 4
+    assert summary.map_stats is not None
+    assert summary.map_stats.points == 10
+    assert summary.has_3d_map is True
+    assert summary.has_edge_model is True
+    assert summary.artifact_inventory.total_files >= 10
+    assert summary.run_health.world_model_ok is False
+    assert summary.run_health.ocr_coverage == 0.5

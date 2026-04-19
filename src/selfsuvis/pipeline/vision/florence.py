@@ -37,6 +37,82 @@ def _best_attn_impl() -> str:
     return "sdpa"
 
 
+def _sanitize_model_inputs(inputs: object, *, device: str, dtype: torch.dtype) -> dict:
+    """Drop None-valued processor fields and move tensors to the target device/dtype."""
+    if hasattr(inputs, "items"):
+        raw_items = dict(inputs.items())
+    else:
+        raw_items = dict(inputs)
+
+    cleaned: dict = {}
+    for key, value in raw_items.items():
+        if value is None:
+            continue
+        if hasattr(value, "to"):
+            if value.is_floating_point():
+                value = value.to(device=device, dtype=dtype)
+            else:
+                value = value.to(device=device)
+        cleaned[key] = value
+    return cleaned
+
+
+def _extract_generated_token_ids(
+    sequences: torch.Tensor,
+    scores: tuple | None,
+) -> torch.Tensor:
+    """Return only the newly generated token ids.
+
+    Florence variants can behave like seq2seq models where ``sequences`` already
+    contains only generated tokens, while some decoder-style paths may include a
+    prompt prefix. ``generated.scores`` reliably reports how many new tokens were
+    produced, so use that length when available instead of trimming by
+    ``input_ids`` length.
+    """
+    if scores is None or len(scores) == 0:
+        return sequences[:, 0:0]
+    generated_len = min(len(scores), int(sequences.shape[1]))
+    if generated_len <= 0:
+        return sequences[:, 0:0]
+    return sequences[:, -generated_len:]
+
+
+def _normalise_sequences(sequences: object) -> torch.Tensor:
+    """Validate and normalise generation output sequences."""
+    if sequences is None:
+        raise RuntimeError("Florence generate returned no sequences")
+    if not isinstance(sequences, torch.Tensor):
+        raise RuntimeError(f"Florence generate returned unsupported sequences type: {type(sequences)!r}")
+    if sequences.ndim != 2:
+        raise RuntimeError(f"Florence generate returned unexpected sequences shape: {tuple(sequences.shape)!r}")
+    return sequences
+
+
+def _scores_are_usable(scores: object) -> bool:
+    """Return True when scores look like per-step logits tensors."""
+    if not isinstance(scores, tuple) or len(scores) == 0:
+        return False
+    return all(isinstance(step, torch.Tensor) for step in scores)
+
+
+def _build_generate_kwargs(inputs: dict, *, include_scores: bool) -> dict:
+    """Build Florence generation kwargs for the current runtime mode.
+
+    Florence eager-attention fallback has been unstable in beam-search/cache
+    paths on some transformers builds. Force a simple greedy decode with cache
+    disabled so local runs prefer reliability over richer generation metadata.
+    """
+    return {
+        **inputs,
+        "max_new_tokens": 256,
+        "return_dict_in_generate": True,
+        "do_sample": False,
+        "num_beams": 1,
+        "use_cache": False,
+        "output_scores": include_scores,
+    }
+
+
 class FlorenceModel:
     """Florence-2-large captioner. Load once; call caption_batch() many times."""
 
@@ -57,6 +133,7 @@ class FlorenceModel:
         # Clear any leftover VRAM fragmentation before loading the model.
         if self.device == "cuda":
             torch.cuda.empty_cache()
+        self._generation_mode = "scored"
 
         # dtype: FP16 on CUDA, FP32 on CPU
         torch_dtype = torch.float16 if (self.device == "cuda" and settings.USE_FP16) else torch.float32
@@ -75,7 +152,7 @@ class FlorenceModel:
         if attn_impl == "flash_attention_2" and torch_dtype == torch.float32:
             attn_impl = "sdpa"
         load_kwargs: dict = {
-            "torch_dtype": torch_dtype,
+            "dtype": torch_dtype,
             "attn_implementation": attn_impl,
         }
         load_kwargs.update(load_common_kwargs)
@@ -85,7 +162,20 @@ class FlorenceModel:
         # Multi-GPU: fall back to "auto" so accelerate distributes layers.
         if self.device == "cuda":
             load_kwargs["device_map"] = "auto" if torch.cuda.device_count() > 1 else {"": 0}
-        self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
+        try:
+            self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
+        except AttributeError as exc:
+            # Florence-2 custom code (trust_remote_code) may lack _supports_sdpa in
+            # some transformers versions — retry without attn_implementation.
+            if "_supports_sdpa" not in str(exc) and "attn_implementation" not in str(exc):
+                raise
+            logger.warning(
+                "Florence-2 SDPA check failed (%s) — retrying with eager attention", exc
+            )
+            fallback_kwargs = {k: v for k, v in load_kwargs.items() if k != "attn_implementation"}
+            fallback_kwargs["attn_implementation"] = "eager"
+            self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+            self._generation_mode = "eager"
         if self.device != "cuda":
             self._model = self._model.to(self.device)
         self._model.eval()
@@ -155,6 +245,10 @@ class FlorenceModel:
         precision = "fp16" if (self.device == "cuda" and settings.USE_FP16) else "fp32"
         return f"{_MODEL_BASE_NAME}:{settings.FLORENCE_PROMPT_VERSION}:{precision}"
 
+    @property
+    def runtime_mode(self) -> str:
+        return str(getattr(self, "_generation_mode", "scored"))
+
     # ── internals ─────────────────────────────────────────────────────────────
 
     def _resolve_device(self) -> str:
@@ -186,27 +280,20 @@ class FlorenceModel:
             images=images,
             return_tensors="pt",
             padding=True,
-        ).to(self.device)
+        )
         model_dtype = next(self._model.parameters()).dtype
-        inputs = {
-            k: v.to(model_dtype) if v.is_floating_point() else v
-            for k, v in inputs.items()
-        }
+        inputs = _sanitize_model_inputs(inputs, device=self.device, dtype=model_dtype)
+        if "pixel_values" not in inputs:
+            raise RuntimeError("Florence processor did not produce pixel_values for image batch")
+        if "input_ids" not in inputs:
+            raise RuntimeError("Florence processor did not produce input_ids for prompt batch")
 
-        with torch.no_grad():
-            generated = self._model.generate(
-                **inputs,
-                max_new_tokens=256,
-                output_scores=True,
-                return_dict_in_generate=True,
-                do_sample=False,
-            )
+        generated = self._generate_with_fallback(inputs)
+        sequences = _normalise_sequences(getattr(generated, "sequences", None))
+        scores = getattr(generated, "scores", None)
+        generated_ids = _extract_generated_token_ids(sequences, scores if _scores_are_usable(scores) else None)
 
-        sequences = generated.sequences
-        input_ids_len = inputs["input_ids"].shape[1]
-        generated_ids = sequences[:, input_ids_len:]
-
-        decoded = self._processor.batch_decode(generated_ids, skip_special_tokens=True)
+        decoded = self._processor.batch_decode(sequences, skip_special_tokens=True)
         captions = []
         for raw, img in zip(decoded, images):
             parsed = self._processor.post_process_generation(
@@ -217,8 +304,34 @@ class FlorenceModel:
             text = parsed.get(_TASK_PROMPT, raw)
             captions.append(text.strip() if isinstance(text, str) else "")
 
-        confidences = _compute_confidences(generated.scores, generated_ids)
+        confidences = _compute_confidences(scores if _scores_are_usable(scores) else None, generated_ids)
         return list(zip(captions, confidences))
+
+    def _generate_with_fallback(self, inputs: dict):
+        """Generate captions, retrying without scores when the scored path is unstable."""
+        should_try_scored = self._generation_mode != "eager"
+        if should_try_scored:
+            try:
+                with torch.no_grad():
+                    generated = self._model.generate(**_build_generate_kwargs(inputs, include_scores=True))
+                if _normalise_sequences(getattr(generated, "sequences", None)).shape[0] == 0:
+                    raise RuntimeError("Florence scored generation returned an empty sequence batch")
+                self._generation_mode = "scored"
+                return generated
+            except Exception as exc:
+                if "out of memory" in str(exc).lower():
+                    raise
+                logger.warning(
+                    "Florence scored generation failed (%s) — retrying in caption-only mode",
+                    exc,
+                )
+
+        with torch.no_grad():
+            generated = self._model.generate(**_build_generate_kwargs(inputs, include_scores=False))
+        if _normalise_sequences(getattr(generated, "sequences", None)).shape[0] == 0:
+            raise RuntimeError("Florence caption-only generation returned an empty sequence batch")
+        self._generation_mode = "eager-noscores" if self._generation_mode == "eager" else "caption-only"
+        return generated
 
     def _caption_single(self, image: Image.Image) -> Tuple[str, float]:
         """Caption one image, returning ("", 0.5) on any error."""

@@ -18,3 +18,18 @@ def test_rfdetr_weights_path_uses_data_dir_and_migrates_legacy(tmp_path, monkeyp
     assert resolved == data_dir.resolve() / "models" / "rfdetr" / "rf-detr-base.pth"
     assert resolved.exists()
     assert not legacy.exists()
+
+
+def test_expand_target_labels_maps_abstract_vehicle_category_to_detector_labels():
+    expanded = rfdetr._expand_target_labels(["vehicle"])
+
+    assert "vehicle" in expanded
+    assert "car" in expanded
+    assert "truck" in expanded
+
+
+def test_label_matches_any_handles_alias_expansion_inputs():
+    expanded = rfdetr._expand_target_labels(["person"])
+
+    assert rfdetr._label_matches_any("pedestrian", expanded) is True
+    assert rfdetr._label_matches_any("truck", expanded) is False

@@ -136,6 +136,12 @@ class Settings:
     )
     GEMMA_API_MODEL = _env("GEMMA_API_MODEL", _gemma_api_model_default)
     GEMMA_API_TIMEOUT_SEC = _env_int("GEMMA_API_TIMEOUT_SEC", 60)
+    GEMMA_ANALYSIS_MAX_SAMPLE_FRAMES = _env_int("GEMMA_ANALYSIS_MAX_SAMPLE_FRAMES", 30)
+    GEMMA_TRACKING_MAX_SAMPLE_FRAMES = _env_int("GEMMA_TRACKING_MAX_SAMPLE_FRAMES", 12)
+    GEMMA_MIN_SAMPLE_FRAMES = _env_int("GEMMA_MIN_SAMPLE_FRAMES", 6)
+    GEMMA_STABLE_FRAME_DIFF_THRESHOLD = _env_float("GEMMA_STABLE_FRAME_DIFF_THRESHOLD", 0.025)
+    GEMMA_CACHE_RESPONSES = _env("GEMMA_CACHE_RESPONSES", "true").lower() == "true"
+    GEMMA_SLOW_CALL_SEC = _env_float("GEMMA_SLOW_CALL_SEC", 8.0)
     # Max frames captioned per mission via Gemma; ranked by histogram-diff quality score.
     # Remaining frames fall back to Florence.  0 = caption all frames via Gemma.
     GEMMA_MAX_CAPTION_FRAMES = _env_int("GEMMA_MAX_CAPTION_FRAMES", 200)

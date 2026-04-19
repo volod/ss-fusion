@@ -59,6 +59,8 @@ from .registry import auto_select, detect_resources, normalize_model_id
 logger = get_logger(__name__)
 
 _VIDEOMAE_PREFIXES = ("MCG-NJU/videomae", "MCG-NJU/VideoMAE")
+
+
 def _resolve_model_id() -> str:
     cfg = settings.WORLD_MODEL.strip()
     if cfg and cfg.lower() != "auto":
@@ -130,7 +132,8 @@ class WorldModel:
                 raise RuntimeError("World model preprocessor did not return pixel_values")
             inputs["pixel_values"] = pixel_values
             device = _get_device()
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+            model_dtype = _get_model_dtype(model)
+            inputs = _prepare_model_inputs(inputs, device=device, dtype=model_dtype)
 
             with torch.no_grad():
                 outputs = model(**inputs)
@@ -270,6 +273,34 @@ def _sample_exact_frames(images: List[Image.Image], target: int) -> List[Image.I
     last = len(images) - 1
     indices = [round(i * last / max(target - 1, 1)) for i in range(target)]
     return [images[i] for i in indices]
+
+
+def _get_model_dtype(model) -> Any:
+    try:
+        return next(model.parameters()).dtype
+    except StopIteration:
+        try:
+            import torch
+
+            return torch.float32
+        except ImportError:
+            return None
+
+
+def _prepare_model_inputs(inputs: Dict[str, Any], *, device: str, dtype: Any) -> Dict[str, Any]:
+    """Move tensors to the target device and align floating tensors with model dtype."""
+    prepared: Dict[str, Any] = {}
+    for key, value in inputs.items():
+        if value is None:
+            continue
+        if hasattr(value, "to"):
+            if getattr(value, "is_floating_point", lambda: False)() and dtype is not None:
+                prepared[key] = value.to(device=device, dtype=dtype)
+            else:
+                prepared[key] = value.to(device=device)
+        else:
+            prepared[key] = value
+    return prepared
 
 
 def _normalise_video_pixel_values(pixel_values, target_frames: int):

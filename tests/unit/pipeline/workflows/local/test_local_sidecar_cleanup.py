@@ -79,3 +79,15 @@ def test_guard_min_free_vram_raises_when_headroom_too_low(monkeypatch):
         return
 
     raise AssertionError("expected RuntimeError when free VRAM is too low")
+
+
+def test_restore_models_to_gpu_skips_when_vram_is_too_low(monkeypatch):
+    monkeypatch.setattr(sc, "_flush_cuda_allocator", lambda: None)
+    monkeypatch.setattr(sc, "_detect_free_vram_gb", lambda: 1.5)
+
+    models = {"clip": SimpleNamespace(model=_FakeBackbone()), "dino": None}
+
+    restored = sc._restore_models_to_gpu(models, "cuda")
+
+    assert restored is False
+    assert sc._models_on_device(models, "cpu") is True

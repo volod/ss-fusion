@@ -347,3 +347,94 @@ def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeyp
     assert payload["sam_enabled"] is True
     assert payload["frames"][0]["sam_masks"][0]["source"] == "gemma_bbox"
     assert "SAM directed segmentation produced **2 masks**." in summary_path.read_text(encoding="utf-8")
+
+
+def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pass_is_empty(monkeypatch, tmp_path):
+    tracking = _load_steps_module()
+
+    frame_a = tmp_path / "frame_a.jpg"
+    _write_frame(frame_a, (255, 0, 0))
+    frame_list = [(str(frame_a), 0.0)]
+
+    gemma_scene = {
+        "scene_type": "urban_street",
+        "dominant_objects": [{"category": "vehicle", "rough_bbox": [0.2, 0.2, 0.5, 0.5]}],
+        "areas_of_interest": [],
+        "motion_present": False,
+        "tracking_priority": ["vehicle"],
+    }
+    monkeypatch.setattr(tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene)
+
+    class FakeTracker:
+        def __init__(self) -> None:
+            self.model_id = "rfdetr_base"
+            self.calls = []
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def track_sequence(self, frames, target_labels=None):
+            self.calls.append(target_labels)
+            if target_labels:
+                return [{"frame_path": str(frame_a), "t_sec": 0.0, "detections": []}]
+            return [{
+                "frame_path": str(frame_a),
+                "t_sec": 0.0,
+                "detections": [{
+                    "label": "truck",
+                    "confidence": 0.9,
+                    "bbox_norm": [0.1, 0.1, 0.4, 0.4],
+                    "track_id": 1,
+                    "priority": 2,
+                    "priority_label": "vehicle",
+                }],
+            }]
+
+        def release(self) -> None:
+            pass
+
+    monkeypatch.setattr(tracking, "RFDETRTracker", FakeTracker)
+    monkeypatch.setattr(tracking.settings, "RFDETR_ENABLED", True)
+    monkeypatch.setattr(tracking.settings, "SAM_ENABLED", False)
+    monkeypatch.setattr(tracking.settings, "GEMMA_API_TIMEOUT_SEC", 3.0)
+
+    result = tracking.step_gemma_directed_tracking(
+        frame_list=frame_list,
+        video_name="demo-video",
+        video_dir=tmp_path,
+        device="cpu",
+        models={"clip": object()},
+        gemma_api_url="http://gemma.local/v1",
+        gemma_api_model="gemma4:e4b",
+    )
+
+    assert result["skipped"] is False
+    assert result["total_objects"] == 1
+
+
+def test_normalise_tracking_targets_drops_scene_nouns():
+    tracking = _load_steps_module()
+
+    targets = tracking._normalise_tracking_targets(
+        ["vehicle", "intersection", "road", "traffic"],
+        [{"category": "truck"}],
+    )
+
+    assert targets == ["vehicle"]
+
+
+def test_scene_is_actionable_requires_detector_aligned_targets():
+    tracking = _load_steps_module()
+
+    assert tracking._scene_is_actionable(
+        {
+            "tracking_priority": ["intersection", "roadway"],
+            "dominant_objects": [],
+        }
+    ) is False
+    assert tracking._scene_is_actionable(
+        {
+            "tracking_priority": ["vehicle", "roadway"],
+            "dominant_objects": [],
+        }
+    ) is True

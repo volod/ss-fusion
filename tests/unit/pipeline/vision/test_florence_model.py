@@ -9,6 +9,8 @@ can run anywhere without model weights.
 
 import pytest
 import torch
+from types import SimpleNamespace
+from PIL import Image
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -106,6 +108,168 @@ def test_compute_confidences_padding_skipped():
     confs = _compute_confidences((step0,), generated_ids)
     # token 1 is skipped, count[0]=0 → fallback 0.5
     assert confs == [0.5]
+
+
+def test_sanitize_model_inputs_drops_none_and_casts_float_tensor():
+    from selfsuvis.pipeline.vision.florence import _sanitize_model_inputs
+
+    inputs = {
+        "pixel_values": torch.ones(1, 3, 4, 4, dtype=torch.float32),
+        "input_ids": torch.ones(1, 2, dtype=torch.long),
+        "token_type_ids": None,
+    }
+
+    cleaned = _sanitize_model_inputs(inputs, device="cpu", dtype=torch.float16)
+
+    assert "token_type_ids" not in cleaned
+    assert cleaned["pixel_values"].dtype == torch.float16
+    assert cleaned["input_ids"].dtype == torch.long
+
+
+def test_extract_generated_token_ids_uses_scores_length_not_prompt_length():
+    from selfsuvis.pipeline.vision.florence import _extract_generated_token_ids
+
+    sequences = torch.tensor([[11, 12, 13, 14]])
+    scores = (torch.zeros(1, 10), torch.zeros(1, 10))
+
+    generated_ids = _extract_generated_token_ids(sequences, scores)
+
+    assert generated_ids.tolist() == [[13, 14]]
+
+
+def test_scores_are_usable_rejects_none_entries():
+    from selfsuvis.pipeline.vision.florence import _scores_are_usable
+
+    assert _scores_are_usable((torch.zeros(1, 10),)) is True
+    assert _scores_are_usable((None,)) is False
+    assert _scores_are_usable(None) is False
+
+
+def test_run_inference_accepts_missing_scores(monkeypatch):
+    from selfsuvis.pipeline.vision.florence import FlorenceModel
+
+    class _FakeProcessor:
+        def __call__(self, **kwargs):
+            return {
+                "pixel_values": torch.ones(1, 3, 4, 4),
+                "input_ids": torch.ones(1, 2, dtype=torch.long),
+            }
+
+        def batch_decode(self, sequences, skip_special_tokens=True):
+            return ["road scene"]
+
+        def post_process_generation(self, raw, task, image_size):
+            return {task: raw}
+
+    model = object.__new__(FlorenceModel)
+    model.device = "cpu"
+    model._generation_mode = "scored"
+    model._model = SimpleNamespace(parameters=lambda: iter([torch.zeros(1)]))
+    model._processor = _FakeProcessor()
+
+    monkeypatch.setattr(
+        model,
+        "_generate_with_fallback",
+        lambda inputs: SimpleNamespace(sequences=torch.tensor([[11, 12, 13]]), scores=None),
+    )
+
+    results = model._run_inference([Image.new("RGB", (8, 8))])
+
+    assert results == [("road scene", 0.5)]
+
+
+def test_run_inference_accepts_scores_tuple_with_none_entries(monkeypatch):
+    from selfsuvis.pipeline.vision.florence import FlorenceModel
+
+    class _FakeProcessor:
+        def __call__(self, **kwargs):
+            return {
+                "pixel_values": torch.ones(1, 3, 4, 4),
+                "input_ids": torch.ones(1, 2, dtype=torch.long),
+            }
+
+        def batch_decode(self, sequences, skip_special_tokens=True):
+            return ["bridge"]
+
+        def post_process_generation(self, raw, task, image_size):
+            return {task: raw}
+
+    model = object.__new__(FlorenceModel)
+    model.device = "cpu"
+    model._generation_mode = "scored"
+    model._model = SimpleNamespace(parameters=lambda: iter([torch.zeros(1)]))
+    model._processor = _FakeProcessor()
+
+    monkeypatch.setattr(
+        model,
+        "_generate_with_fallback",
+        lambda inputs: SimpleNamespace(sequences=torch.tensor([[11, 12]]), scores=(None, None)),
+    )
+
+    results = model._run_inference([Image.new("RGB", (8, 8))])
+
+    assert results == [("bridge", 0.5)]
+
+
+def test_generate_with_fallback_uses_caption_only_mode_for_eager_runtime():
+    from selfsuvis.pipeline.vision.florence import FlorenceModel
+
+    calls = []
+
+    class _FakeModel:
+        def generate(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(sequences=torch.tensor([[11, 12, 13]]), scores=None)
+
+    model = object.__new__(FlorenceModel)
+    model.device = "cpu"
+    model._generation_mode = "eager"
+    model._model = _FakeModel()
+
+    generated = model._generate_with_fallback(
+        {
+            "pixel_values": torch.ones(1, 3, 4, 4),
+            "input_ids": torch.ones(1, 2, dtype=torch.long),
+        }
+    )
+
+    assert generated.sequences.tolist() == [[11, 12, 13]]
+    assert len(calls) == 1
+    assert calls[0]["output_scores"] is False
+    assert calls[0]["num_beams"] == 1
+    assert calls[0]["use_cache"] is False
+    assert model.runtime_mode == "eager-noscores"
+
+
+def test_generate_with_fallback_retries_caption_only_after_scored_failure():
+    from selfsuvis.pipeline.vision.florence import FlorenceModel
+
+    calls = []
+
+    class _FakeModel:
+        def generate(self, **kwargs):
+            calls.append(kwargs)
+            if kwargs["output_scores"] is True:
+                raise AttributeError("'NoneType' object has no attribute 'shape'")
+            return SimpleNamespace(sequences=torch.tensor([[21, 22]]), scores=None)
+
+    model = object.__new__(FlorenceModel)
+    model.device = "cpu"
+    model._generation_mode = "scored"
+    model._model = _FakeModel()
+
+    generated = model._generate_with_fallback(
+        {
+            "pixel_values": torch.ones(1, 3, 4, 4),
+            "input_ids": torch.ones(1, 2, dtype=torch.long),
+        }
+    )
+
+    assert generated.sequences.tolist() == [[21, 22]]
+    assert [call["output_scores"] for call in calls] == [True, False]
+    assert all(call["num_beams"] == 1 for call in calls)
+    assert all(call["use_cache"] is False for call in calls)
+    assert model.runtime_mode == "caption-only"
 
 
 # ── GPU tests ─────────────────────────────────────────────────────────────────

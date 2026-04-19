@@ -301,7 +301,7 @@ class DINOEmbedder:
                 with torch.no_grad():
                     try:
                         if settings.USE_FP16 and str(actual_device).startswith("cuda"):
-                            with torch.cuda.amp.autocast():
+                            with torch.amp.autocast("cuda"):
                                 feats = self.model(tensors)
                         else:
                             feats = self.model(tensors)

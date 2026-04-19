@@ -43,7 +43,7 @@ class OpenCLIPEmbedder:
                 tensors = torch.stack([self.preprocess(img) for img in batch]).to(actual_device)
                 with torch.no_grad():
                     if settings.USE_FP16 and str(actual_device).startswith("cuda"):
-                        with torch.cuda.amp.autocast():
+                        with torch.amp.autocast("cuda"):
                             feats = self.model.encode_image(tensors)
                     else:
                         feats = self.model.encode_image(tensors)
@@ -78,7 +78,7 @@ class OpenCLIPEmbedder:
                 tokens = self.tokenizer(batch).to(actual_device)
                 with torch.no_grad():
                     if settings.USE_FP16 and str(actual_device).startswith("cuda"):
-                        with torch.cuda.amp.autocast():
+                        with torch.amp.autocast("cuda"):
                             feats = self.model.encode_text(tokens)
                     else:
                         feats = self.model.encode_text(tokens)

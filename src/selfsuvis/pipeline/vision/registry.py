@@ -366,6 +366,10 @@ _TASK_RUNTIME_FALLBACKS: Dict[str, Dict[str, str]] = {
         # ViViT feature extractor is unrecognized in transformers >= 4.50;
         # fall back to VideoMAE-Base which uses AutoImageProcessor correctly.
         "google/vivit-": "MCG-NJU/videomae-base",
+        # InternVideo2 and VideoMAEv2 use a custom model_type not in transformers'
+        # model registry; AutoModel.from_pretrained raises ValueError at load time.
+        "OpenGVLab/InternVideo2-": "MCG-NJU/videomae-base",
+        "OpenGVLab/VideoMAEv2-": "MCG-NJU/videomae-base",
     }
 }
 
