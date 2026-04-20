@@ -1,6 +1,7 @@
 """Unit tests for pipeline/ocr_model.py — no GPU or model loading required."""
 import io
 import base64
+import time
 import pytest
 from unittest.mock import MagicMock, patch
 from PIL import Image
@@ -203,6 +204,16 @@ def test_encode_b64_is_ascii_string():
     result.encode("ascii")  # should not raise
 
 
+def test_encode_b64_resizes_large_image(monkeypatch):
+    import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import _encode_b64
+
+    monkeypatch.setattr(ocr_model.settings, "OCR_IMAGE_MAX_SIDE", 40)
+    b64str = _encode_b64(_make_image(160, 80))
+    decoded = Image.open(io.BytesIO(base64.b64decode(b64str)))
+    assert max(decoded.size) <= 40
+
+
 # ── extract_text_batch — batch size matches input ─────────────────────────────
 
 def test_extract_text_batch_length_matches_input(monkeypatch):
@@ -217,3 +228,29 @@ def test_extract_text_batch_length_matches_input(monkeypatch):
     with patch.object(model, "_extract_trocr", return_value="text"):
         results = model.extract_text_batch([_make_image() for _ in range(5)])
     assert len(results) == 5
+
+
+def test_extract_text_batch_vllm_parallel_preserves_order(monkeypatch):
+    from selfsuvis.pipeline.vision.ocr import OCRModel
+    import selfsuvis.pipeline.vision.ocr as ocr_model
+
+    monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", True)
+    monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "http://localhost:8010/v1")
+    monkeypatch.setattr(ocr_model.settings, "OCR_SIDECAR_CONCURRENCY", 3)
+
+    model = OCRModel()
+    model._model_id = "some-sidecar-model"
+    model._backend = "vllm"
+
+    call_idx = {"value": 0}
+
+    def fake_extract(_img):
+        idx = call_idx["value"]
+        call_idx["value"] += 1
+        time.sleep(0.03 * (3 - idx))
+        return {"ocr_text": f"text-{idx}", "ocr_model": model.model_id}
+
+    with patch.object(model, "_extract_one", side_effect=fake_extract):
+        results = model.extract_text_batch([_make_image() for _ in range(3)])
+
+    assert [r["ocr_text"] for r in results] == ["text-0", "text-1", "text-2"]

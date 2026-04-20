@@ -91,3 +91,45 @@ def test_restore_models_to_gpu_skips_when_vram_is_too_low(monkeypatch):
 
     assert restored is False
     assert sc._models_on_device(models, "cpu") is True
+
+
+def test_select_qwen_frames_keeps_boundaries_and_ocr(monkeypatch):
+    frame_list = [(f"frame_{i:02d}.jpg", float(i)) for i in range(10)]
+    ocr_map = {2.0: "speed limit", 7.0: "exit"}
+
+    selected = sc._select_qwen_frames(
+        frame_list,
+        max_frames=5,
+        knowledge=None,
+        ocr_map=ocr_map,
+    )
+
+    selected_ts = [t for _fp, t in selected]
+    assert 0.0 in selected_ts
+    assert 9.0 in selected_ts
+    assert 2.0 in selected_ts
+    assert 7.0 in selected_ts
+    assert len(selected) == 5
+
+
+def test_select_qwen_frames_uses_segment_boundaries():
+    frame_list = [(f"frame_{i:02d}.jpg", float(i)) for i in range(12)]
+    knowledge = SimpleNamespace(
+        _segments=[
+            {"start_t": 0.0, "end_t": 3.0, "segment_id": 0},
+            {"start_t": 4.0, "end_t": 7.0, "segment_id": 1},
+            {"start_t": 8.0, "end_t": 11.0, "segment_id": 2},
+        ]
+    )
+
+    selected = sc._select_qwen_frames(
+        frame_list,
+        max_frames=6,
+        knowledge=knowledge,
+        ocr_map={},
+    )
+
+    selected_ts = [t for _fp, t in selected]
+    assert 0.0 in selected_ts
+    assert 4.0 in selected_ts
+    assert 8.0 in selected_ts

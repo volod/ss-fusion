@@ -19,6 +19,7 @@ dict with keys:
     gsplat_method : str       — gsplat method or "skipped"
 """
 import json
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -179,6 +180,7 @@ def build_sparse_map(
     run_gsplat_flag : train 3D Gaussians with gsplat when True (CUDA required)
     device          : torch device string passed to gsplat
     """
+    t0 = time.time()
     map_dir = Path(map_dir)
     map_dir.mkdir(parents=True, exist_ok=True)
     npz_path   = map_dir / "sparse_map.npz"
@@ -253,6 +255,7 @@ def build_sparse_map(
         "sfm_poses":     sfm_poses,
         "scene_count":   scene_count,
         "frame_anchor_count": len(frame_positions),
+        "elapsed_sec":   round(time.time() - t0, 3),
         "npz":           str(npz_path),
         "ply":           str(ply_path),
         "gsplat_method": gsplat_method,
@@ -275,6 +278,7 @@ def build_sparse_map(
         "scene_count":   scene_count,
         "method":        method,
         "frame_positions": frame_positions,
+        "elapsed_sec":   time.time() - t0,
         "splat_ply":     splat_ply,
         "viewer_html":   viewer_html,
         "gsplat_method": gsplat_method,

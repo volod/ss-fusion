@@ -176,7 +176,7 @@ class ASRModel:
                 "automatic-speech-recognition",
                 model=model_id,
                 device=device,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
             )
             logger.info("ASR model loaded: %s on %s (dtype=%s)", model_id, device, torch_dtype)
         except Exception:

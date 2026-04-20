@@ -27,11 +27,13 @@ CLI override::
 """
 
 import gc
+import logging
 from typing import Any, Dict, List, Optional
 
 from PIL import Image
 
 from selfsuvis.pipeline.core import get_logger, is_cuda_oom, pipeline_device_arg, resolve_device, settings
+from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 
 from .registry import resolve_model_id
 
@@ -39,7 +41,28 @@ logger = get_logger(__name__)
 
 
 def _resolve_model_id() -> str:
+    cfg = (settings.DEPTH_MODEL or "").strip()
+    if cfg and cfg.lower() != "auto":
+        return cfg
+    if getattr(settings, "DEPTH_AUTO_PROFILE", "fast").lower() == "fast":
+        # Local pipeline stores only 5-bucket normalized depth percentiles, so
+        # a compact model is a better default than DepthPro's higher-cost metric depth.
+        return "depth-anything/Depth-Anything-V2-Base-hf"
     return resolve_model_id(settings.DEPTH_MODEL, "depth", "depth-anything/Depth-Anything-V2-Small-hf")
+
+
+def _prepare_depth_image(image: Image.Image) -> Image.Image:
+    """Downscale oversized frames before depth inference.
+
+    Percentile summaries are robust to moderate resizing, and reducing spatial
+    resolution materially improves throughput for local depth estimation.
+    """
+    max_side = max(0, int(getattr(settings, "DEPTH_IMAGE_MAX_SIDE", 0) or 0))
+    if not max_side or max(image.size) <= max_side:
+        return image
+    resized = image.copy()
+    resized.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+    return resized
 
 
 class DepthModel:
@@ -68,6 +91,7 @@ class DepthModel:
         """Return depth summary dicts for a list of images."""
         if not self.is_enabled():
             return [{"depth_disabled": True}] * len(images)
+        images = [_prepare_depth_image(img) for img in images]
         pipe = self._get_pipe()
         if pipe is None:
             return [{"depth_unavailable": True}] * len(images)
@@ -76,6 +100,7 @@ class DepthModel:
     def estimate(self, image: Image.Image) -> Dict[str, Any]:
         if not self.is_enabled():
             return {"depth_disabled": True}
+        image = _prepare_depth_image(image)
         pipe = self._get_pipe()
         if pipe is None:
             return {"depth_unavailable": True}
@@ -95,7 +120,14 @@ class DepthModel:
 
     def _estimate_one(self, image: Image.Image, pipe) -> Dict[str, Any]:
         try:
-            return self._normalise_depth_output(pipe(image))
+            with suppress_runtime_noise(
+                r"You seem to be using the pipelines sequentially on GPU.*",
+                logger_levels={
+                    "transformers": logging.ERROR,
+                    "transformers.pipelines.base": logging.ERROR,
+                },
+            ):
+                return self._normalise_depth_output(pipe(image))
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
                 logger.warning(
@@ -113,7 +145,14 @@ class DepthModel:
 
     def _estimate_many(self, images: List[Image.Image], pipe) -> List[Dict[str, Any]]:
         try:
-            raw_outputs = pipe(images)
+            with suppress_runtime_noise(
+                r"You seem to be using the pipelines sequentially on GPU.*",
+                logger_levels={
+                    "transformers": logging.ERROR,
+                    "transformers.pipelines.base": logging.ERROR,
+                },
+            ):
+                raw_outputs = pipe(images)
             if isinstance(raw_outputs, list) and len(raw_outputs) == len(images):
                 return [self._normalise_depth_output(output) for output in raw_outputs]
         except Exception as exc:
@@ -163,7 +202,7 @@ class DepthModel:
                 "depth-estimation",
                 model=self.model_id,
                 device=pipeline_device_arg(target_device),
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
             )
             self._device = target_device
             logger.info("Depth model loaded: %s on %s", self.model_id, target_device)

@@ -5,7 +5,9 @@ Compatible with: pip install openai httpx pillow pytest
 """
 
 import base64
+import io
 import json
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -131,6 +133,16 @@ def test_encode_image_base64_is_valid_base64(small_image):
     assert len(decoded) > 0
 
 
+def test_encode_image_base64_resizes_large_image(monkeypatch):
+    import selfsuvis.pipeline.vision.qwen as qm
+
+    monkeypatch.setattr(qm.settings, "QWEN_IMAGE_MAX_SIDE", 32)
+    large = Image.new("RGB", (128, 64), color=(1, 2, 3))
+    encoded = _encode_image_base64(large)
+    decoded = Image.open(io.BytesIO(base64.b64decode(encoded)))
+    assert max(decoded.size) <= 32
+
+
 # ── QwenModel disabled tests ──────────────────────────────────────────────────
 
 
@@ -151,6 +163,30 @@ def test_qwen_model_extract_batch_disabled(disabled_settings, small_image):
     assert isinstance(results, list)
     assert len(results) == 2
     assert all(r == {"disabled": True} for r in results)
+
+
+def test_qwen_extract_batch_parallel_preserves_order(monkeypatch, small_image):
+    import selfsuvis.pipeline.vision.qwen as qm
+
+    monkeypatch.setattr(qm.settings, "GEMMA_API_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(qm.settings, "QWEN_API_URL", "")
+    monkeypatch.setattr(qm.settings, "QWEN_SIDECAR_CONCURRENCY", 3)
+
+    model = QwenModel()
+    model._healthy = True
+
+    def fake_extract(image, subtitle_text=None, ocr_text=None, extra_context=None, domain_hint=None):
+        idx = int(subtitle_text)
+        time.sleep(0.03 * (3 - idx))
+        return {"scene_summary": f"frame-{idx}"}
+
+    with patch.object(model, "_extract_frame_facts_with_context", side_effect=fake_extract):
+        results = model.extract_batch(
+            [small_image, small_image, small_image],
+            subtitle_texts=["0", "1", "2"],
+        )
+
+    assert [r["scene_summary"] for r in results] == ["frame-0", "frame-1", "frame-2"]
 
 
 # ── Health check tests ────────────────────────────────────────────────────────

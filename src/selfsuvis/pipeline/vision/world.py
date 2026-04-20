@@ -211,7 +211,7 @@ class WorldModel:
                 )
                 self._model = AutoModel.from_pretrained(
                     source_label,
-                    torch_dtype=torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32,
+                    dtype=torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32,
                     **load_kwargs,
                 ).to(device).eval()
                 self._model_id = candidate_id

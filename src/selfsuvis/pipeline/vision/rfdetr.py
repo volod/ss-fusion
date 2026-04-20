@@ -32,8 +32,11 @@ import numpy as np
 from PIL import Image
 
 from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 
 logger = get_logger(__name__)
+logging.getLogger("rfdetr").setLevel(logging.ERROR)
+logging.getLogger("rfdetr.main").setLevel(logging.ERROR)
 
 # ── Priority taxonomy (mirrors pipeline/vision/yolo.py) ───────────────────────
 
@@ -43,6 +46,27 @@ _VEHICLE_LABELS = frozenset({
     "bicycle", "car", "motorcycle", "airplane", "bus", "train",
     "truck", "boat", "van", "vehicle", "motorbike", "bike",
 })
+
+# COCO 80-class index → name; used as fallback when supervision doesn't return class_name
+_COCO_CLASSES: Dict[int, str] = {
+    0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
+    5: "bus", 6: "train", 7: "truck", 8: "boat", 9: "traffic light",
+    10: "fire hydrant", 11: "stop sign", 12: "parking meter", 13: "bench",
+    14: "bird", 15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow",
+    20: "elephant", 21: "bear", 22: "zebra", 23: "giraffe", 24: "backpack",
+    25: "umbrella", 26: "handbag", 27: "tie", 28: "suitcase", 29: "frisbee",
+    30: "skis", 31: "snowboard", 32: "sports ball", 33: "kite", 34: "baseball bat",
+    35: "baseball glove", 36: "skateboard", 37: "surfboard", 38: "tennis racket",
+    39: "bottle", 40: "wine glass", 41: "cup", 42: "fork", 43: "knife",
+    44: "spoon", 45: "bowl", 46: "banana", 47: "apple", 48: "sandwich",
+    49: "orange", 50: "broccoli", 51: "carrot", 52: "hot dog", 53: "pizza",
+    54: "donut", 55: "cake", 56: "chair", 57: "couch", 58: "potted plant",
+    59: "bed", 60: "dining table", 61: "toilet", 62: "tv", 63: "laptop",
+    64: "mouse", 65: "remote", 66: "keyboard", 67: "cell phone", 68: "microwave",
+    69: "oven", 70: "toaster", 71: "sink", 72: "refrigerator", 73: "book",
+    74: "clock", 75: "vase", 76: "scissors", 77: "teddy bear", 78: "hair drier",
+    79: "toothbrush",
+}
 
 PRIORITY_HUMAN = 1
 PRIORITY_VEHICLE = 2
@@ -325,12 +349,38 @@ class RFDETRTracker:
         try:
             if variant == "large":
                 from rfdetr import RFDETRLarge  # type: ignore[import]
-                model = RFDETRLarge(pretrain_weights=weights_path)
+                with suppress_runtime_noise(
+                    r".*loss_type=None.*",
+                    logger_levels={
+                        "rfdetr": logging.ERROR,
+                        "rfdetr.main": logging.ERROR,
+                        "transformers": logging.ERROR,
+                    },
+                ):
+                    model = RFDETRLarge(pretrain_weights=weights_path)
                 self._model_variant = "large"
             else:
                 from rfdetr import RFDETRBase  # type: ignore[import]
-                model = RFDETRBase(pretrain_weights=weights_path)
+                with suppress_runtime_noise(
+                    r".*loss_type=None.*",
+                    logger_levels={
+                        "rfdetr": logging.ERROR,
+                        "rfdetr.main": logging.ERROR,
+                        "transformers": logging.ERROR,
+                    },
+                ):
+                    model = RFDETRBase(pretrain_weights=weights_path)
                 self._model_variant = "base"
+            if hasattr(model, "optimize_for_inference"):
+                with suppress_runtime_noise(
+                    r".*loss_type=None.*",
+                    logger_levels={
+                        "rfdetr": logging.ERROR,
+                        "rfdetr.main": logging.ERROR,
+                        "transformers": logging.ERROR,
+                    },
+                ):
+                    model.optimize_for_inference()
             logger.info("RFDETRTracker: loaded rfdetr_%s (weights=%s)", self._model_variant, weights_path)
             return model
         except ImportError as exc:
@@ -348,7 +398,15 @@ class RFDETRTracker:
         conf_threshold = max(0.05, float(settings.RFDETR_CONFIDENCE))
         try:
             # RF-DETR predict returns a supervision.Detections object
-            sv_dets = model.predict(image, threshold=conf_threshold)
+            with suppress_runtime_noise(
+                r".*loss_type=None.*",
+                logger_levels={
+                    "rfdetr": logging.ERROR,
+                    "rfdetr.main": logging.ERROR,
+                    "transformers": logging.ERROR,
+                },
+            ):
+                sv_dets = model.predict(image, threshold=conf_threshold)
         except Exception as exc:
             logger.debug("RF-DETR inference error: %s", exc)
             return []
@@ -362,8 +420,8 @@ class RFDETRTracker:
             if hasattr(sv_dets, "data") and sv_dets.data:
                 class_names = sv_dets.data.get("class_name")
             if class_names is None and sv_dets.class_id is not None:
-                # Fallback: use numeric class ID as label
-                class_names = [str(int(c)) for c in sv_dets.class_id]
+                # Fallback: map COCO class IDs to names; keeps label-filter logic working
+                class_names = [_COCO_CLASSES.get(int(c), str(int(c))) for c in sv_dets.class_id]
             if class_names is None:
                 return []
 

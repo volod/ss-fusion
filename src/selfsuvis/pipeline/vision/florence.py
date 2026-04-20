@@ -20,6 +20,7 @@ import torch
 from PIL import Image
 
 from selfsuvis.pipeline.core import get_logger, resolve_device, settings
+from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 
 _TASK_PROMPT = "<MORE_DETAILED_CAPTION>"
 _MODEL_ID = "microsoft/Florence-2-large"
@@ -102,7 +103,7 @@ def _build_generate_kwargs(inputs: dict, *, include_scores: bool) -> dict:
     paths on some transformers builds. Force a simple greedy decode with cache
     disabled so local runs prefer reliability over richer generation metadata.
     """
-    return {
+    kwargs = {
         **inputs,
         "max_new_tokens": 256,
         "return_dict_in_generate": True,
@@ -111,6 +112,10 @@ def _build_generate_kwargs(inputs: dict, *, include_scores: bool) -> dict:
         "use_cache": False,
         "output_scores": include_scores,
     }
+    # Some Florence checkpoints inherit stale generation_config fields such as
+    # early_stopping; explicitly remove them from the runtime kwargs path.
+    kwargs["generation_config"] = None
+    return kwargs
 
 
 class FlorenceModel:
@@ -179,6 +184,9 @@ class FlorenceModel:
         if self.device != "cuda":
             self._model = self._model.to(self.device)
         self._model.eval()
+        generation_config = getattr(self._model, "generation_config", None)
+        if generation_config is not None and hasattr(generation_config, "early_stopping"):
+            generation_config.early_stopping = None
 
         logger.info(
             "Florence-2-large ready (device=%s, dtype=%s)",
@@ -312,7 +320,13 @@ class FlorenceModel:
         should_try_scored = self._generation_mode != "eager"
         if should_try_scored:
             try:
-                with torch.no_grad():
+                with suppress_runtime_noise(
+                    r"The following generation flags are not valid and may be ignored: .*",
+                    logger_levels={
+                        "transformers": logging.ERROR,
+                        "transformers.generation.configuration_utils": logging.ERROR,
+                    },
+                ), torch.no_grad():
                     generated = self._model.generate(**_build_generate_kwargs(inputs, include_scores=True))
                 if _normalise_sequences(getattr(generated, "sequences", None)).shape[0] == 0:
                     raise RuntimeError("Florence scored generation returned an empty sequence batch")
@@ -326,7 +340,13 @@ class FlorenceModel:
                     exc,
                 )
 
-        with torch.no_grad():
+        with suppress_runtime_noise(
+            r"The following generation flags are not valid and may be ignored: .*",
+            logger_levels={
+                "transformers": logging.ERROR,
+                "transformers.generation.configuration_utils": logging.ERROR,
+            },
+        ), torch.no_grad():
             generated = self._model.generate(**_build_generate_kwargs(inputs, include_scores=False))
         if _normalise_sequences(getattr(generated, "sequences", None)).shape[0] == 0:
             raise RuntimeError("Florence caption-only generation returned an empty sequence batch")

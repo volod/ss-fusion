@@ -38,6 +38,7 @@ CLI override examples::
 """
 
 import base64
+import concurrent.futures
 import io
 from typing import Any, Dict, List, Optional
 
@@ -92,6 +93,7 @@ class OCRModel:
         self._processor = None
         self._model = None
         self._got_tokenizer = None
+        self._client = None
         # Permanent load-failure flag — prevents retrying a failed load on every frame
         self._load_failed: bool = False
 
@@ -111,7 +113,23 @@ class OCRModel:
         """
         if not self.is_enabled():
             return [{"ocr_text": None, "ocr_disabled": True}] * len(images)
-        return [self._extract_one(img) for img in images]
+        if self._get_backend() != "vllm":
+            return [self._extract_one(img) for img in images]
+        concurrency = max(1, int(getattr(settings, "OCR_SIDECAR_CONCURRENCY", 1) or 1))
+        if concurrency == 1 or len(images) <= 1:
+            return [self._extract_one(img) for img in images]
+        results: List[Optional[Dict[str, Any]]] = [None] * len(images)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(images))) as pool:
+            future_to_idx = {pool.submit(self._extract_one, img): idx for idx, img in enumerate(images)}
+            for future in concurrent.futures.as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    results[idx] = future.result()
+                except Exception:
+                    logger.warning("OCR sidecar batch item %d failed", idx, exc_info=True)
+                    results[idx] = {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
+        return [r if r is not None else {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
+                for r in results]
 
     def extract_text(self, image: Image.Image) -> Dict[str, Any]:
         """Extract text from a single PIL image."""
@@ -193,14 +211,8 @@ class OCRModel:
             api_url = settings.QWEN_API_URL
             model = settings.QWEN_MODEL
             timeout = max(settings.OCR_TIMEOUT_SEC, settings.QWEN_TIMEOUT_SEC, 180)
-        client = OpenAI(
-            api_key="EMPTY",
-            base_url=api_url,
-            timeout=timeout,
-            max_retries=0,
-        )
         b64 = _encode_b64(image)
-        response = client.chat.completions.create(
+        response = self._client_for(api_url, timeout).chat.completions.create(
             model=model,
             messages=[
                 {
@@ -215,6 +227,19 @@ class OCRModel:
             temperature=0.0,
         )
         return response.choices[0].message.content or ""
+
+    def _client_for(self, api_url: str, timeout: int):
+        if self._client is not None:
+            return self._client
+        from openai import OpenAI
+
+        self._client = OpenAI(
+            api_key="EMPTY",
+            base_url=api_url,
+            timeout=timeout,
+            max_retries=0,
+        )
+        return self._client
 
     # ── GOT-OCR2_0 ───────────────────────────────────────────────────────────
 
@@ -506,6 +531,10 @@ class OCRModel:
 
 
 def _encode_b64(image: Image.Image) -> str:
+    max_side = max(0, int(getattr(settings, "OCR_IMAGE_MAX_SIDE", 0) or 0))
+    if max_side and max(image.size) > max_side:
+        image = image.copy()
+        image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=85)
     return base64.b64encode(buf.getvalue()).decode("ascii")

@@ -13,6 +13,7 @@ The contract: ``extract_frame_facts`` never returns None.
 """
 
 import base64
+import concurrent.futures
 import io
 import json
 import logging
@@ -117,6 +118,10 @@ def _build_user_content(
 
 def _encode_image_base64(image: Image.Image) -> str:
     """Encode a PIL image as a base64 JPEG string (data URI body only)."""
+    max_side = max(0, int(getattr(settings, "QWEN_IMAGE_MAX_SIDE", 0) or 0))
+    if max_side and max(image.size) > max_side:
+        image = image.copy()
+        image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=85)
     return base64.b64encode(buf.getvalue()).decode("ascii")
@@ -215,6 +220,7 @@ class QwenModel:
         self._clip_prescreen_fn = clip_prescreen_fn
         self._tagger = None  # lazily initialised OpenCLIPTagger
         self._healthy: Optional[bool] = None  # cached health state
+        self._client = None
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -301,16 +307,7 @@ class QwenModel:
         _api_url   = settings.GEMMA_API_URL or settings.QWEN_API_URL
         _api_model = settings.GEMMA_API_MODEL if settings.GEMMA_API_URL else settings.QWEN_MODEL
         try:
-            from openai import OpenAI, APITimeoutError
-
-            client = OpenAI(
-                api_key="EMPTY",  # vLLM/ollama do not require a real key
-                base_url=_api_url,
-                timeout=_EFFECTIVE_QWEN_TIMEOUT_SEC,
-                max_retries=0,
-            )
-
-            response = client.chat.completions.create(
+            response = self._client_for(_api_url).chat.completions.create(
                 model=_api_model,
                 messages=[
                     {"role": "system", "content": _QWEN_SYSTEM_PROMPT},
@@ -371,11 +368,29 @@ class QwenModel:
         sub = subtitle_texts if subtitle_texts and len(subtitle_texts) == n else [None] * n
         ocr = ocr_texts if ocr_texts and len(ocr_texts) == n else [None] * n
         ctx = extra_contexts if extra_contexts and len(extra_contexts) == n else [None] * n
+        jobs = list(zip(images, sub, ocr, ctx))
+        if not jobs:
+            return []
 
-        results = []
-        for img, s, o, c in zip(images, sub, ocr, ctx):
-            results.append(self._extract_frame_facts_with_context(img, s, o, c, domain_hint))
-        return results
+        concurrency = max(1, int(getattr(settings, "QWEN_SIDECAR_CONCURRENCY", 1) or 1))
+        if concurrency == 1 or len(jobs) == 1:
+            return [self._extract_frame_facts_with_context(img, s, o, c, domain_hint) for img, s, o, c in jobs]
+
+        max_workers = min(concurrency, len(jobs))
+        results: List[Optional[Dict[str, Any]]] = [None] * len(jobs)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            future_to_idx = {
+                pool.submit(self._extract_frame_facts_with_context, img, s, o, c, domain_hint): idx
+                for idx, (img, s, o, c) in enumerate(jobs)
+            }
+            for future in concurrent.futures.as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    results[idx] = future.result()
+                except Exception:
+                    logger.warning("Gemma batch extraction failed for item %d", idx, exc_info=True)
+                    results[idx] = {"service_unavailable": True}
+        return [r if r is not None else {"service_unavailable": True} for r in results]
 
     def _extract_frame_facts_with_context(
         self,
@@ -500,6 +515,20 @@ class QwenModel:
                 "%s sidecar unreachable (backend=%s url=%s); Phase 2 will be skipped",
                 sidecar, backend, _api_url,
             )
+
+    def _client_for(self, api_url: str):
+        """Reuse one OpenAI client to keep HTTP connections warm across frames."""
+        if self._client is not None:
+            return self._client
+        from openai import OpenAI
+
+        self._client = OpenAI(
+            api_key="EMPTY",
+            base_url=api_url,
+            timeout=_EFFECTIVE_QWEN_TIMEOUT_SEC,
+            max_retries=0,
+        )
+        return self._client
 
     def _lazy_tagger(self):
         """Lazily create and cache an OpenCLIPTagger for vehicle pre-screening."""

@@ -154,6 +154,9 @@ class Settings:
     REASONING_BACKEND = _env("REASONING_BACKEND", GEMMA_API_BACKEND)
     REASONING_MODEL = _env("REASONING_MODEL", "")
     REASONING_TIMEOUT_SEC = _env_int("REASONING_TIMEOUT_SEC", 240)
+    REASONING_MAX_TOKENS_SIMPLE = _env_int("REASONING_MAX_TOKENS_SIMPLE", 700)
+    REASONING_MAX_TOKENS_COMPACT = _env_int("REASONING_MAX_TOKENS_COMPACT", 900)
+    REASONING_MAX_TOKENS_FULL = _env_int("REASONING_MAX_TOKENS_FULL", 1300)
 
     SAM_MODEL_TYPE = _env("SAM_MODEL_TYPE", "vit_h")
     SAM_CHECKPOINT = _env("SAM_CHECKPOINT", "")
@@ -321,6 +324,17 @@ class Settings:
     QWEN_MODEL = _env("QWEN_MODEL", _qwen_model_default)
     QWEN_TIMEOUT_SEC = _env_int("QWEN_TIMEOUT_SEC", 30)
     QWEN_CLIP_THRESHOLD = _env_float("QWEN_CLIP_THRESHOLD", 0.25)
+    _qwen_sidecar_concurrency_default = (
+        1
+        if _env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", "")
+        else 2
+    )
+    _qwen_is_local_ollama = (
+        _env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", "")
+    )
+    QWEN_SIDECAR_CONCURRENCY = max(1, _env_int("QWEN_SIDECAR_CONCURRENCY", _qwen_sidecar_concurrency_default))
+    QWEN_IMAGE_MAX_SIDE = _env_int("QWEN_IMAGE_MAX_SIDE", 768 if _qwen_is_local_ollama else 960)
+    QWEN_MAX_FRAMES = _env_int("QWEN_MAX_FRAMES", 20 if _qwen_is_local_ollama else 24)
 
     # UniDriveVLA external analysis sidecar.
     # Designed for an OpenAI-compatible bridge that serves UniDrive-style
@@ -368,15 +382,31 @@ class Settings:
     OCR_API_URL = _env("OCR_API_URL", "")
     OCR_BATCH_SIZE = _env_int("OCR_BATCH_SIZE", 4)
     OCR_TIMEOUT_SEC = _env_int("OCR_TIMEOUT_SEC", 30)
+    _ocr_sidecar_concurrency_default = (
+        1
+        if "11434" in _env("OCR_API_URL", "")
+        or (
+            not _env("OCR_API_URL", "")
+            and (_env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", ""))
+        )
+        else 2
+    )
+    OCR_SIDECAR_CONCURRENCY = max(1, _env_int("OCR_SIDECAR_CONCURRENCY", _ocr_sidecar_concurrency_default))
+    OCR_IMAGE_MAX_SIDE = _env_int("OCR_IMAGE_MAX_SIDE", 1280)
     # Minimum caption_confidence below which OCR is run (high-confidence frames
     # usually have been captioned well enough; set to 1.0 to OCR all frames).
-    OCR_MIN_CAPTION_CONFIDENCE = _env_float("OCR_MIN_CAPTION_CONFIDENCE", 0.0)
+    OCR_MIN_CAPTION_CONFIDENCE = _env_float("OCR_MIN_CAPTION_CONFIDENCE", 0.55)
 
     # ── Depth estimation ──────────────────────────────────────────────────────
     # Stores 5-bucket depth percentiles in frame_facts_json["depth"].
     # DEPTH_MODEL: "auto" or HuggingFace model ID.
     DEPTH_ENABLED = _env("DEPTH_ENABLED", "false").lower() == "true"
     DEPTH_MODEL = _env("DEPTH_MODEL", "auto")
+    # For the local pipeline we only keep coarse percentile summaries, not dense
+    # metric maps. "fast" prefers a lighter model with better throughput.
+    DEPTH_AUTO_PROFILE = _env("DEPTH_AUTO_PROFILE", "fast")  # "fast" | "quality"
+    DEPTH_BATCH_SIZE = _env_int("DEPTH_BATCH_SIZE", 8)
+    DEPTH_IMAGE_MAX_SIDE = _env_int("DEPTH_IMAGE_MAX_SIDE", 768)
 
     # ── Object detection ──────────────────────────────────────────────────────
     # Stores normalised bounding boxes in frame_facts_json["detections"].
@@ -454,6 +484,29 @@ class Settings:
     # SENSOR_FUSION_MAX_LAG_MS: max timestamp skew for cross-sensor alignment.
     SENSOR_FUSION_ENABLED = _env("SENSOR_FUSION_ENABLED", "true").lower() == "true"
     SENSOR_FUSION_MAX_LAG_MS = _env_int("SENSOR_FUSION_MAX_LAG_MS", 100)
+
+    # ── Probabilistic platform-state fusion ────────────────────────────────────
+    # First probabilistic fusion slice: platform-state estimation on frame times.
+    # Uses GPS extracted from the video plus optional .imu.jsonl / .baro.jsonl
+    # sidecars located next to the source video.
+    STATE_FUSION_ENABLED = _env("STATE_FUSION_ENABLED", "true").lower() == "true"
+    STATE_FUSION_GPS_POS_STD_M = _env_float("STATE_FUSION_GPS_POS_STD_M", 5.0)
+    STATE_FUSION_BARO_ALT_STD_M = _env_float("STATE_FUSION_BARO_ALT_STD_M", 2.5)
+    STATE_FUSION_IMU_ACCEL_STD_MPS2 = _env_float("STATE_FUSION_IMU_ACCEL_STD_MPS2", 1.5)
+    STATE_FUSION_PROCESS_POS_STD_M = _env_float("STATE_FUSION_PROCESS_POS_STD_M", 0.75)
+    STATE_FUSION_PROCESS_VEL_STD_MPS = _env_float("STATE_FUSION_PROCESS_VEL_STD_MPS", 1.5)
+    STATE_FUSION_INIT_VEL_STD_MPS = _env_float("STATE_FUSION_INIT_VEL_STD_MPS", 3.0)
+    STATE_FUSION_CONTEXT_GAP_SEC = _env_float("STATE_FUSION_CONTEXT_GAP_SEC", 1.0)
+    # Visual-pose (SfM → ENU Sim3 alignment)
+    STATE_FUSION_SFM_POS_STD_M = _env_float("STATE_FUSION_SFM_POS_STD_M", 2.0)
+    STATE_FUSION_SFM_MIN_FRAMES = _env_int("STATE_FUSION_SFM_MIN_FRAMES", 6)
+    # Object-state fusion
+    OBJECT_FUSION_ENABLED = _env("OBJECT_FUSION_ENABLED", "true").lower() == "true"
+    OBJECT_FUSION_OBS_NOISE = _env_float("OBJECT_FUSION_OBS_NOISE", 0.005)
+    OBJECT_FUSION_CONFIRM_HITS = _env_int("OBJECT_FUSION_CONFIRM_HITS", 3)
+    OBJECT_FUSION_MAX_MISS = _env_int("OBJECT_FUSION_MAX_MISS", 5)
+    # Map-state RTS smoother
+    MAP_FUSION_SMOOTH = _env("MAP_FUSION_SMOOTH", "true").lower() == "true"
 
     # ── Thermal (FLIR / LWIR cameras) ────────────────────────────────────────────
     # When enabled the pipeline will attempt to load a YOLO-nano fine-tuned on the
