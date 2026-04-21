@@ -245,11 +245,17 @@ class LocalRunLoader:
     def _build_map_stats(self, map_data: Optional[dict]) -> Optional[MapStats]:
         if not map_data:
             return None
+        points = int(
+            map_data.get("points", map_data.get("point_count", 0)) or 0
+        )
+        poses = int(
+            map_data.get("poses", map_data.get("sfm_poses", 0)) or 0
+        )
         return MapStats(
             method=str(map_data.get("method", "") or ""),
-            points=int(map_data.get("points", 0) or 0),
-            poses=int(map_data.get("poses", 0) or 0),
-            degraded=(int(map_data.get("points", 0) or 0) < 50 or int(map_data.get("poses", 0) or 0) < 20),
+            points=points,
+            poses=poses,
+            degraded=(points < 50 or poses < 20),
         )
 
     def _build_artifact_inventory(self) -> ArtifactInventory:
@@ -411,11 +417,23 @@ class LocalRunLoader:
         path = self.run_dir / "multimodal_features.md"
         if not path.exists():
             return 0.0
-        match = re.search(r"OCR:\s*(\d+)/(\d+)\s*frames have text", path.read_text(), re.I)
+        text = path.read_text()
+        match = re.search(r"OCR:\s*(\d+)/(\d+)\s*frames have text", text, re.I)
+        if not match:
+            match = re.search(
+                r"^\|\s*OCR\s*\|\s*[^|]+\|\s*(\d+)\s+frames with text\s*\|$",
+                text,
+                re.I | re.M,
+            )
         if not match:
             return 0.0
         present = int(match.group(1))
-        total = max(int(match.group(2)), 1)
+        if match.lastindex and match.lastindex >= 2:
+            total = int(match.group(2))
+        else:
+            total_match = re.search(r"Total frames\s*:\s*(\d+)", text, re.I)
+            total = int(total_match.group(1)) if total_match else 1
+        total = max(total, 1)
         return present / total
 
     def _parse_top_category(self) -> str:

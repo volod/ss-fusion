@@ -272,6 +272,29 @@ def test_generate_with_fallback_retries_caption_only_after_scored_failure():
     assert model.runtime_mode == "caption-only"
 
 
+def test_caption_batch_chunk_falls_back_to_single_image_on_square_feature_assertion(monkeypatch):
+    from selfsuvis.pipeline.vision.florence import FlorenceModel
+
+    model = object.__new__(FlorenceModel)
+    images = [Image.new("RGB", (32, 24)), Image.new("RGB", (24, 32))]
+    calls = {"single": 0}
+
+    def _raise_batch_failure(_images):
+        raise AssertionError("only support square feature maps for now")
+
+    def _single_result(_image):
+        calls["single"] += 1
+        return (f"caption-{calls['single']}", 0.75)
+
+    monkeypatch.setattr(model, "_run_inference", _raise_batch_failure)
+    monkeypatch.setattr(model, "_caption_single", _single_result)
+
+    results = model._caption_batch_chunk(images, batch_size=2)
+
+    assert results == [("caption-1", 0.75), ("caption-2", 0.75)]
+    assert calls["single"] == 2
+
+
 # ── GPU tests ─────────────────────────────────────────────────────────────────
 
 

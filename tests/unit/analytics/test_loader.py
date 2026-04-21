@@ -161,3 +161,67 @@ def test_local_run_loader_parses_key_artifacts(tmp_path):
     assert summary.artifact_inventory.total_files >= 10
     assert summary.run_health.world_model_ok is False
     assert summary.run_health.ocr_coverage == 0.5
+
+
+def test_local_run_loader_accepts_map_builder_key_names(tmp_path):
+    from selfsuvis.analytics import LocalRunLoader
+
+    run_dir = tmp_path / "mission_b"
+    _write(
+        run_dir / "frames_metadata.json",
+        json.dumps(
+            {
+                "video_id": "mission_b",
+                "fps": 2.0,
+                "frame_count": 1,
+                "duration_sec": 0.5,
+                "frames": [{"path": "frame_1.jpg", "t_sec": 0.0}],
+            }
+        ),
+    )
+    _write(
+        run_dir / "3d_map" / "map_stats.json",
+        json.dumps({"method": "sfm", "point_count": 10, "sfm_poses": 10}),
+    )
+
+    summary = LocalRunLoader(run_dir).load()
+
+    assert summary.map_stats is not None
+    assert summary.map_stats.points == 10
+    assert summary.map_stats.poses == 10
+
+
+def test_local_run_loader_parses_ocr_coverage_from_markdown_table(tmp_path):
+    from selfsuvis.analytics import LocalRunLoader
+
+    run_dir = tmp_path / "mission_c"
+    _write(
+        run_dir / "frames_metadata.json",
+        json.dumps(
+            {
+                "video_id": "mission_c",
+                "fps": 2.0,
+                "frame_count": 51,
+                "duration_sec": 25.5,
+                "frames": [{"path": "frame_1.jpg", "t_sec": 0.0}],
+            }
+        ),
+    )
+    _write(
+        run_dir / "multimodal_features.md",
+        "\n".join(
+            [
+                "# Multimodal Features",
+                "",
+                "Total frames: 51",
+                "",
+                "| Step | Status | Detail |",
+                "|------|--------|--------|",
+                "| OCR | ✓ | 24 frames with text |",
+            ]
+        ),
+    )
+
+    summary = LocalRunLoader(run_dir).load()
+
+    assert summary.run_health.ocr_coverage == 24 / 51

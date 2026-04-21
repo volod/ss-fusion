@@ -28,6 +28,68 @@ _MODEL_BASE_NAME = "florence-2-large"
 
 logger = get_logger(__name__)
 
+_TRANSFORMERS5_PATCHES_APPLIED = False
+
+
+def _apply_florence2_transformers5_patches() -> None:
+    """Shim transformers 4.x APIs that Florence-2's trust_remote_code still uses.
+
+    transformers 5.0 made two breaking changes that affect Florence-2's cached
+    Python files (processing_florence2.py / configuration_florence2.py):
+
+    1. ``PretrainedConfig.forced_bos_token_id`` removed — add None class default.
+    2. ``tokenizer.additional_special_tokens`` renamed to ``extra_special_tokens``
+       — patch PreTrainedTokenizerBase.__getattr__ / __setattr__ to redirect the
+       old name to the new backing store (_extra_special_tokens).
+
+    Patches are applied at most once per process (guarded by the module-level flag).
+    """
+    global _TRANSFORMERS5_PATCHES_APPLIED
+    if _TRANSFORMERS5_PATCHES_APPLIED:
+        return
+    _TRANSFORMERS5_PATCHES_APPLIED = True
+
+    # 1. forced_bos_token_id — removed from PretrainedConfig in transformers 5.0.
+    try:
+        from transformers import PretrainedConfig as _PC
+        if not hasattr(_PC, "forced_bos_token_id"):
+            _PC.forced_bos_token_id = None
+    except Exception:
+        pass
+
+    # 2. additional_special_tokens → extra_special_tokens rename.
+    #    Florence-2's processing_florence2.py reads `tokenizer.additional_special_tokens`.
+    #    In transformers 5.x, PreTrainedTokenizerBase.__getattr__ only handles the new
+    #    name `extra_special_tokens`; the old name falls through to AttributeError.
+    #    We wrap __getattr__ and __setattr__ to redirect the deprecated name.
+    try:
+        from transformers.tokenization_utils_base import PreTrainedTokenizerBase as _PTTB
+
+        if getattr(_PTTB, "_florence2_compat_patched", False):
+            return  # already patched (e.g. second FlorenceModel instance)
+
+        _orig_getattr = _PTTB.__getattr__
+        _orig_setattr = _PTTB.__setattr__
+
+        def _compat_getattr(self, key: str):
+            if key == "additional_special_tokens":
+                return [str(t) for t in self.__dict__.get("_extra_special_tokens", [])]
+            if key == "additional_special_tokens_ids":
+                toks = [str(t) for t in self.__dict__.get("_extra_special_tokens", [])]
+                return self.convert_tokens_to_ids(toks)
+            return _orig_getattr(self, key)
+
+        def _compat_setattr(self, key: str, value):
+            if key == "additional_special_tokens":
+                key = "extra_special_tokens"
+            _orig_setattr(self, key, value)
+
+        _PTTB.__getattr__ = _compat_getattr
+        _PTTB.__setattr__ = _compat_setattr
+        _PTTB._florence2_compat_patched = True  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
 
 def _best_attn_impl() -> str:
     """Return the best available attention backend for Florence-2.
@@ -118,6 +180,13 @@ def _build_generate_kwargs(inputs: dict, *, include_scores: bool) -> dict:
     return kwargs
 
 
+def _is_recoverable_batch_assertion(exc: BaseException) -> bool:
+    """Return True for Florence batch-shape assertions that single-image retries can avoid."""
+    if not isinstance(exc, AssertionError):
+        return False
+    return "only support square feature maps for now" in str(exc).lower()
+
+
 class FlorenceModel:
     """Florence-2-large captioner. Load once; call caption_batch() many times."""
 
@@ -135,6 +204,12 @@ class FlorenceModel:
         self.device = self._resolve_device()
         logger.info("Loading Florence-2-large on %s …", self.device)
 
+        # ── transformers 5.x compatibility patches ─────────────────────────────
+        # Florence-2 uses trust_remote_code whose cached Python files were written
+        # for transformers 4.x.  Two attributes were removed/renamed in 5.x and
+        # must be shimmed before AutoProcessor/AutoModelForCausalLM are called.
+        _apply_florence2_transformers5_patches()
+
         # Clear any leftover VRAM fragmentation before loading the model.
         if self.device == "cuda":
             torch.cuda.empty_cache()
@@ -149,17 +224,23 @@ class FlorenceModel:
             "local_files_only": isinstance(source, Path),
         }
 
-        self._processor = AutoProcessor.from_pretrained(
-            source_label, **load_common_kwargs
-        )
+        with suppress_runtime_noise(
+            r".*Florence2Processor.*image_processor_class = 'CLIPImageProcessor'.*deprecated.*",
+            r".*doesn't directly inherit from `GenerationMixin`.*",
+            r".*will lose the ability to call `generate` and other related functions.*",
+            logger_levels={"transformers": logging.ERROR},
+        ):
+            self._processor = AutoProcessor.from_pretrained(
+                source_label, **load_common_kwargs
+            )
         attn_impl = _best_attn_impl()
         # Flash Attention 2.0 requires float16 or bfloat16; fall back to sdpa for float32.
         if attn_impl == "flash_attention_2" and torch_dtype == torch.float32:
             attn_impl = "sdpa"
         load_kwargs: dict = {
-            # Use torch_dtype (transformers ≥ 4.30 standard); older Florence-2
-            # custom code used dtype — we handle both below via the TypeError fallback.
-            "torch_dtype": torch_dtype,
+            # transformers 5.x now prefers `dtype`; older trust_remote_code
+            # Florence paths may still expect `torch_dtype`, so we fall back.
+            "dtype": torch_dtype,
             "attn_implementation": attn_impl,
         }
         load_kwargs.update(load_common_kwargs)
@@ -170,16 +251,27 @@ class FlorenceModel:
         if self.device == "cuda":
             load_kwargs["device_map"] = "auto" if torch.cuda.device_count() > 1 else {"": 0}
         try:
-            self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
+            with suppress_runtime_noise(
+                r".*doesn't directly inherit from `GenerationMixin`.*",
+                r".*will lose the ability to call `generate` and other related functions.*",
+                logger_levels={"transformers": logging.ERROR},
+            ):
+                self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
         except TypeError as exc:
-            # Older Florence-2 trust_remote_code uses `dtype` instead of `torch_dtype`.
+            # Older Florence-2 trust_remote_code paths may still reject `dtype`
+            # and require the legacy `torch_dtype` kwarg instead.
             if "torch_dtype" not in str(exc) and "dtype" not in str(exc):
                 raise
             fallback_kwargs = {k: v for k, v in load_kwargs.items()
-                               if k not in ("torch_dtype", "attn_implementation")}
-            fallback_kwargs["dtype"] = torch_dtype
+                               if k not in ("dtype", "attn_implementation")}
+            fallback_kwargs["torch_dtype"] = torch_dtype
             fallback_kwargs["attn_implementation"] = "eager"
-            self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+            with suppress_runtime_noise(
+                r".*doesn't directly inherit from `GenerationMixin`.*",
+                r".*will lose the ability to call `generate` and other related functions.*",
+                logger_levels={"transformers": logging.ERROR},
+            ):
+                self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
         except AttributeError as exc:
             # Florence-2 custom code (trust_remote_code) may lack _supports_sdpa in
             # some transformers versions — retry without attn_implementation.
@@ -190,7 +282,12 @@ class FlorenceModel:
             )
             fallback_kwargs = {k: v for k, v in load_kwargs.items() if k != "attn_implementation"}
             fallback_kwargs["attn_implementation"] = "eager"
-            self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+            with suppress_runtime_noise(
+                r".*doesn't directly inherit from `GenerationMixin`.*",
+                r".*will lose the ability to call `generate` and other related functions.*",
+                logger_levels={"transformers": logging.ERROR},
+            ):
+                self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
             self._generation_mode = "eager"
         if self.device != "cuda":
             self._model = self._model.to(self.device)
@@ -281,6 +378,15 @@ class FlorenceModel:
         """Caption one chunk, with OOM fallback to batch=1."""
         try:
             return self._run_inference(images)
+        except AssertionError as exc:
+            if _is_recoverable_batch_assertion(exc) and batch_size > 1:
+                logger.warning(
+                    "Florence batch assertion on batch_size=%d (%s); retrying one image at a time",
+                    batch_size,
+                    exc,
+                )
+                return [self._caption_single(img) for img in images]
+            raise
         except RuntimeError as exc:
             if "out of memory" in str(exc).lower() and batch_size > 1:
                 logger.warning(

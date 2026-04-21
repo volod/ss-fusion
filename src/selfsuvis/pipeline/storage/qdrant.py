@@ -11,7 +11,11 @@ from selfsuvis.pipeline.core import get_logger, settings
 class QdrantStore:
     def __init__(self, clip_dim: int, dino_dim: Optional[int] = None):
         self.logger = get_logger(__name__)
-        self.client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+        self.client = QdrantClient(
+            host=settings.QDRANT_HOST,
+            port=settings.QDRANT_PORT,
+            check_compatibility=False,
+        )
         self.collection = settings.QDRANT_COLLECTION
         self.clip_dim = clip_dim
         self.dino_dim = dino_dim

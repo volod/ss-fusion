@@ -3,6 +3,7 @@ from typing import List, Optional
 import numpy as np
 import torch
 import open_clip
+import warnings
 from PIL import Image
 
 from selfsuvis.pipeline.core.config import settings
@@ -14,11 +15,17 @@ class OpenCLIPEmbedder:
     def __init__(self):
         self.logger = get_logger(__name__)
         self.device = self._resolve_device()
-        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
-            settings.OPENCLIP_MODEL,
-            pretrained=settings.OPENCLIP_PRETRAINED,
-            device=self.device,
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"QuickGELU mismatch between final model config.*",
+                category=UserWarning,
+            )
+            self.model, _, self.preprocess = open_clip.create_model_and_transforms(
+                settings.OPENCLIP_MODEL,
+                pretrained=settings.OPENCLIP_PRETRAINED,
+                device=self.device,
+            )
         self.model.eval()
         self.tokenizer = open_clip.get_tokenizer(settings.OPENCLIP_MODEL)
         self.logger.info(
@@ -106,5 +113,4 @@ class OpenCLIPEmbedder:
 
     def text_dim(self) -> int:
         return self.model.text.output_dim
-
 

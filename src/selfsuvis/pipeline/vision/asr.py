@@ -172,21 +172,21 @@ class ASRModel:
             device = _resolve_device()
             torch_dtype = torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32
 
-            # transformers ≥ 4.37 uses torch_dtype; earlier accepted dtype.
-            # Try torch_dtype first; fall back to dtype if the pipeline rejects it.
+            # transformers 5.x prefers `dtype`; older pipeline builds may still
+            # require `torch_dtype`, so keep a compatibility fallback.
             try:
                 self._pipe = hf_pipeline(
                     "automatic-speech-recognition",
                     model=model_id,
                     device=device,
-                    torch_dtype=torch_dtype,
+                    dtype=torch_dtype,
                 )
             except TypeError:
                 self._pipe = hf_pipeline(
                     "automatic-speech-recognition",
                     model=model_id,
                     device=device,
-                    dtype=torch_dtype,
+                    torch_dtype=torch_dtype,
                 )
             logger.info("ASR model loaded: %s on %s (dtype=%s)", model_id, device, torch_dtype)
         except Exception:

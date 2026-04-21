@@ -69,6 +69,101 @@ def _resolve_model_id() -> str:
     return auto_select("world_model", resources) or "MCG-NJU/videomae-base"
 
 
+def _is_videomae_pretraining_checkpoint(model_id: str, config: Any) -> bool:
+    """Return True when the checkpoint is a VideoMAE pretraining checkpoint.
+
+    Those checkpoints are published as ``VideoMAEForPreTraining`` and include
+    decoder weights that are irrelevant for clip embeddings. Loading them via a
+    generic encoder class produces noisy partial-load reports and can introduce
+    newly initialized attention-bias parameters.
+    """
+    architectures = tuple(getattr(config, "architectures", []) or ())
+    return (
+        str(getattr(config, "model_type", "")).lower() == "videomae"
+        and (
+            "VideoMAEForPreTraining" in architectures
+            or model_id.startswith(_VIDEOMAE_PREFIXES)
+        )
+    )
+
+
+def _remap_videomae_state_dict_for_modern_transformers(state_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert legacy VideoMAE checkpoint keys to the current HF layout.
+
+    Older VideoMAE checkpoints store attention biases as ``q_bias`` / ``v_bias``
+    and omit ``key.bias`` entirely. Newer transformers expect explicit
+    ``query.bias`` / ``key.bias`` / ``value.bias`` tensors.
+    """
+    remapped: Dict[str, Any] = {}
+
+    for key, value in state_dict.items():
+        new_key = key
+        if ".attention.attention.q_bias" in key:
+            new_key = key.replace(".attention.attention.q_bias", ".attention.attention.query.bias")
+        elif ".attention.attention.v_bias" in key:
+            new_key = key.replace(".attention.attention.v_bias", ".attention.attention.value.bias")
+        remapped[new_key] = value
+
+    key_weight_suffix = ".attention.attention.key.weight"
+    for key, value in list(remapped.items()):
+        if not key.endswith(key_weight_suffix):
+            continue
+        bias_key = key.replace(key_weight_suffix, ".attention.attention.key.bias")
+        remapped.setdefault(bias_key, value.new_zeros((value.shape[0],)))
+
+    return remapped
+
+
+def _load_videomae_checkpoint_state_dict(source: Path) -> Dict[str, Any]:
+    safetensors_path = source / "model.safetensors"
+    if safetensors_path.exists():
+        from safetensors.torch import load_file
+
+        return load_file(str(safetensors_path))
+
+    bin_path = source / "pytorch_model.bin"
+    if bin_path.exists():
+        import torch
+
+        return torch.load(bin_path, map_location="cpu")
+
+    raise FileNotFoundError(f"No VideoMAE weights found under {source}")
+
+
+def _load_videomae_encoder_from_local_checkpoint(source: Path, *, device: str, dtype: Any):
+    """Load a local VideoMAE checkpoint as an encoder-only embedding model.
+
+    This avoids the generic HF loader's partial-load path and remaps legacy
+    attention-bias keys so ``strict=True`` loading succeeds.
+    """
+    import torch
+    from transformers import AutoConfig, VideoMAEModel
+
+    config = AutoConfig.from_pretrained(str(source), local_files_only=True, trust_remote_code=True)
+    model = VideoMAEModel(config)
+
+    raw_state = _load_videomae_checkpoint_state_dict(source)
+    encoder_state: Dict[str, Any] = {}
+    for key, value in raw_state.items():
+        if key.startswith("videomae."):
+            encoder_state[key.removeprefix("videomae.")] = value
+        elif key.startswith("encoder."):
+            encoder_state[key] = value
+
+    if not encoder_state:
+        raise RuntimeError(f"No VideoMAE encoder weights found in {source}")
+
+    remapped_state = _remap_videomae_state_dict_for_modern_transformers(encoder_state)
+    missing_keys, unexpected_keys = model.load_state_dict(remapped_state, strict=True, assign=True)
+    if missing_keys or unexpected_keys:
+        raise RuntimeError(
+            "VideoMAE encoder checkpoint remap incomplete: "
+            f"missing={missing_keys} unexpected={unexpected_keys}"
+        )
+
+    return model.to(device=device, dtype=dtype if dtype is not None else torch.float32).eval()
+
+
 class WorldModel:
     """World model interface for scene understanding from video frames.
 
@@ -85,6 +180,7 @@ class WorldModel:
         self._feature_extractor = None
         self._model = None
         self._model_id: Optional[str] = None
+        self._load_note: Optional[str] = None
         self._frame_buffer: List[Image.Image] = []
         self._clip_frames = settings.WORLD_MODEL_CLIP_FRAMES
         self._load_failed: bool = False
@@ -188,7 +284,7 @@ class WorldModel:
             logger.info("Loading world model: %s", source_label)
             try:
                 import torch
-                from transformers import AutoImageProcessor, AutoModel, AutoProcessor
+                from transformers import AutoConfig, AutoImageProcessor, AutoModel, AutoProcessor
 
                 device = _get_device()
                 load_kwargs = {
@@ -209,13 +305,43 @@ class WorldModel:
                     load_kwargs,
                     *_preprocessor_loaders,
                 )
-                self._model = AutoModel.from_pretrained(
-                    source_label,
-                    dtype=torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32,
-                    **load_kwargs,
-                ).to(device).eval()
+                model_dtype = torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32
+                config = AutoConfig.from_pretrained(source_label, **load_kwargs)
+                if _is_videomae_pretraining_checkpoint(candidate_id, config):
+                    if isinstance(source, Path):
+                        self._model = _load_videomae_encoder_from_local_checkpoint(
+                            source,
+                            device=device,
+                            dtype=model_dtype,
+                        )
+                        self._load_note = (
+                            f"legacy VideoMAE checkpoint remapped successfully "
+                            f"(local cache: {source.name})"
+                        )
+                    else:
+                        from transformers import VideoMAEModel
+
+                        self._model = VideoMAEModel.from_pretrained(
+                            source_label,
+                            dtype=model_dtype,
+                            **load_kwargs,
+                        ).to(device).eval()
+                        self._load_note = "VideoMAE encoder loaded via transformers.from_pretrained"
+                    logger.info(
+                        "Using VideoMAE encoder from checkpoint %s for clip embeddings",
+                        source_label,
+                    )
+                else:
+                    self._model = AutoModel.from_pretrained(
+                        source_label,
+                        dtype=model_dtype,
+                        **load_kwargs,
+                    ).to(device).eval()
+                    self._load_note = None
                 self._model_id = candidate_id
                 logger.info("World model loaded: %s on %s", source_label, device)
+                if self._load_note:
+                    logger.info("World model load detail: %s", self._load_note)
                 return self._model, self._feature_extractor
             except Exception as exc:
                 last_exc = exc
