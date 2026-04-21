@@ -8,7 +8,7 @@ def test_resolve_unidrive_backend_fails_without_runtimes(monkeypatch):
     try:
         pm._resolve_unidrive_backend("auto", "owl10/UniDriveVLA_Nusc_Base_Stage3")
     except RuntimeError as exc:
-        assert "Install Ollama" in str(exc)
+        assert "Install vllm" in str(exc) or "vllm" in str(exc)
         return
 
     raise AssertionError("expected RuntimeError when neither Ollama nor vllm is installed")

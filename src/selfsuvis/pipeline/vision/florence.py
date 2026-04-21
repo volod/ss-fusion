@@ -157,7 +157,9 @@ class FlorenceModel:
         if attn_impl == "flash_attention_2" and torch_dtype == torch.float32:
             attn_impl = "sdpa"
         load_kwargs: dict = {
-            "dtype": torch_dtype,
+            # Use torch_dtype (transformers ≥ 4.30 standard); older Florence-2
+            # custom code used dtype — we handle both below via the TypeError fallback.
+            "torch_dtype": torch_dtype,
             "attn_implementation": attn_impl,
         }
         load_kwargs.update(load_common_kwargs)
@@ -169,6 +171,15 @@ class FlorenceModel:
             load_kwargs["device_map"] = "auto" if torch.cuda.device_count() > 1 else {"": 0}
         try:
             self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
+        except TypeError as exc:
+            # Older Florence-2 trust_remote_code uses `dtype` instead of `torch_dtype`.
+            if "torch_dtype" not in str(exc) and "dtype" not in str(exc):
+                raise
+            fallback_kwargs = {k: v for k, v in load_kwargs.items()
+                               if k not in ("torch_dtype", "attn_implementation")}
+            fallback_kwargs["dtype"] = torch_dtype
+            fallback_kwargs["attn_implementation"] = "eager"
+            self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
         except AttributeError as exc:
             # Florence-2 custom code (trust_remote_code) may lack _supports_sdpa in
             # some transformers versions — retry without attn_implementation.

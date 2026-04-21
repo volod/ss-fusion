@@ -50,12 +50,63 @@ _N_FREE_INIT  = 2000    # Initial Gaussians in pose-free mode
 _N_SFM_CAP   = 50_000  # Max Gaussians; prevents OOM on small GPU
 
 
+def _set_cuda_home_for_build() -> None:
+    """Point CUDA_HOME at a toolkit that supports the current GPU architecture.
+
+    gsplat JIT-compiles its CUDA extensions on first import.  If the system nvcc
+    (CUDA_HOME default) is too old for the GPU (e.g. CUDA 12.0 nvcc on Blackwell
+    sm_120), the build fails.  This function resolves the best available toolkit
+    and updates CUDA_HOME + PATH before the build starts, which is transparent to
+    more powerful machines that already have a compatible toolkit on PATH.
+    """
+    import os
+    import subprocess
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return
+        cap = torch.cuda.get_device_capability(0)
+        cc_major = cap[0]
+        # Blackwell (sm_12x) needs CUDA toolkit ≥ 12.8; we look for the best available.
+        # Other architectures are satisfied by the system default.
+        if cc_major < 12:
+            return
+        # Find the highest-versioned CUDA toolkit under /usr/local/cuda-*
+        best_dir, best_ver = "", (0, 0)
+        import glob as _glob
+        for cuda_dir in sorted(_glob.glob("/usr/local/cuda-*")) + ["/usr/local/cuda"]:
+            nvcc_bin = f"{cuda_dir}/bin/nvcc"
+            if not os.path.isfile(nvcc_bin):
+                continue
+            try:
+                out = subprocess.check_output([nvcc_bin, "--version"],
+                                              stderr=subprocess.DEVNULL, text=True)
+                import re
+                m = re.search(r"release (\d+)\.(\d+)", out)
+                if not m:
+                    continue
+                ver = (int(m.group(1)), int(m.group(2)))
+                # Must be ≥ 12.8 for Blackwell; take the highest satisfying version
+                if ver >= (12, 8) and ver > best_ver:
+                    best_dir, best_ver = cuda_dir, ver
+            except Exception:
+                continue
+        if best_dir and os.environ.get("CUDA_HOME", "") != best_dir:
+            logger.debug("gsplat: setting CUDA_HOME=%s (%d.%d) for sm_%d0 build",
+                         best_dir, best_ver[0], best_ver[1], cc_major)
+            os.environ["CUDA_HOME"] = best_dir
+            os.environ["PATH"] = f"{best_dir}/bin:{os.environ.get('PATH', '')}"
+    except Exception:
+        pass
+
+
 def _check_gsplat() -> Tuple[bool, str]:
     """Return (ok, reason). ok=True when gsplat + CUDA are available."""
     try:
         import torch
         if not torch.cuda.is_available():
             return False, "CUDA not available"
+        _set_cuda_home_for_build()
         import gsplat  # noqa: F401
         return True, ""
     except ImportError:

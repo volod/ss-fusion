@@ -241,8 +241,46 @@ class DINOEmbedder:
             model = hub_load_dino(model_name, pretrained=True)
         finally:
             _hub.download_url_to_file = _orig_download
-        model = model.to(self.device)
-        _set_dino_xformers_enabled(str(self.device).startswith("cuda"))
+
+        def _load_to_device(use_xformers: bool) -> torch.nn.Module:
+            _set_dino_xformers_enabled(use_xformers)
+            m = model.to(self.device)
+            if str(self.device).startswith("cuda") and use_xformers:
+                # Probe a tiny forward pass to detect GPU kernel mismatches
+                # (e.g. flash-attn / xformers compiled for sm_80/90 on Blackwell sm_120).
+                # This is cheap — one 224×224 dummy image.
+                import torch as _pt
+                with _pt.no_grad():
+                    dummy = _pt.zeros(1, 3, 224, 224, device=self.device)
+                    m.eval()
+                    m(dummy)
+            return m
+
+        try:
+            model = _load_to_device(use_xformers=True)
+        except RuntimeError as _exc:
+            _no_kernel = ("no kernel image" in str(_exc)
+                          or "cudaErrorNoKernelImageForDevice" in str(_exc))
+            if not _no_kernel:
+                raise
+            # flash-attn / xformers was compiled for an older GPU architecture.
+            # Retry with xformers disabled — PyTorch SDPA (always available via
+            # cu128 wheels) is used instead.  On machines where flash-attn/xformers
+            # work correctly the first attempt succeeds and this branch is never taken.
+            self.logger.warning(
+                "DINO: flash-attn/xformers not compatible with this GPU arch — "
+                "retrying without xformers; PyTorch SDPA will be used instead"
+            )
+            _prev = os.environ.get("XFORMERS_DISABLED")
+            os.environ["XFORMERS_DISABLED"] = "1"
+            try:
+                model = hub_load_dino(model_name, pretrained=True)
+                model = _load_to_device(use_xformers=False)
+            finally:
+                if _prev is None:
+                    os.environ.pop("XFORMERS_DISABLED", None)
+                else:
+                    os.environ["XFORMERS_DISABLED"] = _prev
         # Resolve checkpoint: DINO_CHECKPOINT env var takes priority,
         # then active_checkpoint.txt (written by POST /admin/reload-model).
         ckpt = settings.DINO_CHECKPOINT
