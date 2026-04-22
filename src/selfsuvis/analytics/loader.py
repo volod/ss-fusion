@@ -431,8 +431,24 @@ class LocalRunLoader:
         if match.lastindex and match.lastindex >= 2:
             total = int(match.group(2))
         else:
-            total_match = re.search(r"Total frames\s*:\s*(\d+)", text, re.I)
-            total = int(total_match.group(1)) if total_match else 1
+            # Table format only captures the count; derive denominator from
+            # frames_metadata.json (authoritative) or text fallback.
+            total = 0
+            frames_meta_path = self.run_dir / "frames_metadata.json"
+            if frames_meta_path.exists():
+                try:
+                    import json as _json
+                    meta = _json.loads(frames_meta_path.read_text())
+                    total = int(
+                        meta.get("frame_count", 0)
+                        or len(meta.get("frames", []))
+                        or 0
+                    )
+                except Exception:
+                    pass
+            if not total:
+                total_match = re.search(r"Total frames\s*:\s*(\d+)", text, re.I)
+                total = int(total_match.group(1)) if total_match else 0
         total = max(total, 1)
         return present / total
 

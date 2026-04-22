@@ -94,10 +94,10 @@ def _apply_florence2_transformers5_patches() -> None:
 def _best_attn_impl() -> str:
     """Return the best available attention backend for Florence-2.
 
-    Florence-2 does not support flash_attention_2 (upstream limitation), so we
-    always use sdpa regardless of whether flash-attn is installed.
+    Florence-2's trust_remote_code model class does not implement _supports_sdpa,
+    so sdpa triggers an AttributeError on load.  Eager is the only safe choice.
     """
-    return "sdpa"
+    return "eager"
 
 
 def _sanitize_model_inputs(inputs: object, *, device: str, dtype: torch.dtype) -> dict:
@@ -185,6 +185,22 @@ def _is_recoverable_batch_assertion(exc: BaseException) -> bool:
     if not isinstance(exc, AssertionError):
         return False
     return "only support square feature maps for now" in str(exc).lower()
+
+
+def _pad_to_square(image: Image.Image) -> Image.Image:
+    """Pad a PIL image to square with black borders (letterbox/pillarbox).
+
+    Florence-2's vision encoder asserts h*w == num_tokens which only holds for
+    square inputs.  Padding preserves aspect ratio and is lossless — the model
+    simply ignores the padding region.
+    """
+    w, h = image.size
+    if w == h:
+        return image
+    side = max(w, h)
+    square = Image.new(image.mode, (side, side), 0)
+    square.paste(image, ((side - w) // 2, (side - h) // 2))
+    return square
 
 
 class FlorenceModel:
@@ -399,6 +415,8 @@ class FlorenceModel:
     def _run_inference(self, images: List[Image.Image]) -> List[Tuple[str, float]]:
         """Run Florence inference on a list of images (same batch)."""
         prompts = [_TASK_PROMPT] * len(images)
+        # Florence-2 requires square feature maps; pad non-square frames in place.
+        images = [_pad_to_square(img) for img in images]
 
         inputs = self._processor(
             text=prompts,

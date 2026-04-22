@@ -209,10 +209,14 @@ class RFDETRTracker:
     begins (call signature explicitly resets state).
     """
 
-    # Tracks not matched for this many consecutive frames are retired
-    _MAX_MISS_FRAMES = 3
-    # IoU threshold for matching a detection to an existing track
-    _IOU_THRESHOLD = 0.45
+    # Tracks not matched for this many consecutive frames are retired.
+    # Raised to 5 to keep identities alive through brief occlusions at 2 fps.
+    _MAX_MISS_FRAMES = 5
+    # IoU threshold for matching a detection to an existing track.
+    # Lowered from 0.45 to 0.25: aerial/drone footage at 2 fps gives large
+    # inter-frame displacement relative to box size, so strict overlap matching
+    # causes excessive track fragmentation.
+    _IOU_THRESHOLD = 0.25
 
     def __init__(self) -> None:
         self._model = None
