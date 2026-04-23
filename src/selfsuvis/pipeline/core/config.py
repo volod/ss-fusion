@@ -3,24 +3,37 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 from selfsuvis.pipeline.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 def _load_settings_env() -> None:
-    """Load packaged env defaults first, then let project-root .env override them."""
+    """Load packaged env defaults, then let project-root .env override them.
+
+    Priority (highest wins): shell/CLI env vars > .env > packaged dev.env.
+
+    Using dotenv_values + manual merge (instead of load_dotenv with override=True)
+    ensures that variables already in the environment — set by the shell, Docker,
+    or apply_local_env before this module is imported — are never clobbered by the
+    .env file.  This lets ``apply_local_env`` force-set CLI flags (e.g. ASR_ENABLED)
+    that take precedence even when .env contains a conflicting value.
+    """
     env_name = os.getenv("APP_ENV", "dev")
     package_root = Path(__file__).resolve().parents[2]
     repo_root = Path(__file__).resolve().parents[4]
     env_file = package_root / "env" / f"{env_name}.env"
     root_env = repo_root / ".env"
 
-    if env_file.exists():
-        load_dotenv(env_file)
-    if root_env.exists():
-        load_dotenv(root_env, override=True)
+    dev_values: dict = dotenv_values(env_file) if env_file.exists() else {}
+    root_values: dict = dotenv_values(root_env) if root_env.exists() else {}
+
+    # .env overrides dev.env defaults; neither overrides existing env vars.
+    merged = {**dev_values, **root_values}
+    for key, value in merged.items():
+        if key not in os.environ:
+            os.environ[key] = value if value is not None else ""
 
 
 _load_settings_env()

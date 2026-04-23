@@ -37,6 +37,7 @@ CLI override examples::
 """
 
 import contextlib
+import logging
 import subprocess
 import io
 import warnings

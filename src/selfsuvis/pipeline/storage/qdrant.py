@@ -57,11 +57,14 @@ class QdrantStore:
         limit: int,
         payload_filter: Optional[qmodels.Filter] = None,
     ) -> List[qmodels.ScoredPoint]:
-        return self.client.search(
+        # qdrant-client >= 1.7 removed client.search(); use query_points() instead.
+        response = self.client.query_points(
             collection_name=self.collection,
-            query_vector=qmodels.NamedVector(name=vector_name, vector=query_vector.tolist()),
+            query=query_vector.tolist(),
+            using=vector_name,
             limit=limit,
             with_payload=True,
             with_vectors=False,
             query_filter=payload_filter,
         )
+        return response.points
