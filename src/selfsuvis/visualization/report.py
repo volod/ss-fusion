@@ -89,6 +89,7 @@ def generate_report(
     tr = summary.training_stats
     th = summary.tracking_stats
     emb = summary.embedding_stats
+    diag = summary.diagnostics
 
     # Build HTML
     sections: list[str] = []
@@ -102,6 +103,8 @@ def generate_report(
         ("Domain", summary.domain or "—"),
         ("Scene", summary.scene_complexity or "—"),
         ("Top category", summary.top_category or "—"),
+        ("Quality score", f"{diag.quality_score:.1f}/100"),
+        ("Modality coverage", f"{100.0 * diag.modality_completeness:.0f}%"),
         ("3D map", "yes" if summary.has_3d_map else "no"),
         ("Edge model", "yes" if summary.has_edge_model else "no"),
         ("Artifacts", str(summary.artifact_inventory.total_files)),
@@ -168,6 +171,8 @@ def generate_report(
                 ("Tracking model", th.model or "—"),
                 ("Track IDs", str(th.unique_track_ids)),
                 ("SAM masks", str(th.sam_masks_total)),
+                ("Fragmentation", f"{diag.tracking_fragmentation:.3f}"),
+                ("Track persistence", f"{diag.track_persistence:.3f}"),
             ])
         if emb:
             cards.extend([
@@ -179,8 +184,22 @@ def generate_report(
                 ("Map method", summary.map_stats.method or "—"),
                 ("Map points", str(summary.map_stats.points)),
                 ("Map poses", str(summary.map_stats.poses)),
+                ("Points / pose", f"{diag.map_points_per_pose:.1f}"),
+                ("Pose coverage", f"{100.0 * diag.map_pose_coverage:.0f}%"),
             ])
         sections.append(f"<h2>Derived Artifacts</h2>{_cards(cards)}")
+
+    diagnostics_cards = _cards([
+        ("Detection density", f"{diag.detection_density_per_frame:.2f}/frame"),
+        ("Detection CV", f"{diag.detection_count_cv:.2f}"),
+        ("Class entropy", f"{diag.detection_entropy_norm:.2f}"),
+        ("Surprise std", f"{diag.surprise_std:.3f}"),
+        ("Peak rate", f"{100.0 * diag.surprise_peak_rate:.0f}%"),
+        ("Peak/object overlap", f"{100.0 * diag.surprise_detection_overlap:.0f}%"),
+        ("Adapt efficiency", f"{diag.adaptation_efficiency:.3f}"),
+        ("Artifacts / frame", f"{diag.artifact_density_per_frame:.2f}"),
+    ])
+    sections.append(f"<h2>Analytics Diagnostics</h2>{diagnostics_cards}")
 
     # --- Artifacts table ---
     artifacts = _list_artifacts(summary)

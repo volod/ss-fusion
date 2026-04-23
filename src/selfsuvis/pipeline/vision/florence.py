@@ -405,8 +405,10 @@ class FlorenceModel:
             raise
         except RuntimeError as exc:
             if "out of memory" in str(exc).lower() and batch_size > 1:
-                logger.warning(
-                    "Florence OOM on batch_size=%d; falling back to batch=1", batch_size
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(
+                    logger, "Florence-2",
+                    f"batch_size={batch_size} → clearing cache, retrying one image at a time",
                 )
                 torch.cuda.empty_cache()
                 return [self._caption_single(img) for img in images]

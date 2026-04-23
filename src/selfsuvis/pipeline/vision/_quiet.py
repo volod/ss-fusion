@@ -23,6 +23,9 @@ def suppress_runtime_noise(
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
     previous_levels: dict[str, int] = {}
+    transformers_logging = None
+    transformers_verbosity = None
+    hf_logging = None
     with warnings.catch_warnings():
         for pattern in patterns:
             warnings.filterwarnings("ignore", message=pattern)
@@ -32,8 +35,26 @@ def suppress_runtime_noise(
                 previous_levels[name] = logger.level
                 logger.setLevel(level)
         try:
+            try:
+                from transformers.utils import logging as transformers_logging  # type: ignore
+
+                transformers_verbosity = transformers_logging.get_verbosity()
+                transformers_logging.set_verbosity_error()
+                if hasattr(transformers_logging, "disable_progress_bar"):
+                    transformers_logging.disable_progress_bar()
+            except Exception:
+                transformers_logging = None
+            try:
+                from huggingface_hub.utils import logging as hf_logging  # type: ignore
+
+                if hasattr(hf_logging, "disable_progress_bar"):
+                    hf_logging.disable_progress_bar()
+            except Exception:
+                hf_logging = None
             with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
                 yield
         finally:
+            if transformers_logging is not None and transformers_verbosity is not None:
+                transformers_logging.set_verbosity(transformers_verbosity)
             for name, level in previous_levels.items():
                 logging.getLogger(name).setLevel(level)

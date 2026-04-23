@@ -119,10 +119,8 @@ class DetectionModel:
             return self._normalise_detection_output(pipe(image, **kwargs), image)
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
-                logger.warning(
-                    "Detection CUDA OOM for %s — retrying on CPU for remaining frames.",
-                    self.model_id,
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(logger, f"Detection/{self.model_id}", "falling back to CPU for remaining frames")
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     try:
@@ -150,10 +148,8 @@ class DetectionModel:
                 ]
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
-                logger.warning(
-                    "Detection CUDA OOM for %s — retrying on CPU for remaining frames.",
-                    self.model_id,
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(logger, f"Detection/{self.model_id}", "batch OOM — falling back to CPU")
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     return self._detect_many(images, cpu_pipe, candidate_labels)
@@ -217,10 +213,8 @@ class DetectionModel:
             logger.info("Detection model loaded: %s on %s", self.model_id, target_device)
         except Exception as exc:
             if is_cuda_oom(exc) and target_device == "cuda" and force_device != "cpu":
-                logger.warning(
-                    "Detection model %s failed to load on CUDA due to OOM — retrying on CPU.",
-                    self.model_id,
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(logger, f"Detection/{self.model_id}", "load OOM on CUDA — retrying on CPU")
                 self._release_pipe()
                 self._load_failed = False
                 return self._get_pipe(force_device="cpu")

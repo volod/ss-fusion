@@ -57,9 +57,8 @@ class OpenCLIPEmbedder:
             except Exception as exc:
                 if not is_cuda_oom(exc) or not str(actual_device).startswith("cuda"):
                     raise
-                self.logger.warning(
-                    "OpenCLIP CUDA OOM during image encoding; moving backbone to CPU for remaining batches."
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(self.logger, "OpenCLIP image encoding", "moving backbone to CPU for remaining batches")
                 self.model.cpu()
                 actual_device = torch.device("cpu")
                 if torch.cuda.is_available():
@@ -92,9 +91,8 @@ class OpenCLIPEmbedder:
             except Exception as exc:
                 if not is_cuda_oom(exc) or not str(actual_device).startswith("cuda"):
                     raise
-                self.logger.warning(
-                    "OpenCLIP CUDA OOM during text encoding; moving backbone to CPU."
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(self.logger, "OpenCLIP text encoding", "moving backbone to CPU")
                 self.model.cpu()
                 actual_device = torch.device("cpu")
                 if torch.cuda.is_available():

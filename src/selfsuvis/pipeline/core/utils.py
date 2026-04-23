@@ -83,6 +83,8 @@ def resolve_allowed_path(user_path: str, must_be_file: bool = False, must_be_dir
     allowed = settings.ALLOWED_INDEX_PATHS
     if not allowed:
         return None
+    if isinstance(allowed, str):
+        allowed = [p for p in allowed.split(",") if p.strip()]
 
     resolved = os.path.abspath(os.path.realpath(user_path))
     for base in allowed:

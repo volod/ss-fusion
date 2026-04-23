@@ -137,6 +137,25 @@ class RunHealth:
 
 
 @dataclass
+class AnalyticsDiagnostics:
+    modality_completeness: float = 0.0
+    quality_score: float = 0.0
+    detection_density_per_frame: float = 0.0
+    detection_count_cv: float = 0.0
+    detection_entropy_norm: float = 0.0
+    tracking_fragmentation: float = 0.0
+    track_persistence: float = 0.0
+    surprise_std: float = 0.0
+    surprise_peak_rate: float = 0.0
+    surprise_detection_overlap: float = 0.0
+    map_points_per_pose: float = 0.0
+    map_pose_coverage: float = 0.0
+    adaptation_efficiency: float = 0.0
+    artifact_density_per_frame: float = 0.0
+    artifact_mb_per_min: float = 0.0
+
+
+@dataclass
 class RunSummary:
     run_dir: str
     video_name: str
@@ -152,6 +171,7 @@ class RunSummary:
     map_stats: Optional[MapStats] = None
     artifact_inventory: ArtifactInventory = field(default_factory=ArtifactInventory)
     run_health: RunHealth = field(default_factory=RunHealth)
+    diagnostics: AnalyticsDiagnostics = field(default_factory=AnalyticsDiagnostics)
     domain: str = ""
     top_category: str = ""
     scene_complexity: str = ""

@@ -161,6 +161,15 @@ def test_local_run_loader_parses_key_artifacts(tmp_path):
     assert summary.artifact_inventory.total_files >= 10
     assert summary.run_health.world_model_ok is False
     assert summary.run_health.ocr_coverage == 0.5
+    assert summary.diagnostics.modality_completeness == 5.5 / 8.0
+    assert summary.diagnostics.detection_density_per_frame == 1.5
+    assert round(summary.diagnostics.detection_count_cv, 3) == 0.333
+    assert summary.diagnostics.tracking_fragmentation == 1.0
+    assert summary.diagnostics.track_persistence == 1.0
+    assert summary.diagnostics.map_points_per_pose == 2.0
+    assert summary.diagnostics.map_pose_coverage == 1.0
+    assert round(summary.diagnostics.adaptation_efficiency, 3) == 0.082
+    assert summary.diagnostics.quality_score > 0
 
 
 def test_local_run_loader_accepts_map_builder_key_names(tmp_path):

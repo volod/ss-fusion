@@ -234,7 +234,7 @@ def extract_gps(
     _extract_from_gpmf(video_path)
 
     # Priority 4: Null fallback
-    logger.warning(
+    logger.info(
         "GPS: no GPS data found for %s; all %d frames will have null GPS",
         video_path,
         len(frame_timestamps_ms),

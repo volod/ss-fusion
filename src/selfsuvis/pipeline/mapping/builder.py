@@ -31,6 +31,9 @@ from selfsuvis.pipeline.mapping import run_sfm
 
 logger = get_logger(__name__)
 
+_MIN_USEFUL_MAP_POINTS = 50
+_MIN_USEFUL_SFM_POSES = 20
+
 
 def _sfm_point_cloud(
     video_path: str,
@@ -123,6 +126,76 @@ def _pca_point_cloud(
     return points, colours, method, frame_positions
 
 
+def _visual_pca_point_cloud(
+    frame_list: List[Tuple[str, float]],
+) -> Tuple[np.ndarray, np.ndarray, str, List[Dict[str, Any]]]:
+    """CPU-only PCA fallback from low-resolution frame appearance.
+
+    The local pipeline can build SfM in a background thread while foreground
+    steps offload/restore CLIP and DINO on GPU. Reusing those shared embedders
+    for fallback geometry is therefore brittle. This fallback intentionally uses
+    simple image features so sparse-map repair never depends on model dtype,
+    device, or thread state.
+    """
+    if not frame_list:
+        return (
+            np.zeros((1, 3), dtype=np.float32),
+            np.ones((1, 3), dtype=np.float32),
+            "pca_pixels",
+            [],
+        )
+
+    step = max(1, len(frame_list) // 200)
+    sampled_frames = frame_list[::step]
+    features: List[np.ndarray] = []
+    colours_src: List[np.ndarray] = []
+    max_t = max((float(t_sec) for _, t_sec in sampled_frames), default=1.0) or 1.0
+
+    for fp, t_sec in sampled_frames:
+        with Image.open(fp) as img:
+            rgb = img.convert("RGB")
+            thumb = rgb.resize((32, 32), Image.Resampling.BILINEAR)
+            arr = np.asarray(thumb, dtype=np.float32) / 255.0
+        flat = arr.reshape(-1)
+        mean = arr.mean(axis=(0, 1))
+        std = arr.std(axis=(0, 1))
+        time_feature = np.array([float(t_sec) / max_t], dtype=np.float32)
+        features.append(np.concatenate([flat, mean, std, time_feature]).astype(np.float32))
+        colours_src.append(mean.astype(np.float32))
+
+    matrix = np.stack(features, axis=0)
+    centered = matrix - matrix.mean(axis=0, keepdims=True)
+    if len(sampled_frames) == 1 or float(np.abs(centered).sum()) == 0.0:
+        points = np.zeros((len(sampled_frames), 3), dtype=np.float32)
+    else:
+        _, _, vt = np.linalg.svd(centered, full_matrices=False)
+        components = vt[: min(3, len(vt))]
+        projected = centered @ components.T
+        if projected.shape[1] < 3:
+            projected = np.pad(projected, ((0, 0), (0, 3 - projected.shape[1])))
+        points = projected[:, :3].astype(np.float32)
+        scale = np.percentile(np.abs(points), 95)
+        if scale > 0:
+            points = points / float(scale)
+
+    colours = np.stack(colours_src, axis=0).astype(np.float32)
+    frame_positions: List[Dict[str, Any]] = []
+    for (frame_path, t_sec), point in zip(sampled_frames, points):
+        frame_positions.append(
+            {
+                "frame_path": frame_path,
+                "t_sec": float(t_sec),
+                "position": {
+                    "x": float(point[0]),
+                    "y": float(point[1]),
+                    "z": float(point[2]),
+                },
+            }
+        )
+    logger.info("Visual PCA point cloud: %d points (method=pca_pixels)", len(points))
+    return points, colours, "pca_pixels", frame_positions
+
+
 def export_ply(
     points: np.ndarray,
     colours: np.ndarray,
@@ -203,6 +276,19 @@ def build_sparse_map(
             if points3d is not None:
                 method = "sfm"
                 logger.info("SfM point cloud: %d camera centres", len(points3d))
+                if len(points3d) < _MIN_USEFUL_MAP_POINTS or sfm_poses < _MIN_USEFUL_SFM_POSES:
+                    logger.info(
+                        "SfM map is sparse (%d points, %d poses); building PCA fallback geometry for downstream artifacts",
+                        len(points3d),
+                        sfm_poses,
+                    )
+                    try:
+                        pca_points, pca_colours, pca_method, pca_positions = _visual_pca_point_cloud(frame_list)
+                        points3d, colours = pca_points, pca_colours
+                        frame_positions = pca_positions
+                        method = f"sfm_sparse+{pca_method}"
+                    except Exception as pca_exc:
+                        logger.warning("PCA fallback after sparse SfM failed (%s); keeping sparse SfM map", pca_exc)
         except Exception as exc:
             logger.warning("SfM failed (%s) — using PCA fallback", exc)
     else:
@@ -213,11 +299,15 @@ def build_sparse_map(
         try:
             points3d, colours, method, frame_positions = _pca_point_cloud(frame_list, models)
         except Exception as exc:
-            logger.warning("PCA fallback failed (%s)", exc)
-            points3d = np.zeros((1, 3), dtype=np.float32)
-            colours  = np.ones((1, 3),  dtype=np.float32)
-            method   = "failed"
-            frame_positions = []
+            logger.warning("Embedding PCA fallback failed (%s); using CPU visual PCA fallback", exc)
+            try:
+                points3d, colours, method, frame_positions = _visual_pca_point_cloud(frame_list)
+            except Exception as visual_exc:
+                logger.warning("Visual PCA fallback failed (%s)", visual_exc)
+                points3d = np.zeros((1, 3), dtype=np.float32)
+                colours  = np.ones((1, 3),  dtype=np.float32)
+                method   = "failed"
+                frame_positions = []
 
     np.savez(str(npz_path), points=points3d, colours=colours)
     ply_path = export_ply(points3d, colours, map_dir / "sparse_map.ply")
@@ -255,6 +345,14 @@ def build_sparse_map(
         "sfm_poses":     sfm_poses,
         "scene_count":   scene_count,
         "frame_anchor_count": len(frame_positions),
+        "quality_degraded": bool(
+            len(points3d) < _MIN_USEFUL_MAP_POINTS
+            or len(frame_positions) < _MIN_USEFUL_SFM_POSES
+        ),
+        "quality_note": (
+            "SfM was too sparse; PCA fallback geometry used"
+            if str(method).startswith("sfm_sparse+") else ""
+        ),
         "elapsed_sec":   round(time.time() - t0, 3),
         "npz":           str(npz_path),
         "ply":           str(ply_path),
@@ -278,6 +376,10 @@ def build_sparse_map(
         "scene_count":   scene_count,
         "method":        method,
         "frame_positions": frame_positions,
+        "quality_degraded": bool(
+            len(points3d) < _MIN_USEFUL_MAP_POINTS
+            or len(frame_positions) < _MIN_USEFUL_SFM_POSES
+        ),
         "elapsed_sec":   time.time() - t0,
         "splat_ply":     splat_ply,
         "viewer_html":   viewer_html,

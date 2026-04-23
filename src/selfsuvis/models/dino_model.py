@@ -49,6 +49,10 @@ _DINO_EMBED_DIM: dict = {
 }
 
 
+# None = untested, True = works, False = failed (skip probe on next load)
+_xformers_cuda_ok: "bool | None" = None
+
+
 def _set_dino_xformers_enabled(enabled: bool) -> None:
     """Toggle dinov2 xFormers attention for already-imported hub modules."""
     import sys
@@ -244,43 +248,81 @@ class DINOEmbedder:
 
         def _load_to_device(use_xformers: bool) -> torch.nn.Module:
             _set_dino_xformers_enabled(use_xformers)
+            # fa2 (available on Blackwell) requires fp16/bf16 — cast before .to(device)
+            # so xformers attention kernels are eligible from the first probe pass.
+            if str(self.device).startswith("cuda") and settings.USE_FP16:
+                model.half()
             m = model.to(self.device)
             if str(self.device).startswith("cuda") and use_xformers:
-                # Probe a tiny forward pass to detect GPU kernel mismatches
-                # (e.g. flash-attn / xformers compiled for sm_80/90 on Blackwell sm_120).
-                # This is cheap — one 224×224 dummy image.
+                # Probe a tiny forward pass to detect GPU kernel mismatches.
+                # Use the model's actual dtype — fp16 when USE_FP16 is set —
+                # otherwise a float32 dummy against fp16 weights raises a
+                # dtype mismatch before xformers is even reached.
                 import torch as _pt
+                _probe_dtype = (
+                    _pt.float16
+                    if (settings.USE_FP16 and str(self.device).startswith("cuda"))
+                    else _pt.float32
+                )
                 with _pt.no_grad():
-                    dummy = _pt.zeros(1, 3, 224, 224, device=self.device)
+                    dummy = _pt.zeros(1, 3, 224, 224, device=self.device, dtype=_probe_dtype)
                     m.eval()
                     m(dummy)
             return m
 
-        try:
-            model = _load_to_device(use_xformers=True)
-        except RuntimeError as _exc:
-            _no_kernel = ("no kernel image" in str(_exc)
-                          or "cudaErrorNoKernelImageForDevice" in str(_exc))
-            if not _no_kernel:
-                raise
-            # flash-attn / xformers was compiled for an older GPU architecture.
-            # Retry with xformers disabled — PyTorch SDPA (always available via
-            # cu128 wheels) is used instead.  On machines where flash-attn/xformers
-            # work correctly the first attempt succeeds and this branch is never taken.
-            self.logger.warning(
-                "DINO: flash-attn/xformers not compatible with this GPU arch — "
-                "retrying without xformers; PyTorch SDPA will be used instead"
-            )
+        global _xformers_cuda_ok
+        # If xformers already failed in this process, skip the probe and go
+        # straight to SDPA — no warning repeated on subsequent DINOv3 loads.
+        if _xformers_cuda_ok is False:
             _prev = os.environ.get("XFORMERS_DISABLED")
             os.environ["XFORMERS_DISABLED"] = "1"
             try:
-                model = hub_load_dino(model_name, pretrained=True)
                 model = _load_to_device(use_xformers=False)
             finally:
                 if _prev is None:
                     os.environ.pop("XFORMERS_DISABLED", None)
                 else:
                     os.environ["XFORMERS_DISABLED"] = _prev
+        else:
+            try:
+                model = _load_to_device(use_xformers=True)
+                _xformers_cuda_ok = True
+            except (RuntimeError, NotImplementedError) as _exc:
+                _exc_str = str(_exc)
+                _no_kernel = (
+                    "no kernel image" in _exc_str
+                    or "cudaErrorNoKernelImageForDevice" in _exc_str
+                    or "memory_efficient_attention_forward" in _exc_str
+                    or "requires device with capability" in _exc_str
+                    or "c10::Half" in _exc_str
+                    or "bias type" in _exc_str
+                )
+                if not _no_kernel:
+                    raise
+                # Log once per process — subsequent loads skip the probe entirely.
+                self.logger.warning(
+                    "DINO: flash-attn/xformers not compatible with this GPU "
+                    "(capability too new or unsupported dtype) — "
+                    "using PyTorch SDPA instead (warning shown once per run)"
+                )
+                _xformers_cuda_ok = False
+                # Move the already-loaded weights back to CPU to clear any partial
+                # GPU allocation from the failed probe, then retry without xformers.
+                try:
+                    model.cpu()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
+                _prev = os.environ.get("XFORMERS_DISABLED")
+                os.environ["XFORMERS_DISABLED"] = "1"
+                try:
+                    model = _load_to_device(use_xformers=False)
+                finally:
+                    if _prev is None:
+                        os.environ.pop("XFORMERS_DISABLED", None)
+                    else:
+                        os.environ["XFORMERS_DISABLED"] = _prev
         # Resolve checkpoint: DINO_CHECKPOINT env var takes priority,
         # then active_checkpoint.txt (written by POST /admin/reload-model).
         ckpt = settings.DINO_CHECKPOINT
@@ -355,9 +397,8 @@ class DINOEmbedder:
             except Exception as exc:
                 if not is_cuda_oom(exc) or not str(actual_device).startswith("cuda"):
                     raise
-                self.logger.warning(
-                    "DINO CUDA OOM during image encoding; moving backbone to CPU for remaining batches."
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(self.logger, "DINOv3 image encoding", "moving backbone to CPU for remaining batches")
                 self.model.cpu()
                 _set_dino_xformers_enabled(False)
                 actual_device = torch.device("cpu")

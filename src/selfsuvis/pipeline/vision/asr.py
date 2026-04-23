@@ -43,6 +43,7 @@ import warnings
 from typing import Any, Dict, List, Optional
 
 from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 
 from .registry import auto_select, detect_resources
 
@@ -174,20 +175,28 @@ class ASRModel:
 
             # transformers 5.x prefers `dtype`; older pipeline builds may still
             # require `torch_dtype`, so keep a compatibility fallback.
-            try:
-                self._pipe = hf_pipeline(
-                    "automatic-speech-recognition",
-                    model=model_id,
-                    device=device,
-                    dtype=torch_dtype,
-                )
-            except TypeError:
-                self._pipe = hf_pipeline(
-                    "automatic-speech-recognition",
-                    model=model_id,
-                    device=device,
-                    torch_dtype=torch_dtype,
-                )
+            with suppress_runtime_noise(
+                r".*Loading weights.*",
+                logger_levels={
+                    "transformers": logging.ERROR,
+                    "transformers.pipelines.base": logging.ERROR,
+                    "huggingface_hub": logging.ERROR,
+                },
+            ):
+                try:
+                    self._pipe = hf_pipeline(
+                        "automatic-speech-recognition",
+                        model=model_id,
+                        device=device,
+                        dtype=torch_dtype,
+                    )
+                except TypeError:
+                    self._pipe = hf_pipeline(
+                        "automatic-speech-recognition",
+                        model=model_id,
+                        device=device,
+                        torch_dtype=torch_dtype,
+                    )
             logger.info("ASR model loaded: %s on %s (dtype=%s)", model_id, device, torch_dtype)
         except Exception:
             logger.warning(

@@ -154,9 +154,13 @@ class Settings:
     REASONING_BACKEND = _env("REASONING_BACKEND", GEMMA_API_BACKEND)
     REASONING_MODEL = _env("REASONING_MODEL", "")
     REASONING_TIMEOUT_SEC = _env_int("REASONING_TIMEOUT_SEC", 240)
-    REASONING_MAX_TOKENS_SIMPLE = _env_int("REASONING_MAX_TOKENS_SIMPLE", 700)
-    REASONING_MAX_TOKENS_COMPACT = _env_int("REASONING_MAX_TOKENS_COMPACT", 900)
-    REASONING_MAX_TOKENS_FULL = _env_int("REASONING_MAX_TOKENS_FULL", 1300)
+    # qwen3:8b and similar chain-of-thought models emit <think> tokens before
+    # the answer body.  The previous defaults (700/900/1300) were too small:
+    # the model exhausted its budget mid-answer, producing incomplete output.
+    # Raised to give ~800 thinking tokens + full answer headroom.
+    REASONING_MAX_TOKENS_SIMPLE = _env_int("REASONING_MAX_TOKENS_SIMPLE", 1200)
+    REASONING_MAX_TOKENS_COMPACT = _env_int("REASONING_MAX_TOKENS_COMPACT", 2000)
+    REASONING_MAX_TOKENS_FULL = _env_int("REASONING_MAX_TOKENS_FULL", 3200)
 
     SAM_MODEL_TYPE = _env("SAM_MODEL_TYPE", "vit_h")
     SAM_CHECKPOINT = _env("SAM_CHECKPOINT", "")

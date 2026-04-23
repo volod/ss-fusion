@@ -130,10 +130,8 @@ class DepthModel:
                 return self._normalise_depth_output(pipe(image))
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
-                logger.warning(
-                    "Depth CUDA OOM for %s — retrying on CPU for remaining frames.",
-                    self.model_id,
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(logger, f"Depth/{self.model_id}", "falling back to CPU for remaining frames")
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     try:
@@ -157,10 +155,8 @@ class DepthModel:
                 return [self._normalise_depth_output(output) for output in raw_outputs]
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
-                logger.warning(
-                    "Depth CUDA OOM for %s — retrying on CPU for remaining frames.",
-                    self.model_id,
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(logger, f"Depth/{self.model_id}", "batch OOM — falling back to CPU")
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     return self._estimate_many(images, cpu_pipe)
@@ -198,20 +194,26 @@ class DepthModel:
             from transformers import pipeline as hf_pipeline
             torch_dtype = torch.float16 if settings.USE_FP16 and target_device != "cpu" else torch.float32
             self._release_pipe()
-            self._pipe = hf_pipeline(
-                "depth-estimation",
-                model=self.model_id,
-                device=pipeline_device_arg(target_device),
-                dtype=torch_dtype,
-            )
+            with suppress_runtime_noise(
+                r".*Loading weights.*",
+                logger_levels={
+                    "transformers": logging.ERROR,
+                    "transformers.pipelines.base": logging.ERROR,
+                    "huggingface_hub": logging.ERROR,
+                },
+            ):
+                self._pipe = hf_pipeline(
+                    "depth-estimation",
+                    model=self.model_id,
+                    device=pipeline_device_arg(target_device),
+                    dtype=torch_dtype,
+                )
             self._device = target_device
             logger.info("Depth model loaded: %s on %s", self.model_id, target_device)
         except Exception as exc:
             if is_cuda_oom(exc) and target_device == "cuda" and force_device != "cpu":
-                logger.warning(
-                    "Depth model %s failed to load on CUDA due to OOM — retrying on CPU.",
-                    self.model_id,
-                )
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+                log_oom_banner(logger, f"Depth/{self.model_id}", "load OOM on CUDA — retrying on CPU")
                 self._release_pipe()
                 self._load_failed = False
                 return self._get_pipe(force_device="cpu")

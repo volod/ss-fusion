@@ -16,7 +16,19 @@ def is_cuda_oom(exc: Exception) -> bool:
     exception subclass.
     """
     msg = str(exc).lower()
-    return type(exc).__name__ == "OutOfMemoryError" or "cuda out of memory" in msg
+    return (
+        type(exc).__name__ == "OutOfMemoryError"
+        or "cuda out of memory" in msg
+        or "out of memory" in msg
+    )
+
+
+def log_oom_banner(log, component: str, action: str) -> None:
+    """Log a highly-visible ERROR banner for CUDA out-of-memory events."""
+    sep = "=" * 72
+    log.error(sep)
+    log.error("[!! CUDA OOM !!]  %s  →  %s", component, action)
+    log.error(sep)
 
 
 def resolve_device(device_cfg: str | None = None) -> str:

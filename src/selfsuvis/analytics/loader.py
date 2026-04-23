@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -12,6 +13,7 @@ from .embeddings import load_gallery, nearest_neighbour_recall
 from .models import (
     ArtifactInventory,
     ArtifactRecord,
+    AnalyticsDiagnostics,
     DetectionStats,
     EmbeddingStats,
     FrameRecord,
@@ -69,6 +71,21 @@ class LocalRunLoader:
         duration = frames_meta.get("duration_sec", 0.0) if frames_meta else 0.0
         fps = frames_meta.get("fps", 0.0) if frames_meta else 0.0
 
+        run_health = self._build_run_health(frames, n_frames, tracking_stats, map_stats, runtime_metrics)
+        diagnostics = self._build_diagnostics(
+            frames=frames,
+            n_frames=n_frames,
+            duration_sec=duration,
+            detection_stats=detection_stats,
+            temporal_stats=temporal_stats,
+            training_stats=training_stats,
+            tracking_stats=tracking_stats,
+            map_stats=map_stats,
+            artifact_inventory=artifact_inventory,
+            run_health=run_health,
+            has_edge_model=(self.run_dir / "edge_models" / "dino_local.onnx").exists(),
+        )
+
         ontology_data = ontology_data or {}
         return RunSummary(
             run_dir=str(self.run_dir),
@@ -84,13 +101,127 @@ class LocalRunLoader:
             embedding_stats=embedding_stats,
             map_stats=map_stats,
             artifact_inventory=artifact_inventory,
-            run_health=self._build_run_health(frames, n_frames, tracking_stats, map_stats, runtime_metrics),
+            run_health=run_health,
+            diagnostics=diagnostics,
             domain=ontology_data.get("domain", "") or "",
             top_category=self._parse_top_category(),
             scene_complexity=ontology_data.get("scene_complexity", "") or "",
             n_scene_clusters=self._parse_scene_clusters(),
             has_3d_map=(self.run_dir / "3d_map" / "gaussian_splat.ply").exists(),
             has_edge_model=(self.run_dir / "edge_models" / "dino_local.onnx").exists(),
+        )
+
+    def _build_diagnostics(
+        self,
+        *,
+        frames: List[FrameRecord],
+        n_frames: int,
+        duration_sec: float,
+        detection_stats: Optional[DetectionStats],
+        temporal_stats: Optional[TemporalStats],
+        training_stats: Optional[TrainingStats],
+        tracking_stats: Optional[TrackingStats],
+        map_stats: Optional[MapStats],
+        artifact_inventory: ArtifactInventory,
+        run_health: RunHealth,
+        has_edge_model: bool,
+    ) -> AnalyticsDiagnostics:
+        denom = max(n_frames, 1)
+        coverage_terms = [
+            run_health.florence_caption_coverage,
+            run_health.qwen_caption_coverage,
+            run_health.asr_coverage,
+            run_health.ocr_coverage,
+            1.0 if run_health.world_model_ok else 0.0,
+            1.0 if run_health.tracking_ok else 0.0,
+            0.0 if (map_stats and map_stats.degraded) else (1.0 if map_stats else 0.0),
+            1.0 if has_edge_model else 0.0,
+        ]
+        modality_completeness = _clamp01(sum(coverage_terms) / len(coverage_terms))
+
+        detection_density = float(detection_stats.mean_per_frame) if detection_stats else 0.0
+        detection_cv = _coefficient_of_variation(detection_stats.per_frame_counts) if detection_stats else 0.0
+        detection_entropy = (
+            _normalised_entropy(detection_stats.by_class)
+            if detection_stats and detection_stats.by_class else 0.0
+        )
+
+        surprise_scores = temporal_stats.surprise_scores if temporal_stats else []
+        surprise_std = _stddev(surprise_scores)
+        surprise_peak_rate = (
+            len(temporal_stats.peak_frames) / max(temporal_stats.n_frames, 1)
+            if temporal_stats else 0.0
+        )
+        surprise_detection_overlap = 0.0
+        if temporal_stats and temporal_stats.peak_frames:
+            hits = 0
+            total = 0
+            for idx in temporal_stats.peak_frames:
+                if 0 <= idx < len(frames):
+                    total += 1
+                    if frames[idx].n_detections > 0 or frames[idx].tracking_detections > 0:
+                        hits += 1
+            surprise_detection_overlap = hits / max(total, 1)
+
+        tracking_fragmentation = 0.0
+        track_persistence = 0.0
+        if tracking_stats and tracking_stats.total_detections > 0:
+            tracking_fragmentation = tracking_stats.unique_track_ids / max(tracking_stats.total_detections, 1)
+            track_persistence = _clamp01(tracking_stats.mean_track_length_frames / denom)
+
+        map_points_per_pose = 0.0
+        map_pose_coverage = 0.0
+        if map_stats:
+            map_points_per_pose = map_stats.points / max(map_stats.poses, 1)
+            map_pose_coverage = _clamp01(map_stats.poses / denom)
+
+        adaptation_efficiency = 0.0
+        if training_stats and training_stats.distill_best_r1 > 0:
+            # Retained retrieval quality per compression factor; higher is better.
+            adaptation_efficiency = training_stats.distill_best_r1 / max(training_stats.distill_compression, 1.0)
+
+        artifact_density = artifact_inventory.total_files / denom
+        artifact_mb_per_min = (
+            (artifact_inventory.total_bytes / (1024 * 1024)) / max(duration_sec / 60.0, 1e-6)
+        )
+
+        map_quality = 0.0
+        if map_stats:
+            point_score = _clamp01(map_stats.points / 200.0)
+            pose_score = _clamp01(map_stats.poses / max(denom, 1))
+            map_quality = 0.6 * point_score + 0.4 * pose_score
+        tracking_quality = 0.0
+        if tracking_stats and tracking_stats.total_detections > 0:
+            tracking_quality = _clamp01(0.7 * track_persistence + 0.3 * (1.0 - tracking_fragmentation))
+        training_quality = 1.0 if has_edge_model else 0.0
+        if training_stats and training_stats.distill_best_r1 > 0:
+            training_quality = _clamp01(training_stats.distill_best_r1)
+        warning_penalty = min(0.25, 0.05 * len(run_health.warnings))
+        quality_score = 100.0 * _clamp01(
+            0.35 * modality_completeness
+            + 0.20 * tracking_quality
+            + 0.15 * map_quality
+            + 0.15 * training_quality
+            + 0.15 * (1.0 if run_health.world_model_ok else 0.0)
+            - warning_penalty
+        )
+
+        return AnalyticsDiagnostics(
+            modality_completeness=modality_completeness,
+            quality_score=quality_score,
+            detection_density_per_frame=detection_density,
+            detection_count_cv=detection_cv,
+            detection_entropy_norm=detection_entropy,
+            tracking_fragmentation=tracking_fragmentation,
+            track_persistence=track_persistence,
+            surprise_std=surprise_std,
+            surprise_peak_rate=surprise_peak_rate,
+            surprise_detection_overlap=surprise_detection_overlap,
+            map_points_per_pose=map_points_per_pose,
+            map_pose_coverage=map_pose_coverage,
+            adaptation_efficiency=adaptation_efficiency,
+            artifact_density_per_frame=artifact_density,
+            artifact_mb_per_min=artifact_mb_per_min,
         )
 
     def _load_json(self, filename: str) -> Optional[dict]:
@@ -248,14 +379,18 @@ class LocalRunLoader:
         points = int(
             map_data.get("points", map_data.get("point_count", 0)) or 0
         )
+        method = str(map_data.get("method", "") or "")
         poses = int(
             map_data.get("poses", map_data.get("sfm_poses", 0)) or 0
         )
+        if "pca" in method:
+            poses = int(map_data.get("frame_anchor_count", poses) or poses)
+        degraded = bool(map_data.get("quality_degraded", points < 50 or poses < 20))
         return MapStats(
-            method=str(map_data.get("method", "") or ""),
+            method=method,
             points=points,
             poses=poses,
-            degraded=(points < 50 or poses < 20),
+            degraded=degraded,
         )
 
     def _build_artifact_inventory(self) -> ArtifactInventory:
@@ -307,6 +442,7 @@ class LocalRunLoader:
             and tracking_stats.unique_track_ids > 0
             and n_frames > 0
             and tracking_stats.unique_track_ids > (2 * n_frames)
+            and tracking_stats.mean_track_length_frames < 3.0
         ):
             warnings.append("Gemma-directed tracking appears highly fragmented (too many unique tracks)")
         if self._world_model_failed():
@@ -473,3 +609,41 @@ class LocalRunLoader:
             return int(match.group(1))
         match = re.search(r"(\d+)\s+cluster", text, re.I)
         return int(match.group(1)) if match else 0
+
+
+def _clamp01(value: float) -> float:
+    if not math.isfinite(value):
+        return 0.0
+    return max(0.0, min(1.0, float(value)))
+
+
+def _stddev(values: List[float]) -> float:
+    if not values:
+        return 0.0
+    mean = sum(float(v) for v in values) / len(values)
+    var = sum((float(v) - mean) ** 2 for v in values) / len(values)
+    return math.sqrt(var)
+
+
+def _coefficient_of_variation(values: List[int]) -> float:
+    if not values:
+        return 0.0
+    mean = sum(float(v) for v in values) / len(values)
+    if abs(mean) < 1e-9:
+        return 0.0
+    return _stddev([float(v) for v in values]) / mean
+
+
+def _normalised_entropy(counts: Dict[str, int]) -> float:
+    total = sum(max(0, int(v)) for v in counts.values())
+    n_classes = sum(1 for v in counts.values() if int(v) > 0)
+    if total <= 0 or n_classes <= 1:
+        return 0.0
+    entropy = 0.0
+    for count in counts.values():
+        c = max(0, int(count))
+        if c <= 0:
+            continue
+        p = c / total
+        entropy -= p * math.log(p)
+    return _clamp01(entropy / math.log(n_classes))

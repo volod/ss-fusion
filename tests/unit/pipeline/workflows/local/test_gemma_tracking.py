@@ -428,13 +428,32 @@ def test_scene_is_actionable_requires_detector_aligned_targets():
 
     assert tracking._scene_is_actionable(
         {
+            "scene_type": "urban_street",
             "tracking_priority": ["intersection", "roadway"],
             "dominant_objects": [],
         }
     ) is False
     assert tracking._scene_is_actionable(
         {
+            "scene_type": "urban_street",
             "tracking_priority": ["vehicle", "roadway"],
-            "dominant_objects": [],
+            "dominant_objects": [
+                {
+                    "category": "vehicle",
+                    "rough_bbox": [0.1, 0.1, 0.9, 0.9],
+                }
+            ],
         }
     ) is True
+    assert tracking._scene_is_actionable(
+        {
+            "scene_type": "urban_street|rural_terrain|indoor|aerial|waterway|construction|industrial|other",
+            "tracking_priority": ["vehicle"],
+            "dominant_objects": [
+                {
+                    "category": "vehicle",
+                    "rough_bbox": [0.1, 0.1, 0.9, 0.9],
+                }
+            ],
+        }
+    ) is False

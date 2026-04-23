@@ -37,6 +37,7 @@ from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 logger = get_logger(__name__)
 logging.getLogger("rfdetr").setLevel(logging.ERROR)
 logging.getLogger("rfdetr.main").setLevel(logging.ERROR)
+logging.getLogger("rf-detr").setLevel(logging.ERROR)
 
 # ── Priority taxonomy (mirrors pipeline/vision/yolo.py) ───────────────────────
 
@@ -210,13 +211,16 @@ class RFDETRTracker:
     """
 
     # Tracks not matched for this many consecutive frames are retired.
-    # Raised to 5 to keep identities alive through brief occlusions at 2 fps.
-    _MAX_MISS_FRAMES = 5
+    # 8 frames = 4 s at 2 fps; keeps identities alive through a full-second
+    # occlusion (e.g. vehicle passing under a tree canopy in aerial footage).
+    _MAX_MISS_FRAMES = 8
     # IoU threshold for matching a detection to an existing track.
-    # Lowered from 0.45 to 0.25: aerial/drone footage at 2 fps gives large
-    # inter-frame displacement relative to box size, so strict overlap matching
-    # causes excessive track fragmentation.
-    _IOU_THRESHOLD = 0.25
+    # Aerial drone footage at 2 fps: a vehicle travelling 60 km/h moves
+    # ~8 m between frames; at typical drone altitude that is 30-50 % of the
+    # box width, leaving very little overlap.  0.10 keeps tracks alive without
+    # merging clearly-separate vehicles (min separable IoU ≈ 0.0 for non-
+    # overlapping boxes, so 0.10 still requires at least a 10 % overlap).
+    _IOU_THRESHOLD = 0.10
 
     def __init__(self) -> None:
         self._model = None
@@ -358,6 +362,7 @@ class RFDETRTracker:
                     logger_levels={
                         "rfdetr": logging.ERROR,
                         "rfdetr.main": logging.ERROR,
+                        "rf-detr": logging.ERROR,
                         "transformers": logging.ERROR,
                     },
                 ):
@@ -370,6 +375,7 @@ class RFDETRTracker:
                     logger_levels={
                         "rfdetr": logging.ERROR,
                         "rfdetr.main": logging.ERROR,
+                        "rf-detr": logging.ERROR,
                         "transformers": logging.ERROR,
                     },
                 ):
@@ -381,6 +387,7 @@ class RFDETRTracker:
                     logger_levels={
                         "rfdetr": logging.ERROR,
                         "rfdetr.main": logging.ERROR,
+                        "rf-detr": logging.ERROR,
                         "transformers": logging.ERROR,
                     },
                 ):
@@ -407,6 +414,7 @@ class RFDETRTracker:
                 logger_levels={
                     "rfdetr": logging.ERROR,
                     "rfdetr.main": logging.ERROR,
+                    "rf-detr": logging.ERROR,
                     "transformers": logging.ERROR,
                 },
             ):

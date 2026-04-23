@@ -13,6 +13,7 @@ from .loader import LocalRunLoader
 from .models import (
     ArtifactInventory,
     ArtifactRecord,
+    AnalyticsDiagnostics,
     FrameRecord,
     DetectionStats,
     EmbeddingStats,
@@ -28,6 +29,7 @@ __all__ = [
     "LocalRunLoader",
     "ArtifactInventory",
     "ArtifactRecord",
+    "AnalyticsDiagnostics",
     "FrameRecord",
     "DetectionStats",
     "EmbeddingStats",
