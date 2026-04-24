@@ -280,6 +280,10 @@ class Settings:
 
     # Pipeline — SfM and 3DGS
     SFM_FPS = _env_float("SFM_FPS", 2.0)
+    # Minimum clip duration for Structure-from-Motion.  Clips shorter than this
+    # skip SfM entirely and go straight to the PCA/semantic-pseudo3d fallback —
+    # SfM on a 10s clip recovers too few poses to be useful and wastes CPU time.
+    SFM_MIN_DURATION_SEC = _env_float("SFM_MIN_DURATION_SEC", 30.0)
     PYCOLMAP_CAMERA_MODEL = _env("PYCOLMAP_CAMERA_MODEL", "SIMPLE_RADIAL")
     PYCOLMAP_SINGLE_CAMERA = _env("PYCOLMAP_SINGLE_CAMERA", "true").lower() == "true"
     PYCOLMAP_MAX_IMAGE_SIZE = _env_int("PYCOLMAP_MAX_IMAGE_SIZE", 1920)
@@ -432,6 +436,11 @@ class Settings:
     # Minimum caption_confidence below which OCR is run (high-confidence frames
     # usually have been captioned well enough; set to 1.0 to OCR all frames).
     OCR_MIN_CAPTION_CONFIDENCE = _env_float("OCR_MIN_CAPTION_CONFIDENCE", 0.55)
+    # Hard cap on frames sent to OCR after the confidence prescreen.  Aerial and
+    # wide-angle footage produces low Florence confidence on every frame, making
+    # the prescreen ineffective — this ensures OCR never processes more than N
+    # frames regardless of scene type.  0 = no cap.
+    OCR_MAX_FRAMES = _env_int("OCR_MAX_FRAMES", 30)
 
     # ── Depth estimation ──────────────────────────────────────────────────────
     # Stores 5-bucket depth percentiles in frame_facts_json["depth"].
