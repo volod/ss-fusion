@@ -118,13 +118,17 @@ class MapStats:
     method: str = ""
     points: int = 0
     poses: int = 0
+    sfm_poses: int = 0
+    frame_anchor_count: int = 0
     degraded: bool = False
+    quality_note: str = ""
 
 
 @dataclass
 class RunHealth:
     florence_caption_coverage: float = 0.0
     qwen_caption_coverage: float = 0.0
+    qwen_parse_error_count: int = 0
     asr_coverage: float = 0.0
     ocr_coverage: float = 0.0
     world_model_ok: bool = False

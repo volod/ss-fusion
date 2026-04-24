@@ -31,6 +31,7 @@ from selfsuvis.pipeline.core import ensure_dir, get_logger, settings
 
 logger = get_logger(__name__)
 _MIN_SFM_FRAMES = 3
+_SHORT_CLIP_EXHAUSTIVE_MAX_FRAMES = 120
 
 _COLMAP_CAMERA_MODELS = frozenset(
     {"SIMPLE_RADIAL", "RADIAL", "PINHOLE", "OPENCV", "FULL_OPENCV", "SIMPLE_PINHOLE"}
@@ -81,6 +82,7 @@ def _run_pycolmap(
     image_dir: str,
     output_dir: str,
     camera_model: str,
+    n_images: int,
 ) -> List[Any]:
     """Run pycolmap incremental mapping.
 
@@ -132,6 +134,12 @@ def _run_pycolmap(
         verification_options.min_num_inliers = max(15, settings.PYCOLMAP_INIT_MIN_NUM_INLIERS // 2)
 
         matching_mode = settings.PYCOLMAP_MATCHING.strip().lower()
+        if matching_mode == "sequential" and n_images <= _SHORT_CLIP_EXHAUSTIVE_MAX_FRAMES:
+            logger.info(
+                "SfM matching override: using exhaustive matching for short clip (%d frames)",
+                n_images,
+            )
+            matching_mode = "exhaustive"
         if matching_mode == "exhaustive":
             pycolmap.match_exhaustive(
                 database_path,
@@ -278,7 +286,7 @@ def run_sfm(
     image_dir = os.path.dirname(frame_paths[0])
     output_dir = os.path.join(settings.MAPS_DIR, mission_id, "colmap")
 
-    reconstructions = _run_pycolmap(image_dir, output_dir, camera_model)
+    reconstructions = _run_pycolmap(image_dir, output_dir, camera_model, len(frame_paths))
 
     # Build name → (scene_index, Image) lookup across all components
     name_to_scene: Dict[str, Any] = {}

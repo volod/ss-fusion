@@ -370,6 +370,25 @@ class Settings:
     UNIDRIVE_TIMEOUT_SEC = _env_int("UNIDRIVE_TIMEOUT_SEC", 60)
     UNIDRIVE_MAX_FRAMES = _env_int("UNIDRIVE_MAX_FRAMES", 24)
 
+    # ── SceneTok streaming encoder + segmentation decoder (Step 14) ──────────
+    # SceneTok (arxiv 2602.18882) compresses multi-view frames into permutation-
+    # invariant latent tokens and decodes them to novel views or segmentation masks.
+    #
+    # SCENETOK_API_URL: URL of the thin FastAPI sidecar
+    #   (python -m selfsuvis.scripts.scenetok_server).
+    #   Falls back to loading the checkpoint in-process when unset.
+    #   Preferred on single-GPU setups (~24 GB VRAM required for local inference).
+    # SCENETOK_CHECKPOINT: checkpoint variant name (without .ckpt extension).
+    #   Available: va-videodc_re10k (default), va-videodc_dl3dv, va-wan_dl3dv.
+    # SCENETOK_MODE: "masks" (segmentation decoder) or "rgb" (novel-view decoder).
+    #   Base checkpoints produce RGB; use a fine-tuned segmentation checkpoint for masks.
+    SCENETOK_ENABLED = _env("SCENETOK_ENABLED", "false").lower() == "true"
+    SCENETOK_API_URL = _env("SCENETOK_API_URL", "")
+    SCENETOK_CHECKPOINT = _env("SCENETOK_CHECKPOINT", "va-videodc_re10k")
+    SCENETOK_MODE = _env("SCENETOK_MODE", "masks")
+    SCENETOK_TIMEOUT_SEC = _env_int("SCENETOK_TIMEOUT_SEC", 300)
+    SCENETOK_MAX_FRAMES = _env_int("SCENETOK_MAX_FRAMES", 32)
+
     # ── ASR (Whisper) — audio-to-subtitle transcription ──────────────────────
     # Extracted subtitles are stored in frames.subtitle_text and injected into
     # the Qwen2.5-VL prompt as audio context for richer scene description.

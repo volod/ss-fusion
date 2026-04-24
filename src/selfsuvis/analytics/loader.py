@@ -172,8 +172,9 @@ class LocalRunLoader:
         map_points_per_pose = 0.0
         map_pose_coverage = 0.0
         if map_stats:
-            map_points_per_pose = map_stats.points / max(map_stats.poses, 1)
-            map_pose_coverage = _clamp01(map_stats.poses / denom)
+            pose_denom = max(map_stats.sfm_poses or map_stats.poses, 1)
+            map_points_per_pose = map_stats.points / pose_denom
+            map_pose_coverage = _clamp01((map_stats.sfm_poses or map_stats.poses) / denom)
 
         adaptation_efficiency = 0.0
         if training_stats and training_stats.distill_best_r1 > 0:
@@ -380,17 +381,20 @@ class LocalRunLoader:
             map_data.get("points", map_data.get("point_count", 0)) or 0
         )
         method = str(map_data.get("method", "") or "")
-        poses = int(
-            map_data.get("poses", map_data.get("sfm_poses", 0)) or 0
+        sfm_poses = int(map_data.get("sfm_poses", map_data.get("poses", 0)) or 0)
+        frame_anchor_count = int(map_data.get("frame_anchor_count", sfm_poses) or sfm_poses)
+        poses = frame_anchor_count if "pca" in method else sfm_poses
+        degraded = bool(map_data.get("quality_degraded", False)) or bool(
+            points < 50 or sfm_poses < 20 or str(method).startswith("sfm_sparse+")
         )
-        if "pca" in method:
-            poses = int(map_data.get("frame_anchor_count", poses) or poses)
-        degraded = bool(map_data.get("quality_degraded", points < 50 or poses < 20))
         return MapStats(
             method=method,
             points=points,
             poses=poses,
+            sfm_poses=sfm_poses,
+            frame_anchor_count=frame_anchor_count,
             degraded=degraded,
+            quality_note=str(map_data.get("quality_note", "") or ""),
         )
 
     def _build_artifact_inventory(self) -> ArtifactInventory:
@@ -426,11 +430,20 @@ class LocalRunLoader:
         denom = max(n_frames, 1)
         florence_count = sum(1 for frame in frames if frame.caption.strip())
         qwen_count = sum(1 for frame in frames if frame.qwen_caption.strip())
+        qwen_parse_error_count = self._count_qwen_parse_errors()
         asr_count = sum(1 for frame in frames if frame.asr_text.strip())
 
         warnings: List[str] = []
         if florence_count == 0 and n_frames:
             warnings.append("Florence captions are empty for all frames")
+        if qwen_parse_error_count and qwen_count == 0:
+            warnings.append(
+                f"Qwen structured captioning returned parse errors for all sampled frames ({qwen_parse_error_count})"
+            )
+        elif qwen_parse_error_count:
+            warnings.append(
+                f"Qwen structured captioning returned {qwen_parse_error_count} parse error(s)"
+            )
         if tracking_stats and tracking_stats.total_detections == 0:
             warnings.append("Gemma-directed RF-DETR produced zero tracked detections")
         if tracking_stats and tracking_stats.filter_retry_mode != "none":
@@ -449,7 +462,11 @@ class LocalRunLoader:
             warnings.append("World model inference failed or produced no usable embeddings")
         if map_stats and map_stats.degraded:
             warnings.append(
-                f"3D map quality is degraded ({map_stats.points} points, {map_stats.poses} poses)"
+                f"3D map quality is degraded ({map_stats.points} points, {map_stats.sfm_poses or map_stats.poses} SfM poses)"
+            )
+        elif map_stats and "pca" in map_stats.method.lower():
+            warnings.append(
+                f"3D map used PCA fallback geometry ({map_stats.sfm_poses} SfM poses, {map_stats.frame_anchor_count} frame anchors)"
             )
         restore_failures = int((runtime_metrics or {}).get("restore_failures", 0) or 0)
         vram_wait_time = float((runtime_metrics or {}).get("vram_wait_time_sec", 0.0) or 0.0)
@@ -462,6 +479,7 @@ class LocalRunLoader:
         return RunHealth(
             florence_caption_coverage=florence_count / denom,
             qwen_caption_coverage=qwen_count / denom,
+            qwen_parse_error_count=qwen_parse_error_count,
             asr_coverage=asr_count / denom,
             ocr_coverage=self._estimate_ocr_coverage(),
             world_model_ok=not self._world_model_failed(),
@@ -513,8 +531,24 @@ class LocalRunLoader:
             match = pattern.match(line.strip())
             if not match:
                 continue
-            mapping[float(match.group(1))] = match.group(2).strip()
+            caption = match.group(2).strip()
+            normalized = caption.lower().replace("*", "").strip()
+            if (
+                "parse_error: true" in normalized
+                or normalized.startswith("parse error")
+                or normalized.startswith("sidecar unavailable")
+                or normalized.startswith("skipped")
+            ):
+                continue
+            mapping[float(match.group(1))] = caption
         return mapping
+
+    def _count_qwen_parse_errors(self) -> int:
+        path = self.run_dir / "detailed_captions.md"
+        if not path.exists():
+            return 0
+        text = path.read_text()
+        return len(re.findall(r"parse_error:\s*True|\*parse error\*", text, re.IGNORECASE))
 
     def _parse_asr_segments(self, frames_meta: Optional[dict]) -> Dict[float, str]:
         path = self.run_dir / "asr_subtitles.md"

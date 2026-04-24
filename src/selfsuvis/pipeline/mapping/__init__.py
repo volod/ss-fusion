@@ -3,6 +3,7 @@
 from importlib import import_module
 
 _EXPORTS = {
+    "advise_map_quality": (".quality_advisor", "advise_map_quality"),
     "build_sparse_map": (".builder", "build_sparse_map"),
     "build_semantic_environment_graph": (".semantic_graph", "build_semantic_environment_graph"),
     "export_ply": (".builder", "export_ply"),

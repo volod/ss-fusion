@@ -71,6 +71,20 @@ _QWEN_USER_PROMPT = (
 )
 
 
+def _looks_like_ollama(api_url: str) -> bool:
+    return ":11434" in (api_url or "")
+
+
+def _request_kwargs_for_backend(api_url: str) -> Dict[str, Any]:
+    kwargs: Dict[str, Any] = {
+        "max_tokens": 512,
+        "temperature": 0.0,
+    }
+    if _looks_like_ollama(api_url):
+        kwargs["extra_body"] = {"format": "json"}
+    return kwargs
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -313,12 +327,27 @@ class QwenModel:
                     {"role": "system", "content": _QWEN_SYSTEM_PROMPT},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=512,
-                temperature=0.0,
+                **_request_kwargs_for_backend(_api_url),
             )
 
             raw_text = response.choices[0].message.content or ""
-            return _parse_qwen_response(raw_text)
+            parsed = _parse_qwen_response(raw_text)
+            if not parsed.get("parse_error"):
+                return parsed
+
+            retry_response = self._client_for(_api_url).chat.completions.create(
+                model=_api_model,
+                messages=[
+                    {"role": "system", "content": _QWEN_SYSTEM_PROMPT + " Return exactly one JSON object."},
+                    {"role": "user", "content": user_content},
+                ],
+                **_request_kwargs_for_backend(_api_url),
+            )
+            retry_raw = retry_response.choices[0].message.content or ""
+            retry_parsed = _parse_qwen_response(retry_raw)
+            if retry_parsed.get("parse_error"):
+                retry_parsed["raw"] = retry_raw[:500]
+            return retry_parsed
 
         except Exception as exc:
             # Check for timeout specifically (openai >= 1.0 raises APITimeoutError)
@@ -455,12 +484,27 @@ class QwenModel:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=512,
-                temperature=0.0,
+                **_request_kwargs_for_backend(_api_url),
             )
 
             raw_text = response.choices[0].message.content or ""
-            return _parse_qwen_response(raw_text)
+            parsed = _parse_qwen_response(raw_text)
+            if not parsed.get("parse_error"):
+                return parsed
+
+            retry_response = client.chat.completions.create(
+                model=_api_model,
+                messages=[
+                    {"role": "system", "content": system_prompt + " Return exactly one JSON object."},
+                    {"role": "user", "content": user_content},
+                ],
+                **_request_kwargs_for_backend(_api_url),
+            )
+            retry_raw = retry_response.choices[0].message.content or ""
+            retry_parsed = _parse_qwen_response(retry_raw)
+            if retry_parsed.get("parse_error"):
+                retry_parsed["raw"] = retry_raw[:500]
+            return retry_parsed
 
         except Exception as exc:
             exc_type = type(exc).__name__
