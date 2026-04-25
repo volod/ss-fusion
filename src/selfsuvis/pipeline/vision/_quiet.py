@@ -1,6 +1,5 @@
 """Helpers for suppressing noisy third-party warnings and console output."""
 
-from __future__ import annotations
 
 import contextlib
 import io

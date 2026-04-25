@@ -1,6 +1,5 @@
 """Load and aggregate all artifacts produced by a local pipeline run."""
 
-from __future__ import annotations
 
 import json
 import logging
@@ -127,9 +126,14 @@ class LocalRunLoader:
         has_edge_model: bool,
     ) -> AnalyticsDiagnostics:
         denom = max(n_frames, 1)
+        qwen_coverage_score = _targeted_coverage_score(
+            run_health.qwen_caption_coverage,
+            n_frames=n_frames,
+            target_frames=20,
+        )
         coverage_terms = [
             run_health.florence_caption_coverage,
-            run_health.qwen_caption_coverage,
+            qwen_coverage_score,
             run_health.asr_coverage,
             run_health.ocr_coverage,
             1.0 if run_health.world_model_ok else 0.0,
@@ -172,9 +176,9 @@ class LocalRunLoader:
         map_points_per_pose = 0.0
         map_pose_coverage = 0.0
         if map_stats:
-            pose_denom = max(map_stats.sfm_poses or map_stats.poses, 1)
-            map_points_per_pose = map_stats.points / pose_denom
-            map_pose_coverage = _clamp01((map_stats.sfm_poses or map_stats.poses) / denom)
+            if map_stats.sfm_poses > 0:
+                map_points_per_pose = map_stats.points / max(map_stats.sfm_poses, 1)
+            map_pose_coverage = _clamp01(map_stats.sfm_poses / denom)
 
         adaptation_efficiency = 0.0
         if training_stats and training_stats.distill_best_r1 > 0:
@@ -189,8 +193,14 @@ class LocalRunLoader:
         map_quality = 0.0
         if map_stats:
             point_score = _clamp01(map_stats.points / 200.0)
-            pose_score = _clamp01(map_stats.poses / max(denom, 1))
-            map_quality = 0.6 * point_score + 0.4 * pose_score
+            # Only reconstructed SfM poses count as true 3D map pose coverage.
+            # PCA fallback anchors are still useful for visualisation, but they
+            # should not inflate mapping quality in analytics summaries.
+            pose_score = _clamp01(map_stats.sfm_poses / max(denom, 1))
+            anchor_score = 0.0
+            if map_stats.sfm_poses == 0 and map_stats.frame_anchor_count > 0:
+                anchor_score = 0.25 * _clamp01(map_stats.frame_anchor_count / max(denom, 1))
+            map_quality = 0.6 * point_score + 0.3 * pose_score + 0.1 * anchor_score
         tracking_quality = 0.0
         if tracking_stats and tracking_stats.total_detections > 0:
             tracking_quality = _clamp01(0.7 * track_persistence + 0.3 * (1.0 - tracking_fragmentation))
@@ -461,9 +471,16 @@ class LocalRunLoader:
         if self._world_model_failed():
             warnings.append("World model inference failed or produced no usable embeddings")
         if map_stats and map_stats.degraded:
-            warnings.append(
-                f"3D map quality is degraded ({map_stats.points} points, {map_stats.sfm_poses or map_stats.poses} SfM poses)"
-            )
+            if map_stats.frame_anchor_count > map_stats.sfm_poses:
+                warnings.append(
+                    "3D map quality is degraded "
+                    f"({map_stats.points} points, {map_stats.sfm_poses} SfM poses, "
+                    f"{map_stats.frame_anchor_count} frame anchors)"
+                )
+            else:
+                warnings.append(
+                    f"3D map quality is degraded ({map_stats.points} points, {map_stats.sfm_poses} SfM poses)"
+                )
         elif map_stats and "pca" in map_stats.method.lower():
             warnings.append(
                 f"3D map used PCA fallback geometry ({map_stats.sfm_poses} SfM poses, {map_stats.frame_anchor_count} frame anchors)"
@@ -649,6 +666,14 @@ def _clamp01(value: float) -> float:
     if not math.isfinite(value):
         return 0.0
     return max(0.0, min(1.0, float(value)))
+
+
+def _targeted_coverage_score(raw_coverage: float, *, n_frames: int, target_frames: int) -> float:
+    """Normalise sparse expert-pass coverage against its intended sample budget."""
+    expected_coverage = min(1.0, float(target_frames) / max(int(n_frames), 1))
+    if expected_coverage <= 0.0:
+        return 0.0
+    return _clamp01(raw_coverage / expected_coverage)
 
 
 def _stddev(values: List[float]) -> float:

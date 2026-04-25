@@ -12,7 +12,6 @@ Reference:
     Umeyama, S. (1991). "Least-squares estimation of transformation parameters
     between two point patterns." IEEE T-PAMI, 13(4), 376-380.
 """
-from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional, Sequence, Tuple

@@ -1,6 +1,5 @@
 """Embedding-space analysis from edge_models/gallery.npz."""
 
-from __future__ import annotations
 
 import logging
 from pathlib import Path

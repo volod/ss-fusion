@@ -1,6 +1,5 @@
 """Generate a self-contained HTML analysis report from a RunSummary."""
 
-from __future__ import annotations
 
 import base64
 import io

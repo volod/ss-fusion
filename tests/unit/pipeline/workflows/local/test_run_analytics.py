@@ -21,6 +21,7 @@ def test_build_local_run_analytics_payload_includes_high_signal_fields():
         run_health=SimpleNamespace(
             florence_caption_coverage=1.0,
             qwen_caption_coverage=0.4,
+            qwen_parse_error_count=0,
             asr_coverage=1.0,
             ocr_coverage=0.0,
             world_model_ok=True,
@@ -68,7 +69,10 @@ def test_build_local_run_analytics_payload_includes_high_signal_fields():
             method="sfm",
             points=10,
             poses=10,
+            sfm_poses=10,
+            frame_anchor_count=10,
             degraded=True,
+            quality_note="",
         ),
     )
 

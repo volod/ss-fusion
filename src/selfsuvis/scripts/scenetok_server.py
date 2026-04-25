@@ -8,7 +8,6 @@ The local pipeline client in ``selfsuvis.pipeline.vision.scenetok`` expects
 this exact contract.
 """
 
-from __future__ import annotations
 
 import asyncio
 import base64

@@ -4,7 +4,6 @@ Produces a run artifact that explains why SfM quality is weak or strong and
 what capture changes would most improve the next flight.
 """
 
-from __future__ import annotations
 
 import json
 import math

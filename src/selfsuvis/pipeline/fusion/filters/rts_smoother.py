@@ -13,7 +13,6 @@ Usage::
     steps = [FilteredStep(t_sec=t, x=x, P=P) for t, x, P in forward_pass]
     smoothed = rts_smooth(steps, process_pos_std, process_vel_std)
 """
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Sequence

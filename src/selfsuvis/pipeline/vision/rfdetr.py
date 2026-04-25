@@ -197,6 +197,49 @@ def _iou_norm(a: List[float], b: List[float]) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _bbox_center(box: List[float]) -> Tuple[float, float]:
+    return ((box[0] + box[2]) * 0.5, (box[1] + box[3]) * 0.5)
+
+
+def _bbox_area(box: List[float]) -> float:
+    return max(0.0, box[2] - box[0]) * max(0.0, box[3] - box[1])
+
+
+def _track_label_family(label: str) -> str:
+    norm = _normalise_target_label(label)
+    if norm in _HUMAN_LABELS:
+        return "human"
+    if norm in _VEHICLE_LABELS or norm == "vehicle":
+        return "vehicle"
+    return norm
+
+
+def _track_match_score(track: Dict[str, Any], det: Dict[str, Any]) -> float:
+    """Return a continuity score for matching *det* to *track*."""
+    track_label = _track_label_family(str(track.get("label", "")))
+    det_label = _track_label_family(str(det.get("label", "")))
+    if track_label and det_label and track_label != det_label:
+        return 0.0
+
+    track_bbox = track["bbox_norm"]
+    det_bbox = det["bbox_norm"]
+    iou = _iou_norm(track_bbox, det_bbox)
+    if iou > 0.0:
+        return iou
+
+    tcx, tcy = _bbox_center(track_bbox)
+    dcx, dcy = _bbox_center(det_bbox)
+    center_dist = float(np.hypot(tcx - dcx, tcy - dcy))
+    track_area = _bbox_area(track_bbox)
+    det_area = _bbox_area(det_bbox)
+    area_ratio = det_area / max(track_area, 1e-6)
+    if 0.4 <= area_ratio <= 2.5 and center_dist <= 0.08:
+        # Small positive fallback score: enough to preserve identity across
+        # sparse aerial frames, but still below any real-overlap match.
+        return 0.10 + (0.08 - center_dist) * 0.5
+    return 0.0
+
+
 # ── Main tracker class ─────────────────────────────────────────────────────────
 
 class RFDETRTracker:
@@ -334,7 +377,7 @@ class RFDETRTracker:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _reset_tracking_state(self) -> None:
-        """Active tracks: {track_id: {"bbox_norm": list, "miss": int}}."""
+        """Active tracks: {track_id: {"bbox_norm": list, "label": str, "miss": int}}."""
         self._active_tracks: Dict[int, Dict[str, Any]] = {}
         self._next_id = 1
 
@@ -468,9 +511,8 @@ class RFDETRTracker:
         track_ids = list(self._active_tracks.keys())
         iou_matrix = np.zeros((len(track_ids), len(detections)), dtype=np.float32)
         for ti, tid in enumerate(track_ids):
-            track_bbox = self._active_tracks[tid]["bbox_norm"]
             for di, det in enumerate(detections):
-                iou_matrix[ti, di] = _iou_norm(track_bbox, det["bbox_norm"])
+                iou_matrix[ti, di] = _track_match_score(self._active_tracks[tid], det)
 
         # Greedy assignment: highest IoU first
         assigned_track: Dict[int, int] = {}   # det_idx → track_id
@@ -509,13 +551,20 @@ class RFDETRTracker:
                 tid = assigned_track[di]
                 det["track_id"] = tid
                 self._active_tracks[tid]["bbox_norm"] = det["bbox_norm"]
+                self._active_tracks[tid]["label"] = det["label"]
+                self._active_tracks[tid]["priority"] = det.get("priority", PRIORITY_OTHER)
                 self._active_tracks[tid]["miss"] = 0
             else:
                 # New track
                 new_id = self._next_id
                 self._next_id += 1
                 det["track_id"] = new_id
-                self._active_tracks[new_id] = {"bbox_norm": det["bbox_norm"], "miss": 0}
+                self._active_tracks[new_id] = {
+                    "bbox_norm": det["bbox_norm"],
+                    "label": det["label"],
+                    "priority": det.get("priority", PRIORITY_OTHER),
+                    "miss": 0,
+                }
 
         return detections
 

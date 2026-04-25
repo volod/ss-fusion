@@ -12,7 +12,6 @@ Gating: Mahalanobis distance²  with chi-squared threshold (4 DOF, p=0.99 → 13
 RTS smoother history is accumulated so that the caller can retrieve smoothed
 estimates in a backward pass after all frames are processed.
 """
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple

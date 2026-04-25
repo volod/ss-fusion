@@ -21,7 +21,6 @@ Input schema (RF-DETR tracking_results):
 
 Output: ObjectFusionResult with per-frame smoothed track states.
 """
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

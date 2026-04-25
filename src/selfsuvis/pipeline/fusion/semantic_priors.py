@@ -13,7 +13,6 @@ Usage::
     prior = build_semantic_prior(gemma_analysis, rssm_surprise_mean=0.8)
     # Then pass prior.process_noise_scale / prior.gps_noise_scale into the filter.
 """
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

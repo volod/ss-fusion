@@ -1,6 +1,5 @@
 """Detection charts: class distribution and per-frame heatmap."""
 
-from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional

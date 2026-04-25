@@ -1,6 +1,5 @@
 """Timeline chart: per-frame metrics over time."""
 
-from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional

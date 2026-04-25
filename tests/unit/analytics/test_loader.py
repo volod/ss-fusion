@@ -6,6 +6,8 @@ import json
 
 import numpy as np
 
+from selfsuvis.analytics import loader
+
 
 def _write(path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -234,3 +236,55 @@ def test_local_run_loader_parses_ocr_coverage_from_markdown_table(tmp_path):
     summary = LocalRunLoader(run_dir).load()
 
     assert summary.run_health.ocr_coverage == 24 / 51
+
+
+def test_local_run_loader_does_not_treat_pca_anchors_as_sfm_pose_coverage(tmp_path):
+    from selfsuvis.analytics import LocalRunLoader
+
+    run_dir = tmp_path / "mission_pca"
+    _write(
+        run_dir / "frames_metadata.json",
+        json.dumps(
+            {
+                "video_id": "mission_pca",
+                "fps": 2.0,
+                "frame_count": 4,
+                "duration_sec": 2.0,
+                "frames": [
+                    {"path": f"frame_{idx}.jpg", "t_sec": idx * 0.5}
+                    for idx in range(4)
+                ],
+            }
+        ),
+    )
+    _write(
+        run_dir / "3d_map" / "map_stats.json",
+        json.dumps(
+            {
+                "method": "pca_pixels",
+                "points": 51,
+                "poses": 4,
+                "sfm_poses": 0,
+                "frame_anchor_count": 4,
+                "quality_degraded": True,
+            }
+        ),
+    )
+
+    summary = LocalRunLoader(run_dir).load()
+
+    assert summary.map_stats is not None
+    assert summary.map_stats.poses == 4
+    assert summary.map_stats.sfm_poses == 0
+    assert summary.diagnostics.map_pose_coverage == 0.0
+    assert summary.diagnostics.map_points_per_pose == 0.0
+    assert any(
+        "0 SfM poses, 4 frame anchors" in warning
+        for warning in summary.run_health.warnings
+    )
+
+
+def test_targeted_coverage_score_saturates_sparse_expert_passes():
+    score = loader._targeted_coverage_score(0.39, n_frames=51, target_frames=20)
+
+    assert 0.99 <= score <= 1.0

@@ -273,6 +273,11 @@ class Settings:
     REALTIME_PACKET_BATCH_SIZE = _env_int("REALTIME_PACKET_BATCH_SIZE", 128)
     REALTIME_MAX_SENSOR_LAG_MS = _env_int("REALTIME_MAX_SENSOR_LAG_MS", 120)
     REALTIME_SESSION_TIMEOUT_SEC = _env_int("REALTIME_SESSION_TIMEOUT_SEC", 30)
+    MEDIAMTX_API_URL = _env("MEDIAMTX_API_URL", "http://mediamtx:9997")
+    MEDIAMTX_API_USER = _env("MEDIAMTX_API_USER", "")
+    MEDIAMTX_API_PASS = _env("MEDIAMTX_API_PASS", "")
+    MEDIAMTX_RTSP_BASE_URL = _env("MEDIAMTX_RTSP_BASE_URL", "rtsp://mediamtx:8554")
+    MEDIAMTX_PUBLIC_RTSP_BASE_URL = _env("MEDIAMTX_PUBLIC_RTSP_BASE_URL", "rtsp://localhost:8554")
 
     # Reports and maps output directories
     REPORTS_DIR = _env("REPORTS_DIR", os.path.join(DATA_DIR, "reports"))

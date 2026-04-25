@@ -1,6 +1,5 @@
 """Training curves: SSL fine-tuning loss and distillation metrics."""
 
-from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional

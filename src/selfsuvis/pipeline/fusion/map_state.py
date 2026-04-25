@@ -16,7 +16,6 @@ Extends the platform Kalman filter with two additional capabilities:
 Returns a MapFusionResult containing the smoothed per-frame states alongside
 the alignment diagnostics.
 """
-from __future__ import annotations
 
 import logging
 from collections import Counter

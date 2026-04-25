@@ -33,3 +33,31 @@ def test_label_matches_any_handles_alias_expansion_inputs():
 
     assert rfdetr._label_matches_any("pedestrian", expanded) is True
     assert rfdetr._label_matches_any("truck", expanded) is False
+
+
+def test_track_match_score_preserves_vehicle_track_on_small_center_shift():
+    track = {
+        "label": "car",
+        "bbox_norm": [0.10, 0.10, 0.20, 0.20],
+    }
+    det = {
+        "label": "truck",
+        "bbox_norm": [0.15, 0.10, 0.25, 0.20],
+    }
+
+    score = rfdetr._track_match_score(track, det)
+
+    assert score >= 0.10
+
+
+def test_track_match_score_rejects_cross_category_match():
+    track = {
+        "label": "person",
+        "bbox_norm": [0.10, 0.10, 0.20, 0.20],
+    }
+    det = {
+        "label": "car",
+        "bbox_norm": [0.11, 0.10, 0.21, 0.20],
+    }
+
+    assert rfdetr._track_match_score(track, det) == 0.0
