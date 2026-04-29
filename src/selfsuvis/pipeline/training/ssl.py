@@ -29,7 +29,7 @@ import os
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -40,6 +40,135 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TemporalVisualPair:
+    anchor_frame_path: str
+    positive_frame_path: str
+    time_delta_sec: float = 0.0
+    track_id: Optional[int] = None
+    pose_overlap_score: Optional[float] = None
+    sample_weight: float = 1.0
+    modality_payload: Dict[str, Any] = field(default_factory=dict)
+    pair_source: str = "temporal_visual"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "pair_type": "temporal_visual",
+            "pair_source": self.pair_source,
+            "anchor_frame_path": self.anchor_frame_path,
+            "positive_frame_path": self.positive_frame_path,
+            "time_delta_sec": float(self.time_delta_sec),
+            "track_id": self.track_id,
+            "pose_overlap_score": self.pose_overlap_score,
+            "sample_weight": float(self.sample_weight),
+            "modality_payload": dict(self.modality_payload),
+        }
+
+
+@dataclass
+class CrossModalPair:
+    anchor_frame_path: str
+    positive_frame_path: str
+    time_delta_sec: float = 0.0
+    track_id: Optional[int] = None
+    pose_overlap_score: Optional[float] = None
+    sample_weight: float = 1.0
+    modality_payload: Dict[str, Any] = field(default_factory=dict)
+    pair_source: str = "cross_modal"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "pair_type": "cross_modal",
+            "pair_source": self.pair_source,
+            "anchor_frame_path": self.anchor_frame_path,
+            "positive_frame_path": self.positive_frame_path,
+            "time_delta_sec": float(self.time_delta_sec),
+            "track_id": self.track_id,
+            "pose_overlap_score": self.pose_overlap_score,
+            "sample_weight": float(self.sample_weight),
+            "modality_payload": dict(self.modality_payload),
+        }
+
+
+@dataclass
+class GeometryPair:
+    anchor_frame_path: str
+    positive_frame_path: str
+    time_delta_sec: float = 0.0
+    track_id: Optional[int] = None
+    pose_overlap_score: Optional[float] = None
+    sample_weight: float = 1.0
+    modality_payload: Dict[str, Any] = field(default_factory=dict)
+    pair_source: str = "geometry"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "pair_type": "geometry",
+            "pair_source": self.pair_source,
+            "anchor_frame_path": self.anchor_frame_path,
+            "positive_frame_path": self.positive_frame_path,
+            "time_delta_sec": float(self.time_delta_sec),
+            "track_id": self.track_id,
+            "pose_overlap_score": self.pose_overlap_score,
+            "sample_weight": float(self.sample_weight),
+            "modality_payload": dict(self.modality_payload),
+        }
+
+
+MultimodalPair = Union[TemporalVisualPair, CrossModalPair, GeometryPair]
+
+
+def collate_multimodal_pairs(
+    pairs: List[MultimodalPair],
+) -> Dict[str, Any]:
+    """Collate pair metadata into a JSON-friendly batch payload.
+
+    Missing optional modality targets are represented as ``None`` so callers can
+    mask them out without losing batch alignment.
+    """
+    batch: Dict[str, Any] = {
+        "records": pairs,
+        "pair_types": [],
+        "pair_sources": [],
+        "anchor_frame_paths": [],
+        "positive_frame_paths": [],
+        "time_delta_sec": torch.tensor([], dtype=torch.float32),
+        "sample_weight": torch.tensor([], dtype=torch.float32),
+        "track_id": [],
+        "pose_overlap_score": [],
+        "depth_similarity_target": [],
+        "motion_similarity_target": [],
+        "geometry_similarity_target": [],
+        "modality_payload": [],
+    }
+    if not pairs:
+        return batch
+
+    time_deltas: List[float] = []
+    sample_weights: List[float] = []
+    for pair in pairs:
+        payload = dict(getattr(pair, "modality_payload", {}) or {})
+        pair_type = pair.to_dict().get("pair_type", "unknown")
+        batch["pair_types"].append(pair_type)
+        batch["pair_sources"].append(getattr(pair, "pair_source", pair_type))
+        batch["anchor_frame_paths"].append(pair.anchor_frame_path)
+        batch["positive_frame_paths"].append(pair.positive_frame_path)
+        batch["track_id"].append(pair.track_id)
+        batch["pose_overlap_score"].append(pair.pose_overlap_score)
+        batch["depth_similarity_target"].append(payload.get("depth_similarity_target"))
+        batch["motion_similarity_target"].append(payload.get("motion_similarity_target"))
+        batch["geometry_similarity_target"].append(
+            payload.get("geometry_similarity_target", pair.pose_overlap_score)
+        )
+        batch["modality_payload"].append(payload)
+        time_deltas.append(float(pair.time_delta_sec))
+        sample_weights.append(float(pair.sample_weight))
+
+    batch["time_delta_sec"] = torch.tensor(time_deltas, dtype=torch.float32)
+    batch["sample_weight"] = torch.tensor(sample_weights, dtype=torch.float32)
+    return batch
 
 
 # ── Augmentation pipeline ─────────────────────────────────────────────────────
@@ -111,6 +240,33 @@ class AugmentPairDataset(Dataset):
         return self.transform(img), self.transform(img)
 
 
+def _crop_bbox(
+    img: "Image.Image",
+    bbox_norm: List[float],
+    padding: float = 0.15,
+    size: int = 224,
+) -> "Image.Image":
+    """Crop image around a normalised bbox [x1,y1,x2,y2] with padding, resize to size.
+
+    A 15 % padding margin on each side prevents the model from seeing only the
+    tightest crop; it provides enough visual context for the object while still
+    being much tighter than a full-frame crop.  Degenerate bboxes (area < 1 %)
+    fall back to the full image to avoid empty tensors.
+    """
+    w, h = img.size
+    x1, y1, x2, y2 = bbox_norm
+    pw = (x2 - x1) * padding
+    ph = (y2 - y1) * padding
+    x1 = max(0.0, x1 - pw)
+    y1 = max(0.0, y1 - ph)
+    x2 = min(1.0, x2 + pw)
+    y2 = min(1.0, y2 + ph)
+    cx1, cy1, cx2, cy2 = int(x1 * w), int(y1 * h), int(x2 * w), int(y2 * h)
+    if cx2 - cx1 < 8 or cy2 - cy1 < 8:
+        return img.resize((size, size), Image.BICUBIC)
+    return img.crop((cx1, cy1, cx2, cy2)).resize((size, size), Image.BICUBIC)
+
+
 class TemporalPairDataset(Dataset):
     """Positive pairs are consecutive frames from the same video directory.
 
@@ -143,7 +299,16 @@ class TemporalPairDataset(Dataset):
 
     def _build_pairs(self, frames_dir: str) -> None:
         exts = {".jpg", ".jpeg", ".png"}
-        for video_dir in sorted(Path(frames_dir).iterdir()):
+        frames_root = Path(frames_dir)
+        direct_frames = sorted(
+            p for p in frames_root.iterdir()
+            if p.is_file() and p.suffix.lower() in exts
+        ) if frames_root.exists() else []
+        if len(direct_frames) >= 2:
+            self._append_pairs_for_sequence(direct_frames)
+            return
+
+        for video_dir in sorted(frames_root.iterdir()):
             if not video_dir.is_dir():
                 continue
             frames = sorted(
@@ -151,11 +316,14 @@ class TemporalPairDataset(Dataset):
             )
             if len(frames) < 2:
                 continue
-            # Iterate over all frames except the last (which has no successor)
-            for i in range(len(frames) - 1):
-                max_possible = len(frames) - 1 - i
-                gap = random.randint(1, min(self.max_gap, max_possible))
-                self.pairs.append((str(frames[i]), str(frames[i + gap])))
+            self._append_pairs_for_sequence(frames)
+
+    def _append_pairs_for_sequence(self, frames: List[Path]) -> None:
+        # Iterate over all frames except the last (which has no successor)
+        for i in range(len(frames) - 1):
+            max_possible = len(frames) - 1 - i
+            gap = random.randint(1, min(self.max_gap, max_possible))
+            self.pairs.append((str(frames[i]), str(frames[i + gap])))
 
     def __len__(self) -> int:
         return len(self.pairs)
@@ -165,6 +333,183 @@ class TemporalPairDataset(Dataset):
         img1 = Image.open(p1).convert("RGB")
         img2 = Image.open(p2).convert("RGB")
         return self.transform(img1), self.transform(img2)
+
+
+class TrackPairDataset(Dataset):
+    """Positive pairs built from RF-DETR track IDs: two bbox-crops of the same object.
+
+    Each positive pair is (crop of object at time t, crop of same object at time t+k)
+    where k ∈ [min_gap, max_gap].  Cropping around the tracked bbox provides a much
+    tighter positive-pair signal than full-frame temporal pairs — the model must learn
+    appearance-invariant features for the specific object instance, not just spatial
+    proximity between consecutive frames.
+
+    Args:
+        track_map:  {track_id: [(frame_path, bbox_norm, t_sec), ...]} sorted by t_sec.
+                    Produced by steps_ssl._extract_track_map().
+        transform:  Augmentation transform applied to each crop.
+        min_gap:    Minimum number of appearances apart within the track (default 2).
+        max_gap:    Maximum number of appearances apart within the track (default 5).
+        image_size: Output crop size fed to the backbone (default 224).
+        crop_pad:   Fractional padding around bbox on each side (default 0.15).
+    """
+
+    def __init__(
+        self,
+        track_map: "Dict[int, List[Tuple[str, List[float], float]]]",
+        transform: transforms.Compose,
+        min_gap: int = 2,
+        max_gap: int = 5,
+        image_size: int = 224,
+        crop_pad: float = 0.15,
+    ):
+        self.transform = transform
+        self.image_size = image_size
+        self.crop_pad = crop_pad
+        self.pairs: List[Tuple[str, List[float], str, List[float]]] = []
+        for appearances in track_map.values():
+            n = len(appearances)
+            if n < 2:
+                continue
+            for i in range(n - min_gap):
+                hi = min(n - 1, i + max_gap)
+                lo = i + min_gap
+                if lo > hi:
+                    continue
+                j = random.randint(lo, hi)
+                fp_a, bbox_a, _ = appearances[i]
+                fp_b, bbox_b, _ = appearances[j]
+                self.pairs.append((fp_a, bbox_a, fp_b, bbox_b))
+        if not self.pairs:
+            raise ValueError(
+                "TrackPairDataset: no valid pairs — need tracks with ≥2 appearances "
+                f"at gap {min_gap}–{max_gap}."
+            )
+
+    def __len__(self) -> int:
+        return len(self.pairs)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        fp_a, bbox_a, fp_b, bbox_b = self.pairs[idx]
+        img_a = Image.open(fp_a).convert("RGB")
+        img_b = Image.open(fp_b).convert("RGB")
+        crop_a = _crop_bbox(img_a, bbox_a, self.crop_pad, self.image_size)
+        crop_b = _crop_bbox(img_b, bbox_b, self.crop_pad, self.image_size)
+        return self.transform(crop_a), self.transform(crop_b)
+
+
+class TrackTripletDataset(Dataset):
+    """Triplets (A, B, C) from the same track for cycle-consistency training.
+
+    A = appearances[i], B = appearances[i+k], C = appearances[i+2k] where
+    k ∈ [min_gap, max_gap].  All three crops are of the same tracked object at
+    increasing times, enabling the CycleConsistencyLoss to enforce:
+      - forward:  embed(A) ≈ embed(B)
+      - backward: embed(B) ≈ embed(C)
+      - cycle:    embed(A) ≈ embed(C)  (long-horizon consistency, down-weighted)
+
+    The cycle term is the key addition over standard temporal pairs — it explicitly
+    teaches the model that the same object identity must be preserved across the
+    widest temporal gap in the triplet, preventing drift in long tracks.
+
+    Args:
+        track_map:  {track_id: [(frame_path, bbox_norm, t_sec), ...]} sorted by t_sec.
+        transform:  Augmentation transform applied to each crop.
+        min_gap:    Minimum step k between consecutive triplet members (default 2).
+        max_gap:    Maximum step k (default 5).
+        image_size: Output crop size (default 224).
+        crop_pad:   Fractional padding around bbox (default 0.15).
+    """
+
+    def __init__(
+        self,
+        track_map: "Dict[int, List[Tuple[str, List[float], float]]]",
+        transform: transforms.Compose,
+        min_gap: int = 2,
+        max_gap: int = 5,
+        image_size: int = 224,
+        crop_pad: float = 0.15,
+    ):
+        self.transform = transform
+        self.image_size = image_size
+        self.crop_pad = crop_pad
+        self.triplets: List[
+            Tuple[str, List[float], str, List[float], str, List[float]]
+        ] = []
+        for appearances in track_map.values():
+            n = len(appearances)
+            if n < 2 * min_gap + 1:
+                continue
+            for i in range(n - 2 * min_gap):
+                max_k = min(max_gap, (n - 1 - i) // 2)
+                if max_k < min_gap:
+                    continue
+                k = random.randint(min_gap, max_k)
+                j = i + k
+                l = i + 2 * k
+                if l >= n:
+                    continue
+                fp_a, bbox_a, _ = appearances[i]
+                fp_b, bbox_b, _ = appearances[j]
+                fp_c, bbox_c, _ = appearances[l]
+                self.triplets.append((fp_a, bbox_a, fp_b, bbox_b, fp_c, bbox_c))
+        if not self.triplets:
+            raise ValueError(
+                "TrackTripletDataset: no valid triplets — need tracks with ≥"
+                f"{2 * min_gap + 1} appearances at gap {min_gap}–{max_gap}."
+            )
+
+    def __len__(self) -> int:
+        return len(self.triplets)
+
+    def __getitem__(
+        self, idx: int
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        fp_a, bbox_a, fp_b, bbox_b, fp_c, bbox_c = self.triplets[idx]
+        img_a = Image.open(fp_a).convert("RGB")
+        img_b = Image.open(fp_b).convert("RGB")
+        img_c = Image.open(fp_c).convert("RGB")
+        crop_a = _crop_bbox(img_a, bbox_a, self.crop_pad, self.image_size)
+        crop_b = _crop_bbox(img_b, bbox_b, self.crop_pad, self.image_size)
+        crop_c = _crop_bbox(img_c, bbox_c, self.crop_pad, self.image_size)
+        return self.transform(crop_a), self.transform(crop_b), self.transform(crop_c)
+
+
+class MultimodalPairDataset(Dataset):
+    """Return transformed RGB pairs plus typed multimodal metadata.
+
+    The metadata record stays out-of-band from the image tensors so training can
+    add auxiliary losses only when a pair provides the required side-channel.
+    """
+
+    def __init__(
+        self,
+        pairs: List[MultimodalPair],
+        transform: transforms.Compose,
+    ):
+        if not pairs:
+            raise ValueError("MultimodalPairDataset: no pairs supplied")
+        self.pairs = list(pairs)
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.pairs)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, MultimodalPair]:
+        pair = self.pairs[idx]
+        img1 = Image.open(pair.anchor_frame_path).convert("RGB")
+        img2 = Image.open(pair.positive_frame_path).convert("RGB")
+        return self.transform(img1), self.transform(img2), pair
+
+
+def multimodal_batch_collate(
+    batch: List[Tuple[torch.Tensor, torch.Tensor, MultimodalPair]],
+) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, Any]]:
+    """Stack image tensors and collate typed pair metadata."""
+    v1 = torch.stack([item[0] for item in batch], dim=0)
+    v2 = torch.stack([item[1] for item in batch], dim=0)
+    meta = collate_multimodal_pairs([item[2] for item in batch])
+    return v1, v2, meta
 
 
 # ── Loss ──────────────────────────────────────────────────────────────────────
@@ -208,6 +553,144 @@ class NTXentLoss(nn.Module):
             torch.arange(0, B, device=z.device),
         ])
         return F.cross_entropy(sim, labels)
+
+
+class CycleConsistencyLoss(nn.Module):
+    """Cycle-consistency contrastive loss for temporal track triplets.
+
+    For a triplet (A, B, C) representing the same tracked object at times t, t+k,
+    t+2k, the loss has three components:
+
+        forward:   NTXent(z_A, z_B)             — adjacent-pair consistency
+        backward:  NTXent(z_B, z_C)             — adjacent-pair consistency
+        cycle:     λ · NTXent(z_A, z_C)         — long-horizon consistency
+
+    The cycle term is the key addition over standard temporal SSL.  It enforces
+    that the object's representation at time t and time t+2k are mutually
+    consistent through the intermediate frame at t+k, preventing embedding drift
+    along long tracks.  λ < 1 because the wider gap is genuinely harder: the
+    object may have moved, rotated, or been partially occluded.
+
+    Args:
+        base_loss:     NTXentLoss instance (controls temperature).
+        lambda_cycle:  Weight for the long-horizon term (default 0.3).
+    """
+
+    def __init__(self, base_loss: NTXentLoss, lambda_cycle: float = 0.3):
+        super().__init__()
+        self.base = base_loss
+        self.lambda_cycle = lambda_cycle
+
+    def forward(
+        self, z_a: torch.Tensor, z_b: torch.Tensor, z_c: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute cycle-consistency loss.
+
+        Args:
+            z_a: (B, D) L2-normalised embeddings for crop A (time t).
+            z_b: (B, D) L2-normalised embeddings for crop B (time t+k).
+            z_c: (B, D) L2-normalised embeddings for crop C (time t+2k).
+
+        Returns:
+            Scalar loss.
+        """
+        loss_ab = self.base(z_a, z_b)
+        loss_bc = self.base(z_b, z_c)
+        loss_ac = self.base(z_a, z_c)
+        return loss_ab + loss_bc + self.lambda_cycle * loss_ac
+
+
+class MultimodalConsistencyLoss(nn.Module):
+    """Base contrastive loss with optional auxiliary consistency terms.
+
+    Auxiliary terms supervise pairwise embedding cosine similarity against
+    modality-specific targets in ``[0, 1]``. Missing targets are ignored.
+    """
+
+    def __init__(
+        self,
+        base_loss: NTXentLoss,
+        depth_weight: float = 0.0,
+        motion_weight: float = 0.0,
+        geometry_weight: float = 0.0,
+    ):
+        super().__init__()
+        self.base = base_loss
+        self.depth_weight = float(depth_weight)
+        self.motion_weight = float(motion_weight)
+        self.geometry_weight = float(geometry_weight)
+
+    @staticmethod
+    def _masked_target_loss(
+        pair_cos: torch.Tensor,
+        targets: List[Optional[float]],
+        sample_weight: torch.Tensor,
+    ) -> torch.Tensor:
+        target_values = [
+            float(v) if v is not None and math.isfinite(float(v)) else float("nan")
+            for v in targets
+        ]
+        target_tensor = torch.tensor(target_values, dtype=pair_cos.dtype, device=pair_cos.device)
+        mask = torch.isfinite(target_tensor)
+        if not bool(mask.any()):
+            return pair_cos.new_tensor(0.0)
+        diff = (pair_cos[mask] - target_tensor[mask]) ** 2
+        weights = sample_weight[mask].to(pair_cos.device)
+        denom = torch.clamp(weights.sum(), min=1e-6)
+        return torch.sum(diff * weights) / denom
+
+    def forward(
+        self,
+        z1: torch.Tensor,
+        z2: torch.Tensor,
+        batch_meta: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[torch.Tensor, Dict[str, float]]:
+        base_loss = self.base(z1, z2)
+        total = base_loss
+        components: Dict[str, float] = {
+            "contrastive_loss": float(base_loss.detach().item()),
+            "depth_consistency_loss": 0.0,
+            "motion_consistency_loss": 0.0,
+            "geometry_consistency_loss": 0.0,
+        }
+        if not batch_meta:
+            return total, components
+
+        pair_cos = torch.clamp(torch.sum(z1 * z2, dim=-1), -1.0, 1.0)
+        sample_weight = batch_meta.get("sample_weight")
+        if not isinstance(sample_weight, torch.Tensor) or sample_weight.numel() != pair_cos.numel():
+            sample_weight = torch.ones_like(pair_cos)
+        else:
+            sample_weight = sample_weight.to(pair_cos.device, dtype=pair_cos.dtype)
+
+        if self.depth_weight > 0.0:
+            depth_loss = self._masked_target_loss(
+                pair_cos,
+                batch_meta.get("depth_similarity_target", []),
+                sample_weight,
+            )
+            total = total + self.depth_weight * depth_loss
+            components["depth_consistency_loss"] = float(depth_loss.detach().item())
+
+        if self.motion_weight > 0.0:
+            motion_loss = self._masked_target_loss(
+                pair_cos,
+                batch_meta.get("motion_similarity_target", []),
+                sample_weight,
+            )
+            total = total + self.motion_weight * motion_loss
+            components["motion_consistency_loss"] = float(motion_loss.detach().item())
+
+        if self.geometry_weight > 0.0:
+            geometry_loss = self._masked_target_loss(
+                pair_cos,
+                batch_meta.get("geometry_similarity_target", []),
+                sample_weight,
+            )
+            total = total + self.geometry_weight * geometry_loss
+            components["geometry_consistency_loss"] = float(geometry_loss.detach().item())
+
+        return total, components
 
 
 # ── Model wrapper ─────────────────────────────────────────────────────────────
@@ -338,7 +821,7 @@ class FinetuneConfig:
     frames_dir: str
     output_dir: str
     model_name: str = "dinov3_vitb14"
-    approach: str = "temporal"        # "temporal" | "augment"
+    approach: str = "temporal"        # "multimodal" | "track_cycle" | "track" | "temporal" | "augment"
     epochs: int = 10
     batch_size: int = 32
     lr: float = 1e-5
@@ -352,6 +835,9 @@ class FinetuneConfig:
     max_gap: int = 3                  # TemporalPairDataset only
     device: str = "cpu"
     seed: int = 42
+    depth_consistency_weight: float = 0.15
+    motion_consistency_weight: float = 0.10
+    geometry_consistency_weight: float = 0.15
 
 
 # ── Main training loop ────────────────────────────────────────────────────────

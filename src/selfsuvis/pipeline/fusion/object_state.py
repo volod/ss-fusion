@@ -106,6 +106,24 @@ class ObjectFusionResult:
             ],
         }
 
+    def to_local_state_summary(self) -> Dict[str, Any]:
+        """Collapse per-frame object states into a clip-level physical belief.
+
+        Returns a dict with:
+            confirmed_track_count  — number of Kalman-confirmed tracks
+            mean_velocity_norm     — mean speed across all confirmed/smoothed samples
+            max_velocity_norm      — peak speed observed in the clip
+            velocity_by_label      — {label: mean_speed} for each object class
+            mean_bbox_uncertainty  — mean of bbox_std entries (position uncertainty)
+            near_field_density     — mean fraction of central image area (cx,cy ∈ [0.3,0.7])
+                                     occupied by tracked bboxes
+        """
+        frame_dicts = [
+            [s.to_dict() for s in frame_samples]
+            for frame_samples in self.per_frame
+        ]
+        return summarize_object_frame_dicts(frame_dicts)
+
 
 def _build_cost_matrix(
     tracks: List[ObjectKalmanFilter],
@@ -312,3 +330,79 @@ def run_object_state_fusion(
             "frames_processed": len(tracking_results),
         },
     )
+
+
+# ── Clip-level summary helper ─────────────────────────────────────────────────
+
+def summarize_object_frame_dicts(
+    per_frame_dicts: List[List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    """Collapse serialised per-frame object states into a clip-level belief dict.
+
+    Works on the output of ``ObjectFusionResult.to_dict()["per_frame"]`` so it
+    can be called from pipeline steps that have the JSON representation rather
+    than the in-memory dataclass.
+
+    Returns:
+        confirmed_track_count : int   — smoothed/confirmed tracks seen in this clip
+        mean_velocity_norm    : float — mean speed (normalised coords/frame) across
+                                        all confirmed samples
+        max_velocity_norm     : float — peak speed observed
+        velocity_by_label     : dict  — {label: mean_speed} per object class
+        mean_bbox_uncertainty : float — mean of bbox_std entries across all samples
+        near_field_density    : float — mean per-frame fraction of the central
+                                        image region ([0.3,0.7]² in normalised
+                                        coords) occupied by tracked bboxes
+    """
+    _NEAR_LO, _NEAR_HI = 0.3, 0.7          # central region boundaries
+    _ACTIVE = {"confirmed", "smoothed"}
+
+    vel_by_label: Dict[str, List[float]] = {}
+    all_uncertainties: List[float] = []
+    frame_near_densities: List[float] = []
+    confirmed_track_ids: set[int] = set()
+
+    for frame_samples in per_frame_dicts:
+        frame_area = 0.0
+        for s in frame_samples:
+            if s.get("track_state") not in _ACTIVE:
+                continue
+            tid = s.get("track_id")
+            if isinstance(tid, int):
+                confirmed_track_ids.add(tid)
+            vx, vy = (s.get("velocity_norm") or [0.0, 0.0])[:2]
+            speed = (vx ** 2 + vy ** 2) ** 0.5
+            label = (s.get("label") or "unknown").lower()
+            vel_by_label.setdefault(label, []).append(speed)
+
+            std = s.get("bbox_std") or []
+            if std:
+                all_uncertainties.append(sum(std) / len(std))
+
+            bbox = s.get("bbox_norm") or []
+            if len(bbox) == 4:
+                cx = (bbox[0] + bbox[2]) * 0.5
+                cy = (bbox[1] + bbox[3]) * 0.5
+                if _NEAR_LO <= cx <= _NEAR_HI and _NEAR_LO <= cy <= _NEAR_HI:
+                    w = max(0.0, bbox[2] - bbox[0])
+                    h = max(0.0, bbox[3] - bbox[1])
+                    frame_area += w * h
+
+        frame_near_densities.append(min(1.0, frame_area))
+
+    all_speeds = [s for speeds in vel_by_label.values() for s in speeds]
+
+    return {
+        "confirmed_track_count": len(confirmed_track_ids),
+        "mean_velocity_norm": float(sum(all_speeds) / len(all_speeds)) if all_speeds else 0.0,
+        "max_velocity_norm":  float(max(all_speeds)) if all_speeds else 0.0,
+        "velocity_by_label":  {
+            lbl: float(sum(sp) / len(sp)) for lbl, sp in vel_by_label.items()
+        },
+        "mean_bbox_uncertainty": float(
+            sum(all_uncertainties) / len(all_uncertainties)
+        ) if all_uncertainties else 0.0,
+        "near_field_density": float(
+            sum(frame_near_densities) / len(frame_near_densities)
+        ) if frame_near_densities else 0.0,
+    }

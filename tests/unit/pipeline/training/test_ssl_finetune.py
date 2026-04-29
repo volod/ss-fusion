@@ -261,6 +261,79 @@ class TestTemporalPairDataset(unittest.TestCase):
             TemporalPairDataset(empty, build_augment_transform(32))
 
 
+class TestMultimodalPairSchema(unittest.TestCase):
+
+    def test_pair_serialization_is_json_friendly(self):
+        from selfsuvis.pipeline.training.ssl import CrossModalPair
+        pair = CrossModalPair(
+            anchor_frame_path="/tmp/a.jpg",
+            positive_frame_path="/tmp/b.jpg",
+            time_delta_sec=0.5,
+            sample_weight=1.2,
+            modality_payload={"depth_similarity_target": 0.9, "occupancy_summary": {"free": 0.7}},
+            pair_source="depth_alignment",
+        )
+        payload = pair.to_dict()
+        self.assertEqual(payload["pair_type"], "cross_modal")
+        self.assertEqual(payload["pair_source"], "depth_alignment")
+        self.assertEqual(payload["anchor_frame_path"], "/tmp/a.jpg")
+        self.assertAlmostEqual(payload["modality_payload"]["depth_similarity_target"], 0.9)
+
+    def test_collate_handles_missing_optional_modalities(self):
+        from selfsuvis.pipeline.training.ssl import (
+            GeometryPair,
+            TemporalVisualPair,
+            collate_multimodal_pairs,
+        )
+        batch = collate_multimodal_pairs([
+            TemporalVisualPair(
+                anchor_frame_path="a.jpg",
+                positive_frame_path="b.jpg",
+                time_delta_sec=0.2,
+                track_id=7,
+            ),
+            GeometryPair(
+                anchor_frame_path="c.jpg",
+                positive_frame_path="d.jpg",
+                time_delta_sec=1.0,
+                pose_overlap_score=0.8,
+                modality_payload={"geometry_similarity_target": 0.8},
+            ),
+        ])
+        self.assertEqual(batch["pair_types"], ["temporal_visual", "geometry"])
+        self.assertEqual(batch["track_id"], [7, None])
+        self.assertEqual(batch["depth_similarity_target"], [None, None])
+        self.assertEqual(batch["geometry_similarity_target"], [None, 0.8])
+        self.assertEqual(tuple(batch["time_delta_sec"].shape), (2,))
+        self.assertEqual(tuple(batch["sample_weight"].shape), (2,))
+
+
+class TestMultimodalConsistencyLoss(unittest.TestCase):
+
+    def test_auxiliary_losses_are_reported_when_targets_exist(self):
+        from selfsuvis.pipeline.training.ssl import MultimodalConsistencyLoss, NTXentLoss
+        z1 = torch.nn.functional.normalize(torch.randn(4, 8), dim=-1)
+        z2 = torch.nn.functional.normalize(torch.randn(4, 8), dim=-1)
+        batch_meta = {
+            "sample_weight": torch.ones(4),
+            "depth_similarity_target": [0.8, None, 0.7, None],
+            "motion_similarity_target": [None, 0.6, None, 0.9],
+            "geometry_similarity_target": [0.5, 0.4, None, None],
+        }
+        loss_fn = MultimodalConsistencyLoss(
+            NTXentLoss(),
+            depth_weight=0.1,
+            motion_weight=0.2,
+            geometry_weight=0.3,
+        )
+        loss, components = loss_fn(z1, z2, batch_meta)
+        self.assertTrue(torch.isfinite(loss))
+        self.assertIn("contrastive_loss", components)
+        self.assertGreaterEqual(components["depth_consistency_loss"], 0.0)
+        self.assertGreaterEqual(components["motion_consistency_loss"], 0.0)
+        self.assertGreaterEqual(components["geometry_consistency_loss"], 0.0)
+
+
 # ---------------------------------------------------------------------------
 # DINOFineTuner — freeze strategy (mocked backbone)
 # ---------------------------------------------------------------------------
