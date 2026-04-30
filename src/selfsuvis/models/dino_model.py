@@ -378,6 +378,11 @@ class DINOEmbedder:
                 actual_device = torch.device(self.device)
             try:
                 tensors = torch.stack([self.preprocess(img) for img in batch]).to(actual_device)
+                # On CPU the model may still be in FP16 (offloaded from CUDA); cast to match.
+                if not str(actual_device).startswith("cuda"):
+                    _mdtype = next(self.model.parameters()).dtype
+                    if tensors.dtype != _mdtype:
+                        tensors = tensors.to(_mdtype)
                 with torch.no_grad():
                     try:
                         if settings.USE_FP16 and str(actual_device).startswith("cuda"):
