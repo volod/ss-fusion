@@ -206,6 +206,7 @@ class DetectionModel:
                     device=pipeline_device_arg(target_device),
                     torch_dtype=torch_dtype,
                     use_fast=True,
+                    model_kwargs={"low_cpu_mem_usage": False},
                 )
             self._device = target_device
             if hasattr(self._pipe, "call_count"):
