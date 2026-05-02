@@ -29,7 +29,6 @@ CLI override::
 """
 
 import contextlib
-import gc
 import io
 import warnings
 from typing import Any, Dict, List, Optional
@@ -38,6 +37,7 @@ from PIL import Image
 
 from selfsuvis.pipeline.core import get_logger, is_cuda_oom, pipeline_device_arg, resolve_device, settings
 
+from ._pipe_mixin import _HFPipeMixin
 from .registry import resolve_model_id
 
 logger = get_logger(__name__)
@@ -47,7 +47,7 @@ def _resolve_model_id() -> str:
     return resolve_model_id(settings.DETECTION_MODEL, "detection", "PekingU/rtdetr_r50vd")
 
 
-class DetectionModel:
+class DetectionModel(_HFPipeMixin):
     """Object detector wrapping HuggingFace object-detection pipelines.
 
     For open-vocabulary models (Grounding DINO, OmDet), also accepts a
@@ -81,18 +81,6 @@ class DetectionModel:
         if pipe is None:
             return [{"detection_unavailable": True}] * len(images)
         return self._detect_many(images, pipe, candidate_labels)
-
-    def release(self) -> None:
-        """Delete the pipeline and flush CUDA cache."""
-        import gc
-        self._pipe = None
-        gc.collect()
-        try:
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except Exception:
-            pass
 
     def detect(
         self,
@@ -227,34 +215,6 @@ class DetectionModel:
             self._device = None
             self._load_failed = True
         return self._pipe
-
-    def _release_pipe(self) -> None:
-        try:
-            import torch
-        except ImportError:
-            torch = None  # type: ignore[assignment]
-        if self._pipe is not None:
-            model = getattr(self._pipe, "model", None)
-            if model is not None:
-                try:
-                    model.cpu()
-                except Exception:
-                    pass
-            del self._pipe
-            self._pipe = None
-        gc.collect()
-        if torch is not None and torch.cuda.is_available():
-            try:
-                torch.cuda.synchronize()
-            except Exception:
-                pass
-            torch.cuda.empty_cache()
-
-    def _fallback_to_cpu(self):
-        self._release_pipe()
-        self._load_failed = False
-        return self._get_pipe(force_device="cpu")
-
 
 def _get_device() -> str:
     return resolve_device()

@@ -39,6 +39,8 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+from .common import checkpoint_path, ensure_output_dir, epoch_checkpoint_path, save_backbone_checkpoint
+
 logger = logging.getLogger(__name__)
 
 
@@ -802,9 +804,8 @@ class DINOFineTuner:
 
     def save_checkpoint(self, path: str) -> None:
         """Save backbone state dict only (head is discarded at inference time)."""
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        torch.save(self.backbone.state_dict(), path)
-        logger.info("Checkpoint saved: %s", path)
+        saved_path = save_backbone_checkpoint(self.backbone, path)
+        logger.info("Checkpoint saved: %s", saved_path)
 
     @classmethod
     def load_backbone_weights(cls, backbone, checkpoint_path: str, device: str) -> None:
@@ -853,7 +854,7 @@ def run_finetune(cfg: FinetuneConfig) -> str:
     """
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-    os.makedirs(cfg.output_dir, exist_ok=True)
+    ensure_output_dir(cfg.output_dir)
 
     # Dataset
     transform = build_augment_transform()
@@ -894,7 +895,7 @@ def run_finetune(cfg: FinetuneConfig) -> str:
     loss_fn = NTXentLoss(temperature=cfg.temperature)
 
     best_loss = float("inf")
-    best_path = os.path.join(cfg.output_dir, "dino_ssl_best.pt")
+    best_path = checkpoint_path(cfg.output_dir, "dino_ssl_best.pt")
 
     for epoch in range(1, cfg.epochs + 1):
         tuner.train()
@@ -919,7 +920,7 @@ def run_finetune(cfg: FinetuneConfig) -> str:
                     epoch, cfg.epochs, avg_loss, scheduler.get_last_lr()[0])
 
         if epoch % cfg.save_every == 0:
-            ckpt = os.path.join(cfg.output_dir, f"dino_ssl_{epoch:03d}.pt")
+            ckpt = epoch_checkpoint_path(cfg.output_dir, "dino_ssl", epoch)
             tuner.save_checkpoint(ckpt)
 
         if avg_loss < best_loss:

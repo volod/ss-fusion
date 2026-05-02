@@ -1,12 +1,19 @@
-"""Edge model hydration — ONNX-based inference wrapper for on-device object identification.
+"""Edge model hydration — ONNX export and lightweight inference for on-device deployment.
 
-Exports the fine-tuned DINOv3 backbone to ONNX and provides a lightweight cosine-similarity
-nearest-neighbour classifier (EdgeClassifier) that runs on edge hardware (Jetson Orin, Hailo-8,
-CPU-only ARM SBC) without requiring PyTorch or CUDA.
+Supports two distilled backbone variants for export and inference:
+
+- **ViT-S/14** (Stage 1 distillation output, 384-dim) — exported by
+  :func:`step_export_model` in ``steps_distill.py`` to ``edge_models/dino_local.onnx``.
+- **EfficientViT-B1** (Stage 2 distillation output, 384-dim, ~9M params) — exported by
+  :func:`export_efficientvit_onnx` to ``edge_models/efficientvit_local.onnx``.
+
+Both ONNX files work with :class:`EdgeClassifier` for cosine-similarity nearest-neighbour
+classification on edge hardware (Jetson Orin, Hailo-8, CPU-only ARM SBC) without PyTorch.
 
 Key classes and functions:
-  EdgeClassifier  — loads quantized ONNX model + gallery NPZ; classifies PIL images.
-  build_gallery   — embeds representative frames and saves an NPZ gallery file.
+  EdgeClassifier           — loads a quantized ONNX backbone + gallery NPZ; classifies PIL images.
+  build_gallery            — embeds representative frames and saves an NPZ gallery file.
+  export_efficientvit_onnx — exports an EfficientViT-B1 backbone to ONNX (opset 18).
 
 No PyTorch or torchvision imports at module level — only inside from_torch and helper
 functions that are only called with a PyTorch backbone. This keeps the edge deployment
@@ -14,7 +21,7 @@ free of PyTorch.
 
 Usage (on robot):
     from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
-    clf = EdgeClassifier("dino_edge_int8.onnx", "mission_objects.npz")
+    clf = EdgeClassifier("efficientvit_local.onnx", "mission_objects.npz")
     labels = clf.classify(frame_pil)   # [(label, score), ...]
 """
 
@@ -367,6 +374,67 @@ class EdgeClassifier:
             gallery_path, len(instance._gallery_embeddings),
         )
         return instance
+
+
+# ── EfficientViT ONNX export ─────────────────────────────────────────────────
+
+def export_efficientvit_onnx(
+    backbone,
+    output_path: str,
+    image_size: int = 224,
+) -> str:
+    """Export an EfficientViT backbone to ONNX for edge deployment.
+
+    Args:
+        backbone:    Trained EfficientViT-B1 PyTorch backbone.
+        output_path: Destination path for the ONNX file.
+        image_size:  Spatial resolution for the dummy input (default 224).
+
+    Returns:
+        output_path (unchanged), for caller convenience.
+
+    Raises:
+        ImportError: If torch is not installed.
+        RuntimeError: If the ONNX export fails.
+    """
+    try:
+        import torch
+        import warnings
+    except ImportError as exc:
+        raise ImportError("torch is required for export_efficientvit_onnx") from exc
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+
+    class _Wrapper(torch.nn.Module):
+        def __init__(self, bb: torch.nn.Module) -> None:
+            super().__init__()
+            self.bb = bb
+
+        def forward(self, x: "torch.Tensor") -> "torch.Tensor":
+            return self.bb(x)
+
+    backbone_cpu = backbone.cpu().eval()
+    wrapper = _Wrapper(backbone_cpu).eval()
+    dummy = torch.zeros(1, 3, image_size, image_size)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+        torch.onnx.export(
+            wrapper,
+            dummy,
+            output_path,
+            opset_version=18,
+            input_names=["pixel_values"],
+            output_names=["embedding"],
+            do_constant_folding=True,
+            dynamo=False,
+        )
+
+    onnx_mb = os.path.getsize(output_path) / 1e6
+    logger.info(
+        "export_efficientvit_onnx: %.1f MB → %s", onnx_mb, output_path
+    )
+    return output_path
 
 
 # ── Gallery builder ───────────────────────────────────────────────────────────

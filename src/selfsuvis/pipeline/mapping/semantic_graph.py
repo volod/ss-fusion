@@ -8,14 +8,13 @@ another are merged into persistent object nodes; co-visible or spatially close
 nodes are connected with ``near`` edges.
 """
 
-
-import json
 import math
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from selfsuvis.pipeline.core import ensure_dir, settings
+from selfsuvis.pipeline.core import settings
+from selfsuvis.pipeline.mapping.common import write_json_report, write_markdown_report
 
 
 def _euclidean(a: Tuple[float, float, float], b: Tuple[float, float, float]) -> float:
@@ -312,10 +311,7 @@ def build_semantic_environment_graph(
     }
 
     if output_path is not None:
-        output_path = Path(output_path)
-        ensure_dir(str(output_path.parent))
-        output_path.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
-        graph["output_path"] = str(output_path)
+        graph["output_path"] = write_json_report(output_path, graph, ensure_ascii=False)
 
     return graph
 
@@ -327,8 +323,6 @@ def write_semantic_graph_markdown(
     title: str,
 ) -> str:
     """Write a short markdown summary for local/report consumption."""
-    output_path = Path(output_path)
-    ensure_dir(str(output_path.parent))
     summary = graph.get("summary", {})
     lines = [
         f"# {title}",
@@ -352,5 +346,4 @@ def write_semantic_graph_markdown(
             f"- `{node['label']}` at ({pos['x']:.2f}, {pos['y']:.2f}, {pos['z']:.2f}) "
             f"| obs={node['observations']} | mean_conf={node['confidence_mean']:.2f}"
         )
-    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return str(output_path)
+    return write_markdown_report(output_path, lines)

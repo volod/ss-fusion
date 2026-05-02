@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from selfsuvis.pipeline.ffmpeg_utils import extract_frames
 
 
@@ -18,11 +16,11 @@ def test_extract_frames_uses_timeout(tmp_path, monkeypatch):
     ))
 
     mock_run = MagicMock()
-    with patch("selfsuvis.pipeline.media.ffmpeg.subprocess.run", mock_run):
+    with patch("selfsuvis.pipeline.media.ffmpeg.run_checked", mock_run):
         with patch("selfsuvis.pipeline.media.ffmpeg.os.listdir", return_value=[]):
             result = extract_frames(str(tmp_path / "video.mp4"), "vid1")
 
     mock_run.assert_called_once()
-    call_kwargs = mock_run.call_args[1]
+    call_kwargs = mock_run.call_args.kwargs
     assert call_kwargs.get("timeout") == 123
     assert result == []

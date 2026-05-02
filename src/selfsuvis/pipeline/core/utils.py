@@ -26,10 +26,6 @@ def stable_point_id(*parts: Any) -> int:
     return int(h.hexdigest()[:_POINT_ID_HEX_DIGITS], 16)
 
 
-def now_ts() -> float:
-    return time.time()
-
-
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -105,12 +101,6 @@ def resolve_allowed_path(user_path: str, must_be_file: bool = False, must_be_dir
 def resolve_allowed_paths_for_walk(user_dir: str) -> Optional[str]:
     """Resolve directory for os.walk. Returns None if not allowed."""
     return resolve_allowed_path(user_dir, must_be_dir=True)
-
-
-def file_sha256_bytes(data: bytes) -> str:
-    h = hashlib.sha256()
-    h.update(data)
-    return h.hexdigest()
 
 
 class RateTimer:

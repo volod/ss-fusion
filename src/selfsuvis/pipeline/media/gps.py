@@ -16,6 +16,7 @@ import subprocess
 from typing import Any, Dict, List, Optional
 
 from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.pipeline.media.subprocess_common import run_captured
 
 logger = get_logger(__name__)
 
@@ -29,7 +30,7 @@ def _run_ffprobe(video_path: str, args: List[str], timeout: int = 30) -> Optiona
     """Run ffprobe and return stdout, or None on error/timeout."""
     cmd = ["ffprobe", "-v", "quiet"] + args + [video_path]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = run_captured(cmd, timeout=timeout, text=True)
         return result.stdout if result.returncode == 0 else None
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return None

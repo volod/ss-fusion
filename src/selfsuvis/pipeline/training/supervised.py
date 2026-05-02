@@ -35,8 +35,7 @@ import glob
 import logging
 import os
 import random
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET
 
@@ -47,6 +46,8 @@ import torch.nn.functional as F
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+
+from .common import checkpoint_path, ensure_output_dir, epoch_checkpoint_path, save_backbone_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,6 @@ def _normalize_labels(
     if not mappings and not rows:
         return rows
 
-    normalized: List[Tuple[str, str]] = []
     seen: Dict[str, str] = {}  # frame_path → canonical label seen so far
 
     for frame_path, raw_label in rows:
@@ -695,9 +695,8 @@ class SupervisedFineTuner:
 
     def save_checkpoint(self, path: str) -> None:
         """Save backbone state dict only (head discarded at inference)."""
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        torch.save(self.backbone.state_dict(), path)
-        logger.info("Checkpoint saved: %s", path)
+        saved_path = save_backbone_checkpoint(self.backbone, path)
+        logger.info("Checkpoint saved: %s", saved_path)
 
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -749,7 +748,7 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> Dict[str, Any]:
     """
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-    os.makedirs(cfg.output_dir, exist_ok=True)
+    ensure_output_dir(cfg.output_dir)
 
     transform = _build_augment_transform()
 
@@ -823,7 +822,7 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> Dict[str, Any]:
     loss_fn = SupConLoss(temperature=cfg.temperature)
 
     best_loss = float("inf")
-    best_path = os.path.join(cfg.output_dir, "dino_sup_best.pt")
+    best_path = checkpoint_path(cfg.output_dir, "dino_sup_best.pt")
 
     for epoch in range(1, cfg.epochs + 1):
         tuner.train()
@@ -861,7 +860,7 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> Dict[str, Any]:
         )
 
         if epoch % cfg.save_every == 0:
-            ckpt = os.path.join(cfg.output_dir, f"dino_sup_{epoch:03d}.pt")
+            ckpt = epoch_checkpoint_path(cfg.output_dir, "dino_sup", epoch)
             tuner.save_checkpoint(ckpt)
 
         if avg_loss < best_loss:

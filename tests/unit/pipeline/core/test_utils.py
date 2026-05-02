@@ -9,7 +9,6 @@ from selfsuvis.pipeline.core.utils import (
     RateTimer,
     clamp,
     file_sha256,
-    file_sha256_bytes,
     resolve_allowed_path,
     stable_point_id,
 )
@@ -32,13 +31,6 @@ def test_stable_point_id():
     assert id1 != id3
     id4 = stable_point_id("vid1", 0, 1000, "tile", 10, 20)
     assert id1 != id4
-
-
-def test_file_sha256_bytes():
-    data = b"hello world"
-    expected = hashlib.sha256(data).hexdigest()
-    assert file_sha256_bytes(data) == expected
-    assert file_sha256_bytes(b"") == hashlib.sha256(b"").hexdigest()
 
 
 def test_file_sha256():

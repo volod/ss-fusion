@@ -15,6 +15,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 from PIL import Image, ImageFilter
 
+from selfsuvis.pipeline.mapping.common import write_json_report, write_markdown_report
+
 
 def _sample_evenly(frame_list: Sequence[Tuple[str, float]], max_frames: int = 24) -> List[Tuple[str, float]]:
     if len(frame_list) <= max_frames:
@@ -376,7 +378,7 @@ def advise_map_quality(
         output_dir.mkdir(parents=True, exist_ok=True)
         json_path = output_dir / "map_quality_advisor.json"
         md_path = output_dir / "map_quality_advisor.md"
-        json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        write_json_report(json_path, payload)
         lines = [
             "# Map Quality Advisor",
             "",
@@ -412,7 +414,7 @@ def advise_map_quality(
         lines += ["", "## This Video", ""]
         for item in flight_plan["for_this_video"]:
             lines.append(f"- {item}")
-        md_path.write_text("\n".join(lines), encoding="utf-8")
+        write_markdown_report(md_path, lines)
         payload["json_path"] = str(json_path)
         payload["markdown_path"] = str(md_path)
 

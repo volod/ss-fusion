@@ -1,15 +1,28 @@
 import os
-import subprocess
 from typing import List, Tuple
 
 from selfsuvis.pipeline.core import ensure_dir, get_logger, settings
+from selfsuvis.pipeline.media.subprocess_common import run_checked
+
+
+def _frame_dir(video_id: str) -> str:
+    return os.path.join(settings.FRAMES_DIR, video_id)
+
+
+def _frame_pattern(out_dir: str) -> str:
+    return os.path.join(out_dir, "frame_%010d.jpg")
+
+
+def _frame_paths(out_dir: str, fps: float) -> List[Tuple[str, float]]:
+    frames = sorted(fname for fname in os.listdir(out_dir) if fname.startswith("frame_"))
+    return [(os.path.join(out_dir, fname), idx / fps) for idx, fname in enumerate(frames)]
 
 
 def extract_frames(video_path: str, video_id: str) -> List[Tuple[str, float]]:
     logger = get_logger(__name__)
-    out_dir = os.path.join(settings.FRAMES_DIR, video_id)
+    out_dir = _frame_dir(video_id)
     ensure_dir(out_dir)
-    pattern = os.path.join(out_dir, "frame_%010d.jpg")
+    pattern = _frame_pattern(out_dir)
     fps = settings.SAMPLE_FPS_MAX
     cmd = [
         "ffmpeg",
@@ -22,11 +35,5 @@ def extract_frames(video_path: str, video_id: str) -> List[Tuple[str, float]]:
         pattern,
     ]
     logger.info("Running ffmpeg for video_id=%s", video_id)
-    subprocess.run(cmd, check=True, timeout=settings.FFMPEG_TIMEOUT_SEC)
-
-    frames = sorted([f for f in os.listdir(out_dir) if f.startswith("frame_")])
-    frame_paths = []
-    for idx, fname in enumerate(frames):
-        t_sec = idx / fps
-        frame_paths.append((os.path.join(out_dir, fname), t_sec))
-    return frame_paths
+    run_checked(cmd, timeout=settings.FFMPEG_TIMEOUT_SEC)
+    return _frame_paths(out_dir, fps)

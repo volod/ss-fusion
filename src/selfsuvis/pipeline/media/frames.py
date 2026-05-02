@@ -5,7 +5,8 @@ from typing import Generator, List, Optional, Tuple
 import cv2
 import numpy as np
 
-from selfsuvis.pipeline.core import ensure_dir, get_logger
+from selfsuvis.pipeline.core import get_logger
+from selfsuvis.pipeline.media.fs_common import ensure_parent_dir
 from selfsuvis.pipeline.media.heuristics import downsample_gray, histogram_diff, mean_abs_diff, ssim_diff
 
 
@@ -19,8 +20,12 @@ class FrameRecord:
 
 
 def _save_png(frame_bgr: np.ndarray, out_path: str) -> None:
-    ensure_dir(os.path.dirname(out_path))
+    ensure_parent_dir(out_path)
     cv2.imwrite(out_path, frame_bgr, [cv2.IMWRITE_PNG_COMPRESSION, 3])
+
+
+def _frame_output_path(out_dir: str, index: int, t_sec: float) -> str:
+    return os.path.join(out_dir, f"frame_{index:08d}_{int(t_sec * 1000):010d}ms.png")
 
 
 def _should_keep_frame(
@@ -88,7 +93,7 @@ def extract_frames_fixed(
             if not ok or frame is None:
                 break
             h, w = frame.shape[:2]
-            out_path = os.path.join(out_dir, f"frame_{idx:08d}_{int(t_sec * 1000):010d}ms.png")
+            out_path = _frame_output_path(out_dir, idx, t_sec)
             _save_png(frame, out_path)
             frames.append(FrameRecord(path=out_path, t_sec=t_sec, index=idx, width=w, height=h))
             idx += 1
@@ -131,7 +136,7 @@ def extract_frames_adaptive(
             small = downsample_gray(frame, 64)
             if _should_keep_frame(small, last_kept_small, t_sec, last_kept_t, min_interval_sec, max_gap_sec, diff_threshold):
                 h, w = frame.shape[:2]
-                out_path = os.path.join(out_dir, f"frame_{idx:08d}_{int(t_sec * 1000):010d}ms.png")
+                out_path = _frame_output_path(out_dir, idx, t_sec)
                 _save_png(frame, out_path)
                 frames.append(FrameRecord(path=out_path, t_sec=t_sec, index=idx, width=w, height=h))
                 last_kept_small = small
@@ -173,7 +178,7 @@ def extract_stream_frames(
             small = downsample_gray(frame, 64)
             if _should_keep_frame(small, last_kept_small, t_sec, last_kept_t, min_interval_sec, max_gap_sec, diff_threshold):
                 h, w = frame.shape[:2]
-                out_path = os.path.join(out_dir, f"frame_{idx:08d}_{int(t_sec * 1000):010d}ms.png")
+                out_path = _frame_output_path(out_dir, idx, t_sec)
                 _save_png(frame, out_path)
                 frames.append(FrameRecord(path=out_path, t_sec=t_sec, index=idx, width=w, height=h))
                 last_kept_small = small

@@ -5,6 +5,7 @@ from .gpu_utils import is_cuda_oom, pipeline_device_arg, resolve_device
 from .logging import configure_logging, get_logger
 from .utils import (
     RateTimer,
+    clamp,
     datetime_to_ts,
     ensure_dir,
     file_sha256,
@@ -18,6 +19,7 @@ from .utils import (
 
 __all__ = [
     "RateTimer",
+    "clamp",
     "configure_logging",
     "datetime_to_ts",
     "ensure_dir",

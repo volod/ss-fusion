@@ -13,7 +13,7 @@ Usage::
     model = EfficientViTEmbedder(device="cuda")
     embs  = model.encode_images([pil_img1, pil_img2])  # (N, 384) float32 numpy
 
-For distillation (Stage 1→2 — DINOv3 teacher → EfficientViT student)::
+For distillation (Stage 1→2 — ViT-S/14 teacher → EfficientViT-B1 student)::
 
     from selfsuvis.pipeline.training.distill import DistillConfig, run_distillation_efficientvit
     cfg  = DistillConfig(student_model="efficientvit_b1", lambda_rkd_a=0.0, ...)

@@ -18,6 +18,8 @@ import subprocess
 from typing import Dict, List, Optional
 
 from selfsuvis.pipeline.core import ensure_dir, get_logger, settings
+from selfsuvis.pipeline.media.fs_common import output_path_with_suffix
+from selfsuvis.pipeline.media.subprocess_common import run_captured
 
 logger = get_logger(__name__)
 
@@ -40,8 +42,7 @@ def extract_audio(video_path: str, output_dir: str) -> Optional[str]:
     format and avoids any additional resampling by the ASR pipeline.
     """
     ensure_dir(output_dir)
-    base = os.path.splitext(os.path.basename(video_path))[0]
-    wav_path = os.path.join(output_dir, f"{base}.wav")
+    wav_path = output_path_with_suffix(video_path, output_dir, ".wav")
 
     # First, probe whether an audio stream is present.
     if not _has_audio_stream(video_path):
@@ -59,11 +60,7 @@ def extract_audio(video_path: str, output_dir: str) -> Optional[str]:
         wav_path,
     ]
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=settings.FFMPEG_TIMEOUT_SEC,
-        )
+        result = run_captured(cmd, timeout=settings.FFMPEG_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
         logger.warning("audio_extractor: ffmpeg timed out extracting %s", video_path)
         return None
@@ -89,7 +86,7 @@ def extract_audio(video_path: str, output_dir: str) -> Optional[str]:
 def _has_audio_stream(video_path: str) -> bool:
     """Return True if ffprobe reports at least one audio stream."""
     try:
-        result = subprocess.run(
+        result = run_captured(
             [
                 "ffprobe", "-v", "error",
                 "-select_streams", "a:0",
@@ -97,7 +94,8 @@ def _has_audio_stream(video_path: str) -> bool:
                 "-of", "default=nw=1",
                 video_path,
             ],
-            capture_output=True, text=True, timeout=30,
+            timeout=30,
+            text=True,
         )
         return "audio" in result.stdout.lower()
     except Exception:

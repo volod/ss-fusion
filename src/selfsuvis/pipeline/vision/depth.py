@@ -26,15 +26,16 @@ CLI override::
     DEPTH_ENABLED=true DEPTH_MODEL=depth-anything/Depth-Anything-V2-Large-hf
 """
 
-import gc
 import logging
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 from PIL import Image
 
 from selfsuvis.pipeline.core import get_logger, is_cuda_oom, pipeline_device_arg, resolve_device, settings
 from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 
+from ._pipe_mixin import _HFPipeMixin
 from .registry import resolve_model_id
 
 logger = get_logger(__name__)
@@ -65,7 +66,7 @@ def _prepare_depth_image(image: Image.Image) -> Image.Image:
     return resized
 
 
-class DepthModel:
+class DepthModel(_HFPipeMixin):
     """Monocular depth estimation.
 
     Returns depth percentiles [p10, p25, p50, p75, p90] normalised to [0, 1]
@@ -106,17 +107,39 @@ class DepthModel:
             return {"depth_unavailable": True}
         return self._estimate_one(image, pipe)
 
-    def release(self) -> None:
-        """Delete the pipeline and flush CUDA cache."""
-        import gc
-        self._pipe = None
-        gc.collect()
+    def estimate_dense(self, image: Image.Image) -> Dict[str, Any]:
+        """Return a dense depth map payload when enabled.
+
+        For pipelines that only expose image-space relative depth, the returned
+        values are normalized to [0, 1]. Confidence is a placeholder uniform map
+        until a model-specific uncertainty head is available.
+        """
+        if not self.is_enabled():
+            return {"depth_disabled": True}
+        image = _prepare_depth_image(image)
+        pipe = self._get_pipe()
+        if pipe is None:
+            return {"depth_unavailable": True}
         try:
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except Exception:
-            pass
+            with suppress_runtime_noise(
+                r"You seem to be using the pipelines sequentially on GPU.*",
+                logger_levels={
+                    "transformers": logging.ERROR,
+                    "transformers.pipelines.base": logging.ERROR,
+                },
+            ):
+                raw = pipe(image)
+            return self._dense_depth_output(raw)
+        except Exception as exc:
+            if is_cuda_oom(exc) and self._device == "cuda":
+                from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+
+                log_oom_banner(logger, f"Depth/{self.model_id}", "dense depth OOM — falling back to CPU")
+                cpu_pipe = self._fallback_to_cpu()
+                if cpu_pipe is not None:
+                    return self.estimate_dense(image)
+            logger.warning("Dense depth estimation failed", exc_info=True)
+            return {"depth_error": True}
 
     def _estimate_one(self, image: Image.Image, pipe) -> Dict[str, Any]:
         try:
@@ -164,8 +187,6 @@ class DepthModel:
         return [self._estimate_one(image, pipe) for image in images]
 
     def _normalise_depth_output(self, output: Any) -> Dict[str, Any]:
-        import numpy as np
-
         # HuggingFace depth-estimation pipeline returns {"depth": PIL.Image, ...}
         depth_img = output.get("depth") if isinstance(output, dict) else output
         if depth_img is None:
@@ -180,6 +201,27 @@ class DepthModel:
                 "percentiles": [round(p, 4) for p in pcts],
                 "model": self.model_id,
             }
+        }
+
+    def _dense_depth_output(self, output: Any) -> Dict[str, Any]:
+        depth_img = output.get("depth") if isinstance(output, dict) else output
+        if depth_img is None:
+            return {"depth_unavailable": True}
+        depth_arr = np.array(depth_img).astype(np.float32)
+        dmin, dmax = float(depth_arr.min()), float(depth_arr.max())
+        if dmax > dmin:
+            depth_arr = (depth_arr - dmin) / (dmax - dmin)
+        confidence = np.ones_like(depth_arr, dtype=np.float32)
+        return {
+            "depth_dense": {
+                "map": depth_arr,
+                "confidence": confidence,
+                "model": self.model_id,
+            },
+            "depth": {
+                "percentiles": [round(p, 4) for p in np.percentile(depth_arr, [10, 25, 50, 75, 90]).tolist()],
+                "model": self.model_id,
+            },
         }
 
     def _get_pipe(self, force_device: Optional[str] = None):
@@ -225,34 +267,6 @@ class DepthModel:
             self._device = None
             self._load_failed = True
         return self._pipe
-
-    def _release_pipe(self) -> None:
-        try:
-            import torch
-        except ImportError:
-            torch = None  # type: ignore[assignment]
-        if self._pipe is not None:
-            model = getattr(self._pipe, "model", None)
-            if model is not None:
-                try:
-                    model.cpu()
-                except Exception:
-                    pass
-            del self._pipe
-            self._pipe = None
-        gc.collect()
-        if torch is not None and torch.cuda.is_available():
-            try:
-                torch.cuda.synchronize()
-            except Exception:
-                pass
-            torch.cuda.empty_cache()
-
-    def _fallback_to_cpu(self):
-        self._release_pipe()
-        self._load_failed = False
-        return self._get_pipe(force_device="cpu")
-
 
 def _get_device() -> str:
     return resolve_device()

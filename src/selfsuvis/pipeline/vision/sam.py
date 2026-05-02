@@ -56,14 +56,14 @@ _SAM3_HF_MODELS = [
 ]
 
 
-def _detect_backend() -> str:
-    cfg = settings.SAM_MODEL.strip().lower()
+def _detect_backend(cfg: str) -> str:
+    cfg = (cfg or "").strip().lower()
     # Explicit override
-    if cfg == "sam3":
+    if cfg == "sam3" or "sam3" in cfg:
         return _BACKEND_SAM3
-    if cfg in ("sam2", "sam-2"):
+    if cfg in ("sam2", "sam-2") or "sam2" in cfg:
         return _BACKEND_SAM2
-    if cfg in ("sam1", "sam", "segment-anything"):
+    if cfg in ("sam1", "sam", "segment-anything") or "sam-vit" in cfg:
         return _BACKEND_SAM1
     # Auto-detect by import availability (sam3 preferred, sam2 fallback)
     try:
@@ -106,7 +106,14 @@ class SAMPredictor:
     takes normalised bounding boxes (from YOLO) and returns binary masks.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        enabled: Optional[bool] = None,
+        model_name: Optional[str] = None,
+    ) -> None:
+        self._enabled = settings.SAM_ENABLED if enabled is None else bool(enabled)
+        self._model_name = (settings.SAM_MODEL if model_name is None else model_name).strip()
         self._backend: Optional[str] = None
         self._predictor = None
         self._load_failed = False
@@ -114,7 +121,7 @@ class SAMPredictor:
 
     def is_available(self) -> bool:
         """Return True when SAM is enabled and a backend is installed."""
-        if not settings.SAM_ENABLED:
+        if not self._enabled:
             return False
         return self._get_predictor() is not None
 
@@ -196,6 +203,85 @@ class SAMPredictor:
             self._amg = None
         return self._amg
 
+    def generate_auto_masks(
+        self,
+        image: Image.Image,
+        *,
+        points_per_side: int = 8,
+    ) -> List[Dict[str, Any]]:
+        """Generate automatic masks for an image.
+
+        Returns compact SAM-style mask records:
+            {
+                "mask": np.ndarray bool,
+                "bbox": [x, y, w, h],   # pixel coordinates
+                "area": int,
+                "area_norm": float,
+                "score": float,
+            }
+        """
+        if not self.is_available():
+            return []
+
+        img_np = np.array(image.convert("RGB"))
+        h, w = img_np.shape[:2]
+
+        try:
+            import torch
+
+            amg = self.get_auto_mask_generator(points_per_side=points_per_side)
+            if amg is not None:
+                with torch.inference_mode():
+                    masks = amg.generate(img_np)
+                return [
+                    {
+                        "mask": m["segmentation"].astype(bool),
+                        "bbox": list(m["bbox"]),
+                        "area": int(m["area"]),
+                        "area_norm": round(float(m["area"]) / max(1, w * h), 6),
+                        "score": round(float(m.get("predicted_iou", 0.0)), 4),
+                    }
+                    for m in masks
+                ]
+        except Exception as exc:
+            logger.debug("SAM auto-mask generation failed: %s", exc)
+
+        # Grid fallback: query a small regular set of boxes and derive masks.
+        grid_bboxes: List[Tuple[float, float, float, float]] = []
+        pad = 0.05
+        grid_side = 4
+        for row in range(grid_side):
+            for col in range(grid_side):
+                cx = (col + 0.5) / grid_side
+                cy = (row + 0.5) / grid_side
+                grid_bboxes.append((
+                    max(0.0, cx - pad),
+                    max(0.0, cy - pad),
+                    min(1.0, cx + pad),
+                    min(1.0, cy + pad),
+                ))
+
+        results: List[Dict[str, Any]] = []
+        for mask_info in self.predict_boxes(image, grid_bboxes):
+            mask = mask_info.get("mask")
+            if mask is None:
+                continue
+            mask = mask.astype(bool)
+            ys, xs = np.where(mask)
+            if len(xs) == 0:
+                continue
+            x1, x2 = int(xs.min()), int(xs.max())
+            y1, y2 = int(ys.min()), int(ys.max())
+            area = int(mask.sum())
+            results.append({
+                "mask": mask,
+                "bbox": [x1, y1, x2 - x1, y2 - y1],
+                "area": area,
+                "area_norm": round(float(area) / max(1, w * h), 6),
+                "score": round(float(mask_info.get("score", 0.0)), 4),
+            })
+        return results
+
     def release(self) -> None:
         """Free GPU memory held by the SAM predictor."""
         self._predictor = None
@@ -215,7 +301,7 @@ class SAMPredictor:
             return self._predictor
         if self._load_failed:
             return None
-        backend = _detect_backend()
+        backend = _detect_backend(self._model_name)
         self._backend = backend
         if backend == _BACKEND_NONE:
             logger.info(
@@ -246,7 +332,7 @@ class SAMPredictor:
         """Load SAM3 predictor (https://github.com/facebookresearch/sam3)."""
         try:
             from sam3.sam3_image_predictor import SAM3ImagePredictor  # type: ignore[import]
-            model_id = _SAM3_HF_MODELS[0]
+            model_id = self._model_name if self._model_name in _SAM3_HF_MODELS else _SAM3_HF_MODELS[0]
             predictor = SAM3ImagePredictor.from_pretrained(model_id)
             if device == "cuda":
                 predictor.model.to("cuda")
@@ -261,7 +347,7 @@ class SAMPredictor:
         """Load SAM2 predictor (pip: sam2)."""
         try:
             from sam2.sam2_image_predictor import SAM2ImagePredictor  # type: ignore[import]
-            model_id = _SAM2_HF_MODELS[0]
+            model_id = self._model_name if self._model_name in _SAM2_HF_MODELS else _SAM2_HF_MODELS[0]
             predictor = SAM2ImagePredictor.from_pretrained(model_id)
             if device == "cuda":
                 predictor.model.to("cuda")

@@ -270,9 +270,33 @@ class Settings:
     REALTIME_ENABLED = _env("REALTIME_ENABLED", "false").lower() == "true"
     REALTIME_BACKEND = _env("REALTIME_BACKEND", "stub")
     REALTIME_POSE_BACKEND = _env("REALTIME_POSE_BACKEND", "stub")
+    REALTIME_POSE_API_URL = _env("REALTIME_POSE_API_URL", "")
+    REALTIME_OCCUPANCY_BACKEND = _env("REALTIME_OCCUPANCY_BACKEND", "stub")
+    REALTIME_OCCUPANCY_API_URL = _env("REALTIME_OCCUPANCY_API_URL", "")
     REALTIME_PACKET_BATCH_SIZE = _env_int("REALTIME_PACKET_BATCH_SIZE", 128)
     REALTIME_MAX_SENSOR_LAG_MS = _env_int("REALTIME_MAX_SENSOR_LAG_MS", 120)
     REALTIME_SESSION_TIMEOUT_SEC = _env_int("REALTIME_SESSION_TIMEOUT_SEC", 30)
+    REALTIME_OCCUPANCY_RESOLUTION_M = _env_float("REALTIME_OCCUPANCY_RESOLUTION_M", 0.2)
+    REALTIME_BRIDGE_ENABLED = _env("REALTIME_BRIDGE_ENABLED", "false").lower() == "true"
+    REALTIME_BRIDGE_BACKEND = _env("REALTIME_BRIDGE_BACKEND", "mavsdk")
+    REALTIME_BRIDGE_SESSION_ID = _env("REALTIME_BRIDGE_SESSION_ID", "realtime_bridge")
+    REALTIME_BRIDGE_ROBOT_ID = _env("REALTIME_BRIDGE_ROBOT_ID", "drone_bridge")
+    REALTIME_BRIDGE_MISSION_ID = _env("REALTIME_BRIDGE_MISSION_ID", "")
+    REALTIME_BRIDGE_SENSORS = _env("REALTIME_BRIDGE_SENSORS", "gps,imu,barometer,magnetometer")
+    REALTIME_BRIDGE_AUTO_CREATE_SESSION = _env("REALTIME_BRIDGE_AUTO_CREATE_SESSION", "true").lower() == "true"
+    REALTIME_BRIDGE_FLUSH_INTERVAL_SEC = _env_float("REALTIME_BRIDGE_FLUSH_INTERVAL_SEC", 0.5)
+    REALTIME_BRIDGE_RECONNECT_SEC = _env_float("REALTIME_BRIDGE_RECONNECT_SEC", 5.0)
+    REALTIME_BRIDGE_LOG_EVERY_N_PACKETS = _env_int("REALTIME_BRIDGE_LOG_EVERY_N_PACKETS", 100)
+    REALTIME_MAVSDK_SYSTEM_ADDRESS = _env("REALTIME_MAVSDK_SYSTEM_ADDRESS", "udp://:14540")
+    REALTIME_MAVSDK_SERVER_ADDRESS = _env("REALTIME_MAVSDK_SERVER_ADDRESS", "")
+    REALTIME_MAVSDK_SERVER_PORT = _env_int("REALTIME_MAVSDK_SERVER_PORT", 50051)
+    REALTIME_MAVSDK_CONNECT_TIMEOUT_SEC = _env_float("REALTIME_MAVSDK_CONNECT_TIMEOUT_SEC", 20.0)
+    REALTIME_ROS_DOMAIN_ID = _env("REALTIME_ROS_DOMAIN_ID", "")
+    REALTIME_ROS_IMU_TOPIC = _env("REALTIME_ROS_IMU_TOPIC", "/imu")
+    REALTIME_ROS_GPS_TOPIC = _env("REALTIME_ROS_GPS_TOPIC", "/gps/fix")
+    REALTIME_ROS_BAROMETER_TOPIC = _env("REALTIME_ROS_BAROMETER_TOPIC", "/barometer")
+    REALTIME_ROS_MAG_TOPIC = _env("REALTIME_ROS_MAG_TOPIC", "/mag")
+    REALTIME_ROS_CAMERA_TOPIC = _env("REALTIME_ROS_CAMERA_TOPIC", "")
     MEDIAMTX_API_URL = _env("MEDIAMTX_API_URL", "http://mediamtx:9997")
     MEDIAMTX_API_USER = _env("MEDIAMTX_API_USER", "")
     MEDIAMTX_API_PASS = _env("MEDIAMTX_API_PASS", "")
@@ -452,6 +476,7 @@ class Settings:
     # DEPTH_MODEL: "auto" or HuggingFace model ID.
     DEPTH_ENABLED = _env("DEPTH_ENABLED", "false").lower() == "true"
     DEPTH_MODEL = _env("DEPTH_MODEL", "auto")
+    DEPTH_OUTPUT_MODE = _env("DEPTH_OUTPUT_MODE", "summary").strip().lower()
     # For the local pipeline we only keep coarse percentile summaries, not dense
     # metric maps. "fast" prefers a lighter model with better throughput.
     DEPTH_AUTO_PROFILE = _env("DEPTH_AUTO_PROFILE", "fast")  # "fast" | "quality"
@@ -468,6 +493,20 @@ class Settings:
     DETECTION_CONFIDENCE = _env_float("DETECTION_CONFIDENCE", 0.5)
     DETECTION_LABELS = _env("DETECTION_LABELS", "")
     DETECTION_BATCH_SIZE = _env_int("DETECTION_BATCH_SIZE", 8)
+
+    # ── Image segmentation ───────────────────────────────────────────────────
+    # Optional automatic segmentation summaries stored in
+    # frame_facts_json["segments"].
+    # SEGMENTATION_MODEL: backend selector ("auto" | "sam3" | "sam2" | "sam1")
+    #   or a SAM-family HuggingFace model ID such as
+    #   facebook/sam2-hiera-small.
+    # SEGMENTATION_* keeps this pass independent from the box-refinement SAM
+    # settings used by YOLO / Gemma tracking.
+    SEGMENTATION_ENABLED = _env("SEGMENTATION_ENABLED", "false").lower() == "true"
+    SEGMENTATION_MODEL = _env("SEGMENTATION_MODEL", "facebook/sam2-hiera-small")
+    SEGMENTATION_POINTS_PER_SIDE = _env_int("SEGMENTATION_POINTS_PER_SIDE", 8)
+    SEGMENTATION_MAX_MASKS = _env_int("SEGMENTATION_MAX_MASKS", 16)
+    SEGMENTATION_MIN_AREA_NORM = _env_float("SEGMENTATION_MIN_AREA_NORM", 0.002)
 
     # ── World model ───────────────────────────────────────────────────────────
     # Produces video clip embeddings for temporal scene understanding.
