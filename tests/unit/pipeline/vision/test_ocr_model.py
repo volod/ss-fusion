@@ -1,9 +1,9 @@
 """Unit tests for pipeline/ocr_model.py — no GPU or model loading required."""
-import io
 import base64
+import io
 import time
-import pytest
 from unittest.mock import MagicMock, patch
+
 from PIL import Image
 
 
@@ -41,15 +41,15 @@ def test_resolve_auto_fallback_when_none(monkeypatch):
 # ── OCRModel.is_enabled ───────────────────────────────────────────────────────
 
 def test_is_enabled_true(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", True)
     assert OCRModel().is_enabled() is True
 
 
 def test_is_enabled_false(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", False)
     assert OCRModel().is_enabled() is False
 
@@ -57,8 +57,8 @@ def test_is_enabled_false(monkeypatch):
 # ── OCRModel.extract_text — disabled ─────────────────────────────────────────
 
 def test_extract_text_disabled_returns_none_text(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", False)
     result = OCRModel().extract_text(_make_image())
     assert result["ocr_text"] is None
@@ -66,8 +66,8 @@ def test_extract_text_disabled_returns_none_text(monkeypatch):
 
 
 def test_extract_text_batch_disabled_all_disabled(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", False)
     imgs = [_make_image() for _ in range(3)]
     results = OCRModel().extract_text_batch(imgs)
@@ -78,8 +78,8 @@ def test_extract_text_batch_disabled_all_disabled(monkeypatch):
 # ── OCRModel backend selection ────────────────────────────────────────────────
 
 def test_backend_is_vllm_when_api_url_set(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "http://localhost:8010/v1")
     monkeypatch.setattr(ocr_model.settings, "OCR_MODEL", "auto")
     model = OCRModel()
@@ -88,8 +88,8 @@ def test_backend_is_vllm_when_api_url_set(monkeypatch):
 
 
 def test_backend_is_got_for_got_model_id(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
     model._model_id = "ucaslcl/GOT-OCR2_0"
@@ -97,8 +97,8 @@ def test_backend_is_got_for_got_model_id(monkeypatch):
 
 
 def test_backend_is_florence_for_florence_model(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
     model._model_id = "microsoft/Florence-2-base"
@@ -106,8 +106,8 @@ def test_backend_is_florence_for_florence_model(monkeypatch):
 
 
 def test_backend_is_trocr_for_trocr_model(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
     model._model_id = "microsoft/trocr-base-printed"
@@ -116,8 +116,8 @@ def test_backend_is_trocr_for_trocr_model(monkeypatch):
 
 def test_backend_is_vlm_for_deepseek_ocr(monkeypatch):
     """DeepSeek-OCR-2 uses the vlm backend (AutoProcessor + AutoModelForCausalLM)."""
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     monkeypatch.setattr(ocr_model.settings, "QWEN_API_URL", "")
     model = OCRModel()
@@ -126,8 +126,8 @@ def test_backend_is_vlm_for_deepseek_ocr(monkeypatch):
 
 
 def test_backend_cached_on_second_call(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
     model._model_id = "microsoft/trocr-base-printed"
@@ -139,8 +139,8 @@ def test_backend_cached_on_second_call(monkeypatch):
 # ── OCRModel._extract_one — success and error paths ──────────────────────────
 
 def test_extract_one_returns_ocr_text_on_success(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", True)
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
@@ -158,8 +158,8 @@ def test_extract_one_returns_ocr_text_on_success(monkeypatch):
 
 
 def test_extract_one_returns_error_dict_on_exception(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", True)
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
@@ -174,8 +174,8 @@ def test_extract_one_returns_error_dict_on_exception(monkeypatch):
 
 
 def test_extract_one_strips_whitespace(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
     model._model_id = "microsoft/trocr-base-printed"
@@ -217,8 +217,8 @@ def test_encode_b64_resizes_large_image(monkeypatch):
 # ── extract_text_batch — batch size matches input ─────────────────────────────
 
 def test_extract_text_batch_length_matches_input(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", True)
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "")
     model = OCRModel()
@@ -231,8 +231,8 @@ def test_extract_text_batch_length_matches_input(monkeypatch):
 
 
 def test_extract_text_batch_vllm_parallel_preserves_order(monkeypatch):
-    from selfsuvis.pipeline.vision.ocr import OCRModel
     import selfsuvis.pipeline.vision.ocr as ocr_model
+    from selfsuvis.pipeline.vision.ocr import OCRModel
 
     monkeypatch.setattr(ocr_model.settings, "OCR_ENABLED", True)
     monkeypatch.setattr(ocr_model.settings, "OCR_API_URL", "http://localhost:8010/v1")

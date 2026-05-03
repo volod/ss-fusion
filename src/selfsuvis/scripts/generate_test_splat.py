@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+
 import numpy as np
 
 from selfsuvis.pipeline.mapping.splat_io import _SPLAT_DTYPE, write_splat, write_splat_metadata

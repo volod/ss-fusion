@@ -1,7 +1,7 @@
 """Schema for mission-level global threat aggregation."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -9,15 +9,15 @@ class SectorThreatState:
     sector_id: str
     threat_score: float
     risk_level: str
-    supporting_videos: List[str] = field(default_factory=list)
-    route_ids: List[str] = field(default_factory=list)
-    primitive_types: List[str] = field(default_factory=list)
+    supporting_videos: list[str] = field(default_factory=list)
+    route_ids: list[str] = field(default_factory=list)
+    primitive_types: list[str] = field(default_factory=list)
     observation_count: int = 0
     mean_uncertainty: float = 0.0
-    evidence_sources: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    evidence_sources: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sector_id": self.sector_id,
             "threat_score": float(self.threat_score),
@@ -37,12 +37,12 @@ class RouteAdvisory:
     route_id: str
     advisory_score: float
     recommended_action: str
-    sector_ids: List[str] = field(default_factory=list)
-    supporting_videos: List[str] = field(default_factory=list)
-    evidence_sources: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    sector_ids: list[str] = field(default_factory=list)
+    supporting_videos: list[str] = field(default_factory=list)
+    evidence_sources: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "route_id": self.route_id,
             "advisory_score": float(self.advisory_score),
@@ -58,14 +58,14 @@ class RouteAdvisory:
 class PersistentAnomaly:
     anomaly_id: str
     anomaly_type: str
-    sector_ids: List[str] = field(default_factory=list)
+    sector_ids: list[str] = field(default_factory=list)
     threat_score: float = 0.0
     persistence_count: int = 0
-    supporting_videos: List[str] = field(default_factory=list)
-    evidence_sources: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    supporting_videos: list[str] = field(default_factory=list)
+    evidence_sources: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "anomaly_id": self.anomaly_id,
             "anomaly_type": self.anomaly_type,
@@ -83,14 +83,14 @@ class GlobalThreatResult:
     enabled: bool
     status: str
     reason: str = ""
-    global_threat_map: List[Dict[str, Any]] = field(default_factory=list)
-    sector_risk_levels: List[SectorThreatState] = field(default_factory=list)
-    persistent_anomalies: List[PersistentAnomaly] = field(default_factory=list)
-    route_advisories: List[RouteAdvisory] = field(default_factory=list)
-    threat_corridor_graph: List[Dict[str, Any]] = field(default_factory=list)
-    diagnostics: Dict[str, Any] = field(default_factory=dict)
+    global_threat_map: list[dict[str, Any]] = field(default_factory=list)
+    sector_risk_levels: list[SectorThreatState] = field(default_factory=list)
+    persistent_anomalies: list[PersistentAnomaly] = field(default_factory=list)
+    route_advisories: list[RouteAdvisory] = field(default_factory=list)
+    threat_corridor_graph: list[dict[str, Any]] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "enabled": self.enabled,
             "status": self.status,
@@ -103,5 +103,5 @@ class GlobalThreatResult:
             "diagnostics": dict(self.diagnostics),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return self.summary()

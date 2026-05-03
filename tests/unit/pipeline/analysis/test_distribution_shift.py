@@ -5,14 +5,12 @@ No GPU or torch.hub access — backbone is a tiny stub Linear layer.
 import os
 
 import numpy as np
-import pytest
 import torch
 import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 
 from selfsuvis.pipeline.training.supervised import _eval_distribution_shift
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -126,8 +124,10 @@ class TestEvalDistributionShift:
         embed_dim = 16
         n_per_class = 4
         # Two orthogonal unit vectors — perfect class separation
-        v0 = torch.zeros(embed_dim); v0[0] = 1.0
-        v1 = torch.zeros(embed_dim); v1[1] = 1.0
+        v0 = torch.zeros(embed_dim)
+        v0[0] = 1.0
+        v1 = torch.zeros(embed_dim)
+        v1[1] = 1.0
         class_vecs = torch.stack([v0, v1])
 
         items = _make_eval_items(str(tmp_path), n_per_class=n_per_class)
@@ -156,13 +156,13 @@ class TestEvalDistributionShift:
     def test_distribution_shift_key_in_run_result(self, tmp_path, monkeypatch):
         """run_supervised_finetune result dict always contains 'distribution_shift' key."""
         import os
-        from selfsuvis.pipeline.training.supervised import (
-            run_supervised_finetune,
-            SupervisedFinetuneConfig,
-            SupervisedFineTuner,
-        )
-        import selfsuvis.pipeline.training.supervised as sf_mod
         from xml.etree import ElementTree as ET
+
+        import selfsuvis.pipeline.training.supervised as sf_mod
+        from selfsuvis.pipeline.training.supervised import (
+            SupervisedFinetuneConfig,
+            run_supervised_finetune,
+        )
 
         frames_dir = str(tmp_path / "frames")
         os.makedirs(frames_dir)
@@ -193,8 +193,10 @@ class TestEvalDistributionShift:
             ET.SubElement(seg, k).text = v
         for i, img in enumerate(images):
             el = ET.SubElement(root, "image")
-            el.set("id", str(i)); el.set("name", img["name"])
-            el.set("width", "32"); el.set("height", "32")
+            el.set("id", str(i))
+            el.set("name", img["name"])
+            el.set("width", "32")
+            el.set("height", "32")
             box = ET.SubElement(el, "box")
             for k, v in [("label", img["label"]), ("source", "manual"),
                          ("occluded", "0"), ("xtl", "0"), ("ytl", "0"),

@@ -26,7 +26,7 @@ Disabled gracefully when ``rfdetr`` is not installed or ``RFDETR_ENABLED=false``
 import gc
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -49,7 +49,7 @@ _VEHICLE_LABELS = frozenset({
 })
 
 # COCO 80-class index → name; used as fallback when supervision doesn't return class_name
-_COCO_CLASSES: Dict[int, str] = {
+_COCO_CLASSES: dict[int, str] = {
     0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
     5: "bus", 6: "train", 7: "truck", 8: "boat", 9: "traffic light",
     10: "fire hydrant", 11: "stop sign", 12: "parking meter", 13: "bench",
@@ -81,7 +81,7 @@ _PRIORITY_LABEL = {
     PRIORITY_OTHER:      "other",
 }
 
-_TARGET_LABEL_ALIASES: Dict[str, frozenset[str]] = {
+_TARGET_LABEL_ALIASES: dict[str, frozenset[str]] = {
     "person": frozenset({"person", "pedestrian", "people", "human", "worker", "rider", "child"}),
     "vehicle": frozenset(
         {
@@ -99,9 +99,9 @@ def _normalise_target_label(label: str) -> str:
     return " ".join(label.lower().replace("-", " ").replace("_", " ").split())
 
 
-def _expand_target_labels(target_labels: List[str]) -> List[str]:
+def _expand_target_labels(target_labels: list[str]) -> list[str]:
     """Expand Gemma-style abstract labels into detector-matchable synonyms."""
-    expanded: List[str] = []
+    expanded: list[str] = []
     seen: set[str] = set()
     for raw in target_labels:
         norm = _normalise_target_label(raw)
@@ -152,7 +152,7 @@ def _rfdetr_weights_path(variant: str) -> str:
     if not dst.exists():
         try:
             from rfdetr.assets.model_weights import ModelWeights  # type: ignore[import]
-            from rfdetr.util.files import _download_file           # type: ignore[import]
+            from rfdetr.util.files import _download_file  # type: ignore[import]
             asset = ModelWeights.from_filename(name)
             if asset is not None:
                 logger.info("RFDETRTracker: downloading %s → %s", name, dst)
@@ -182,7 +182,7 @@ def _classify_priority(label: str) -> int:
 
 # ── IoU helper ─────────────────────────────────────────────────────────────────
 
-def _iou_norm(a: List[float], b: List[float]) -> float:
+def _iou_norm(a: list[float], b: list[float]) -> float:
     """Compute IoU for two normalised [x1, y1, x2, y2] boxes."""
     ix1 = max(a[0], b[0])
     iy1 = max(a[1], b[1])
@@ -197,11 +197,11 @@ def _iou_norm(a: List[float], b: List[float]) -> float:
     return inter / union if union > 0 else 0.0
 
 
-def _bbox_center(box: List[float]) -> Tuple[float, float]:
+def _bbox_center(box: list[float]) -> tuple[float, float]:
     return ((box[0] + box[2]) * 0.5, (box[1] + box[3]) * 0.5)
 
 
-def _bbox_area(box: List[float]) -> float:
+def _bbox_area(box: list[float]) -> float:
     return max(0.0, box[2] - box[0]) * max(0.0, box[3] - box[1])
 
 
@@ -214,7 +214,7 @@ def _track_label_family(label: str) -> str:
     return norm
 
 
-def _track_match_score(track: Dict[str, Any], det: Dict[str, Any]) -> float:
+def _track_match_score(track: dict[str, Any], det: dict[str, Any]) -> float:
     """Return a continuity score for matching *det* to *track*."""
     track_label = _track_label_family(str(track.get("label", "")))
     det_label = _track_label_family(str(det.get("label", "")))
@@ -268,7 +268,7 @@ class RFDETRTracker:
     def __init__(self) -> None:
         self._model = None
         self._load_failed = False
-        self._model_variant: Optional[str] = None
+        self._model_variant: str | None = None
         self._reset_tracking_state()
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -284,8 +284,8 @@ class RFDETRTracker:
     def detect_frame(
         self,
         image: Image.Image,
-        target_labels: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        target_labels: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Detect objects in *image*.
 
         Args:
@@ -303,7 +303,7 @@ class RFDETRTracker:
         w, h = image.size
         try:
             dets = self._run_inference(model, image)
-            results: List[Dict[str, Any]] = []
+            results: list[dict[str, Any]] = []
             for label, conf, (x1, y1, x2, y2) in dets:
                 bbox_norm = [x1 / w, y1 / h, x2 / w, y2 / h]
                 if expanded_targets is not None and not _label_matches_any(label, expanded_targets):
@@ -324,9 +324,9 @@ class RFDETRTracker:
 
     def track_sequence(
         self,
-        frame_items: List[Tuple[str, float]],
-        target_labels: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        frame_items: list[tuple[str, float]],
+        target_labels: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Detect and track objects across a sequence of frames.
 
         Args:
@@ -342,7 +342,7 @@ class RFDETRTracker:
                 }
         """
         self._reset_tracking_state()
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         model = self._get_model()
         if model is None:
             return [{"frame_path": fp, "t_sec": t, "detections": []} for fp, t in frame_items]
@@ -378,7 +378,7 @@ class RFDETRTracker:
 
     def _reset_tracking_state(self) -> None:
         """Active tracks: {track_id: {"bbox_norm": list, "label": str, "miss": int}}."""
-        self._active_tracks: Dict[int, Dict[str, Any]] = {}
+        self._active_tracks: dict[int, dict[str, Any]] = {}
         self._next_id = 1
 
     def _get_model(self):
@@ -446,7 +446,7 @@ class RFDETRTracker:
 
     def _run_inference(
         self, model, image: Image.Image
-    ) -> List[Tuple[str, float, Tuple[float, float, float, float]]]:
+    ) -> list[tuple[str, float, tuple[float, float, float, float]]]:
         """Run RF-DETR inference and return (label, confidence, (x1,y1,x2,y2)) tuples
         in pixel coordinates."""
         conf_threshold = max(0.05, float(settings.RFDETR_CONFIDENCE))
@@ -488,7 +488,7 @@ class RFDETRTracker:
             logger.debug("RF-DETR result parsing error: %s", exc)
         return results
 
-    def _assign_track_ids(self, detections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _assign_track_ids(self, detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Assign persistent track IDs to detections using greedy IoU matching.
 
         Updates ``self._active_tracks`` in-place:
@@ -515,7 +515,7 @@ class RFDETRTracker:
                 iou_matrix[ti, di] = _track_match_score(self._active_tracks[tid], det)
 
         # Greedy assignment: highest IoU first
-        assigned_track: Dict[int, int] = {}   # det_idx → track_id
+        assigned_track: dict[int, int] = {}   # det_idx → track_id
         assigned_det: set = set()
         assigned_track_set: set = set()
 
@@ -571,7 +571,7 @@ class RFDETRTracker:
 
 # ── Label matching helper ──────────────────────────────────────────────────────
 
-def _label_matches_any(label: str, target_labels: List[str]) -> bool:
+def _label_matches_any(label: str, target_labels: list[str]) -> bool:
     """Return True when *label* appears in or overlaps with any target label."""
     label_lower = _normalise_target_label(label)
     for target in target_labels:

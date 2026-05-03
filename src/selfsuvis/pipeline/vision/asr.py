@@ -37,11 +37,11 @@ CLI override examples::
 """
 
 import contextlib
+import io
 import logging
 import subprocess
-import io
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from selfsuvis.pipeline.core import get_logger, settings
 from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
@@ -100,8 +100,8 @@ class ASRModel:
     """
 
     def __init__(self) -> None:
-        self._pipe: Optional[Any] = None
-        self._model_id: Optional[str] = None
+        self._pipe: Any | None = None
+        self._model_id: str | None = None
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ class ASRModel:
         """Return True when ``ASR_ENABLED=true`` in the environment."""
         return settings.ASR_ENABLED
 
-    def transcribe(self, audio_path: str) -> List[Dict]:
+    def transcribe(self, audio_path: str) -> list[dict]:
         """Transcribe *audio_path* (WAV/MP3/etc.) to a list of timestamped segments.
 
         Returns a list of ``{"text": str, "timestamp": (start_sec, end_sec)}``
@@ -124,11 +124,11 @@ class ASRModel:
             return []
         try:
             language = settings.ASR_LANGUAGE.strip() or None
-            generate_kwargs: Dict[str, Any] = {"task": "transcribe"}
+            generate_kwargs: dict[str, Any] = {"task": "transcribe"}
             if language:
                 generate_kwargs["language"] = language
 
-            pipe_kwargs: Dict[str, Any] = {
+            pipe_kwargs: dict[str, Any] = {
                 "generate_kwargs": generate_kwargs,
                 "batch_size": settings.ASR_BATCH_SIZE,
             }
@@ -213,7 +213,7 @@ def _supports_native_timestamps(model_id: str) -> bool:
     return model_id.startswith(_WHISPER_PREFIXES)
 
 
-def _normalise_asr_output(result: Any, audio_path: str) -> List[Dict[str, Any]]:
+def _normalise_asr_output(result: Any, audio_path: str) -> list[dict[str, Any]]:
     duration = _probe_audio_duration(audio_path)
     if isinstance(result, dict):
         chunks = result.get("chunks")
@@ -229,7 +229,7 @@ def _normalise_asr_output(result: Any, audio_path: str) -> List[Dict[str, Any]]:
     return []
 
 
-def _normalise_asr_chunk(chunk: Dict[str, Any], duration: float) -> Dict[str, Any]:
+def _normalise_asr_chunk(chunk: dict[str, Any], duration: float) -> dict[str, Any]:
     text = str(chunk.get("text", "")).strip()
     ts = chunk.get("timestamp")
     start = 0.0

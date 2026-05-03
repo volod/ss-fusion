@@ -1,5 +1,4 @@
 import time
-from typing import List, Tuple
 
 import numpy as np
 
@@ -14,8 +13,8 @@ class RecentEmbeddingIndex:
         self.dim = dim
         self.max_size = max_size
         self.ttl_sec = ttl_sec
-        self.vectors: List[np.ndarray] = []
-        self.timestamps: List[float] = []
+        self.vectors: list[np.ndarray] = []
+        self.timestamps: list[float] = []
         self.index = faiss.IndexFlatIP(dim) if faiss else None
 
     def _prune(self, now: float) -> None:

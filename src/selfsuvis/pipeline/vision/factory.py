@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
@@ -16,13 +16,13 @@ from .labels import load_labels
 class MaskSegment:
     segment_id: str
     label: str
-    bbox: Tuple[int, int, int, int]
-    mean_color: Tuple[int, int, int]
+    bbox: tuple[int, int, int, int]
+    mean_color: tuple[int, int, int]
     area: int
 
 
 class OpenCLIPTagger:
-    def __init__(self, labels: Optional[List[str]] = None, labels_file: Optional[str] = None):
+    def __init__(self, labels: list[str] | None = None, labels_file: str | None = None):
         self.logger = get_logger(__name__)
         if labels is not None:
             self.labels = labels
@@ -37,7 +37,7 @@ class OpenCLIPTagger:
         prompts = [f"a photo of {label}" for label in self.labels]
         self._text_embeddings = self.embedder.encode_texts(prompts)
 
-    def describe_image(self, image: Image.Image, top_k: int = 3) -> Dict[str, Any]:
+    def describe_image(self, image: Image.Image, top_k: int = 3) -> dict[str, Any]:
         self._ensure_text_embeddings()
         img_emb = self.embedder.encode_images([image], batch_size=1)[0]
         sims = np.dot(self._text_embeddings, img_emb)
@@ -45,7 +45,7 @@ class OpenCLIPTagger:
         results = [{"label": self.labels[i], "score": float(sims[i])} for i in top_idx]
         return {"labels": results}
 
-    def label_segments(self, crops: List[Image.Image], top_k: int = 1) -> List[Dict[str, Any]]:
+    def label_segments(self, crops: list[Image.Image], top_k: int = 1) -> list[dict[str, Any]]:
         self._ensure_text_embeddings()
         if not crops:
             return []
@@ -61,7 +61,7 @@ class OpenCLIPTagger:
 
 
 class SAMSegmenter:
-    def __init__(self, model_type: Optional[str] = None, checkpoint: Optional[str] = None):
+    def __init__(self, model_type: str | None = None, checkpoint: str | None = None):
         self.logger = get_logger(__name__)
         self.model_type = model_type or settings.SAM_MODEL_TYPE
         self.checkpoint = checkpoint or settings.SAM_CHECKPOINT
@@ -80,7 +80,7 @@ class SAMSegmenter:
         self._mask_generator = SamAutomaticMaskGenerator(sam)
         self.logger.info("SAM loaded type=%s device=%s", self.model_type, device)
 
-    def segment(self, frame_bgr: np.ndarray) -> List[Dict[str, Any]]:
+    def segment(self, frame_bgr: np.ndarray) -> list[dict[str, Any]]:
         self._init()
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         return self._mask_generator.generate(rgb)
@@ -97,13 +97,13 @@ def _cuda_available() -> bool:
 
 def mask_to_segments(
     frame_bgr: np.ndarray,
-    masks: List[Dict[str, Any]],
+    masks: list[dict[str, Any]],
     tagger: OpenCLIPTagger,
     max_masks: int = 20,
-) -> List[MaskSegment]:
-    segments: List[MaskSegment] = []
-    crops: List[Image.Image] = []
-    raw_masks: List[np.ndarray] = []
+) -> list[MaskSegment]:
+    segments: list[MaskSegment] = []
+    crops: list[Image.Image] = []
+    raw_masks: list[np.ndarray] = []
 
     for i, mask in enumerate(sorted(masks, key=lambda m: m.get("area", 0), reverse=True)):
         if i >= max_masks:

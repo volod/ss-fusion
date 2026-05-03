@@ -4,14 +4,15 @@ Designed for Cortex-A76 (ONNX INT8) and Rockchip RV1106G3 (RKNN INT8) deployment
 Target: <3M parameters, 320×320 input, single class (drone).
 """
 
-import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
+import torch
+from torch import nn
 
 from selfsuvis.pipeline.core import get_logger
 
@@ -45,9 +46,9 @@ class DroneDetectorConfig:
 
 # ── YOLO label parser ─────────────────────────────────────────────────────────
 
-def parse_yolo_label(txt_path: str) -> List[Tuple[int, float, float, float, float]]:
+def parse_yolo_label(txt_path: str) -> list[tuple[int, float, float, float, float]]:
     """Parse a YOLO .txt annotation file into (class_id, cx, cy, w, h) tuples."""
-    results: List[Tuple[int, float, float, float, float]] = []
+    results: list[tuple[int, float, float, float, float]] = []
     try:
         with open(txt_path) as f:
             for line in f:
@@ -60,7 +61,7 @@ def parse_yolo_label(txt_path: str) -> List[Tuple[int, float, float, float, floa
                         float(parts[3]),
                         float(parts[4]),
                     ))
-    except (IOError, ValueError):
+    except (OSError, ValueError):
         pass
     return results
 
@@ -72,20 +73,18 @@ class _DroneDetectionDataset:
 
     def __init__(
         self,
-        pos_dir: Optional[str],
-        neg_dir: Optional[str],
+        pos_dir: str | None,
+        neg_dir: str | None,
         image_size: int,
         num_negatives_ratio: float,
         augment: bool = True,
     ) -> None:
-        import torch
-        from PIL import Image
         from torchvision import transforms
 
         self._image_size = image_size
         self._augment = augment
-        self._pos_items: List[Tuple[str, str]] = []  # (image_path, label_path)
-        self._neg_items: List[str] = []               # image_path only
+        self._pos_items: list[tuple[str, str]] = []  # (image_path, label_path)
+        self._neg_items: list[str] = []               # image_path only
 
         if pos_dir and os.path.isdir(pos_dir):
             img_dir = os.path.join(pos_dir, "images")
@@ -114,7 +113,7 @@ class _DroneDetectionDataset:
         else:
             self._neg_items = []
 
-        self._all_items: List[Tuple[str, Optional[str]]] = (
+        self._all_items: list[tuple[str, str | None]] = (
             [(ip, lp) for ip, lp in self._pos_items]
             + [(np_, None) for np_ in self._neg_items]
         )
@@ -189,7 +188,7 @@ class _DroneDetectionDataset:
 # ── Mosaic augmentation ───────────────────────────────────────────────────────
 
 def build_mosaic(
-    images: List[np.ndarray],
+    images: list[np.ndarray],
     image_size: int = 320,
 ) -> np.ndarray:
     """Combine 4 images into a single mosaic (2×2 grid).
@@ -213,10 +212,11 @@ def build_mosaic(
 
 # ── CIoU loss ─────────────────────────────────────────────────────────────────
 
-def ciou_loss(pred: "torch.Tensor", target: "torch.Tensor") -> "torch.Tensor":
+def ciou_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """Complete IoU loss for bbox regression (normalised cx,cy,w,h)."""
-    import torch
     import math
+
+    import torch
 
     eps = 1e-7
     pcx, pcy, pw, ph = pred[..., 0], pred[..., 1], pred[..., 2], pred[..., 3]
@@ -250,7 +250,7 @@ def ciou_loss(pred: "torch.Tensor", target: "torch.Tensor") -> "torch.Tensor":
 
 # ── Model architecture ────────────────────────────────────────────────────────
 
-class _SPP(object):
+class _SPP:
     pass  # placeholder — defined inside DroneStudentDetector to avoid circular import
 
 
@@ -263,7 +263,6 @@ class DroneStudentDetector:
 
     def __init__(self, grid_size: int = 10) -> None:
         import torch.nn as nn
-        import torch
         from torchvision.models import mobilenet_v3_small
 
         self.grid_size = grid_size
@@ -322,10 +321,10 @@ class DroneStudentDetector:
 
 def run_drone_detection_training(
     config: DroneDetectorConfig,
-    pos_dataset_path: Optional[str],
-    neg_images_dir: Optional[str],
+    pos_dataset_path: str | None,
+    neg_images_dir: str | None,
     output_dir: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Train DroneStudentDetector and return training stats dict."""
     import torch
     import torch.nn as nn
@@ -336,7 +335,7 @@ def run_drone_detection_training(
     out_path.mkdir(parents=True, exist_ok=True)
 
     # ── Try to load from HuggingFace if pos_dataset_path not given ───────────
-    hf_downloaded: Optional[str] = None
+    hf_downloaded: str | None = None
     if not pos_dataset_path or not os.path.isdir(pos_dataset_path):
         logger.info("Attempting to load seraphim-drone-detection-dataset from HuggingFace …")
         try:
@@ -397,11 +396,11 @@ def run_drone_detection_training(
 
     best_loss = float("inf")
     best_path = str(out_path / "drone_detector_best.pt")
-    loss_history: List[float] = []
+    loss_history: list[float] = []
 
     for epoch in range(1, config.epochs + 1):
         model.train()
-        ep_losses: List[float] = []
+        ep_losses: list[float] = []
 
         for imgs, targets in loader:
             imgs = imgs.to(device)
@@ -411,8 +410,6 @@ def run_drone_detection_training(
 
             # Separate supervised loss components
             obj_mask = targets[..., 4] > 0.5              # (B, S*S)
-            noobj_mask = ~obj_mask
-
             # Objectness BCE
             l_obj = nn.functional.binary_cross_entropy_with_logits(
                 preds[..., 4], targets[..., 4], reduction="mean"
@@ -493,7 +490,7 @@ def run_drone_detection_training(
     }
 
 
-def _load_teacher(teacher_path: str, device: str) -> "nn.Module":
+def _load_teacher(teacher_path: str, device: str) -> nn.Module:
     """Load a teacher model for distillation (YOLOv8-nano or DroneStudentDetector)."""
     import torch
     # Try loading as a DroneStudentDetector checkpoint
@@ -541,8 +538,7 @@ def export_drone_detector_onnx(
 
     # INT8 static quantization via onnxruntime
     try:
-        from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantType
-        import onnxruntime as ort
+        from onnxruntime.quantization import CalibrationDataReader, QuantType, quantize_static
 
         class _CalibReader(CalibrationDataReader):
             def __init__(self):
@@ -579,7 +575,7 @@ def export_drone_detector_onnx(
 def export_drone_detector_rknn(
     onnx_path: str,
     output_path: str,
-    quant_data_dir: Optional[str] = None,
+    quant_data_dir: str | None = None,
 ) -> str:
     """Export ONNX model to RKNN INT8 for RV1106G3 NPU.
 
@@ -618,7 +614,7 @@ def export_drone_detector_rknn(
         return output_path
 
     # Build calibration dataset
-    dataset_txt: Optional[str] = None
+    dataset_txt: str | None = None
     if quant_data_dir and os.path.isdir(quant_data_dir):
         imgs = [
             os.path.join(quant_data_dir, f)
@@ -654,7 +650,7 @@ def export_drone_detector_rknn(
 class CortexA76Tester:
     """Benchmark an ONNX model under Cortex-A76-equivalent thread constraints."""
 
-    def benchmark(self, onnx_path: str, num_runs: int = 50) -> Dict[str, Any]:
+    def benchmark(self, onnx_path: str, num_runs: int = 50) -> dict[str, Any]:
         """Run *num_runs* forward passes and return latency statistics.
 
         Thread config: intra_op=4, inter_op=1 — matches quad-core Cortex-A76.
@@ -682,7 +678,7 @@ class CortexA76Tester:
         shape = [d if isinstance(d, int) else 1 for d in input_shape]
         dummy = np.random.randn(*shape).astype(np.float32)
 
-        latencies: List[float] = []
+        latencies: list[float] = []
         for _ in range(num_runs):
             t0 = time.perf_counter()
             session.run(None, {input_name: dummy})

@@ -28,7 +28,7 @@ Disabled gracefully (returns empty list) when:
 """
 
 import gc
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -109,12 +109,12 @@ class SAMPredictor:
     def __init__(
         self,
         *,
-        enabled: Optional[bool] = None,
-        model_name: Optional[str] = None,
+        enabled: bool | None = None,
+        model_name: str | None = None,
     ) -> None:
         self._enabled = settings.SAM_ENABLED if enabled is None else bool(enabled)
         self._model_name = (settings.SAM_MODEL if model_name is None else model_name).strip()
-        self._backend: Optional[str] = None
+        self._backend: str | None = None
         self._predictor = None
         self._load_failed = False
         self._amg = None  # cached SAM2/SAM3 AutomaticMaskGenerator
@@ -128,8 +128,8 @@ class SAMPredictor:
     def predict_boxes(
         self,
         image: Image.Image,
-        bboxes_norm: List[Tuple[float, float, float, float]],
-    ) -> List[Dict[str, Any]]:
+        bboxes_norm: list[tuple[float, float, float, float]],
+    ) -> list[dict[str, Any]]:
         """Segment objects specified by normalised bounding boxes.
 
         Args:
@@ -208,7 +208,7 @@ class SAMPredictor:
         image: Image.Image,
         *,
         points_per_side: int = 8,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate automatic masks for an image.
 
         Returns compact SAM-style mask records:
@@ -247,7 +247,7 @@ class SAMPredictor:
             logger.debug("SAM auto-mask generation failed: %s", exc)
 
         # Grid fallback: query a small regular set of boxes and derive masks.
-        grid_bboxes: List[Tuple[float, float, float, float]] = []
+        grid_bboxes: list[tuple[float, float, float, float]] = []
         pad = 0.05
         grid_side = 4
         for row in range(grid_side):
@@ -261,7 +261,7 @@ class SAMPredictor:
                     min(1.0, cy + pad),
                 ))
 
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for mask_info in self.predict_boxes(image, grid_bboxes):
             mask = mask_info.get("mask")
             if mask is None:
@@ -381,10 +381,10 @@ class SAMPredictor:
         boxes_px: np.ndarray,
         w: int,
         h: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         backend_tag, predictor = self._predictor
         img_np = np.array(image)  # RGB uint8 (H, W, 3)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         if backend_tag in ("sam2", "sam3"):
             try:

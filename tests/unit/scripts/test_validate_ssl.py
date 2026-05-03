@@ -4,12 +4,9 @@ Tests the pure utility functions — recall_at_1, _collect_frames, gate logic.
 No model loading or GPU required.
 """
 
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
-
 
 # ── recall_at_1 ───────────────────────────────────────────────────────────────
 
@@ -131,7 +128,7 @@ def test_collect_frames_sorted(tmp_path):
 
 def test_gate_passes_when_two_of_three_pass():
     """Gate passes when ΔR@1 > 0.02 on ≥2/3 videos."""
-    from selfsuvis.scripts.validate_ssl_improvement import _GATE_VIDEOS, _GATE_DELTA
+    from selfsuvis.scripts.validate_ssl_improvement import _GATE_VIDEOS
 
     video_results = {
         "video_a": {"delta_median": 0.05, "gate_passed": True},

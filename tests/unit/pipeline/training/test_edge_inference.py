@@ -28,17 +28,19 @@ Tests cover:
     - build_gallery → save NPZ → EdgeClassifier loads it → classify returns correct top label
       for an exact gallery frame (score ≈ 1.0)
 """
+
 import os
 import sys
 import tempfile
-import types
 import unittest
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 from PIL import Image
 
+if TYPE_CHECKING:
+    from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -140,7 +142,6 @@ class TestBuildGallery(unittest.TestCase):
 
     def _fake_backbone(self):
         """Create a minimal nn.Module backbone that returns deterministic embeddings."""
-        import torch
         import torch.nn as nn
 
         class _FakeBackbone(nn.Module):
@@ -406,7 +407,6 @@ class TestEdgeClassifier(unittest.TestCase):
 
     def test_missing_onnxruntime_raises_import_error(self):
         """Importing EdgeClassifier when onnxruntime is absent should raise ImportError."""
-        import importlib
 
         # Remove onnxruntime from sys.modules if present
         saved = sys.modules.pop("onnxruntime", None)
@@ -438,7 +438,6 @@ class TestEdgeClassifierFromTorch(unittest.TestCase):
         self.gallery_path = _make_gallery_file(self.tmp, self.labels_map, self.embed_dim)
 
     def _fake_backbone(self):
-        import torch
         import torch.nn as nn
 
         class _FakeBackbone(nn.Module):
@@ -515,7 +514,6 @@ class TestBuildGalleryIntegration(unittest.TestCase):
         """A backbone that returns the channel-mean of each patch as its embedding.
         Different solid-colour images will produce distinct (but deterministic) vectors.
         """
-        import torch
         import torch.nn as nn
 
         dim = self.embed_dim
@@ -541,7 +539,6 @@ class TestBuildGalleryIntegration(unittest.TestCase):
 
     def test_exact_gallery_frame_scores_near_one(self):
         """Classifying a gallery image should return that image's label with high score."""
-        import torch
         from selfsuvis.pipeline.training.edge_inference import EdgeClassifier, build_gallery
 
         colors = {
@@ -572,7 +569,7 @@ class TestBuildGalleryIntegration(unittest.TestCase):
                 top_label, label,
                 f"Expected top label '{label}' but got '{top_label}' (score={top_score:.3f})"
             )
-            self.assertGreater(top_score, 0.9, f"Score for exact gallery frame should be > 0.9")
+            self.assertGreater(top_score, 0.9, "Score for exact gallery frame should be > 0.9")
 
     def test_npz_loadable_by_edge_classifier_from_torch(self):
         """NPZ saved by build_gallery must be loadable by EdgeClassifier.from_torch."""

@@ -1,9 +1,7 @@
 """Unit tests for pipeline.label_vocab."""
 
-import pytest
 
 from selfsuvis.pipeline.vision.labels import DEFAULT_LABELS, load_labels
-
 
 # --- DEFAULT_LABELS ---
 

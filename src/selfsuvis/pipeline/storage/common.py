@@ -1,7 +1,8 @@
 """Shared helpers for asyncpg-backed storage modules."""
 
 import json
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 
 def jsonb(value: Any, *, default: Any = None) -> str:
@@ -10,7 +11,7 @@ def jsonb(value: Any, *, default: Any = None) -> str:
     return json.dumps(value)
 
 
-def jsonb_optional(value: Any) -> Optional[str]:
+def jsonb_optional(value: Any) -> str | None:
     if value is None:
         return None
     return json.dumps(value)
@@ -24,9 +25,9 @@ def decoded_json(value: Any, *, default: Any = None) -> Any:
     return value
 
 
-def row_dict(row: Any) -> Optional[Dict[str, Any]]:
+def row_dict(row: Any) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def row_dicts(rows: Iterable[Any]) -> List[Dict[str, Any]]:
+def row_dicts(rows: Iterable[Any]) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]

@@ -37,7 +37,7 @@ Output schema per detection:
 
 import gc
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from PIL import Image
 
@@ -105,7 +105,7 @@ def classify_label_priority(label: str) -> int:
     return PRIORITY_OTHER
 
 
-def sort_detections_by_priority(detections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def sort_detections_by_priority(detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort detections: human first, then vehicle, then artificial, then other.
 
     Within each priority tier, sort by confidence descending.
@@ -160,7 +160,7 @@ class YOLODetector:
 
     def __init__(self) -> None:
         self._model = None
-        self._model_id: Optional[str] = None
+        self._model_id: str | None = None
         self._load_failed = False
 
     def is_enabled(self) -> bool:
@@ -174,8 +174,8 @@ class YOLODetector:
 
     def detect_batch(
         self,
-        images: List[Image.Image],
-    ) -> List[Dict[str, Any]]:
+        images: list[Image.Image],
+    ) -> list[dict[str, Any]]:
         """Run YOLO detection on a batch of PIL images.
 
         Returns one result dict per image with keys:
@@ -188,7 +188,7 @@ class YOLODetector:
             return [{"detection_unavailable": True}] * len(images)
         return [self._detect_one(img, model) for img in images]
 
-    def detect(self, image: Image.Image) -> Dict[str, Any]:
+    def detect(self, image: Image.Image) -> dict[str, Any]:
         """Run YOLO detection on a single PIL image."""
         if not self.is_enabled():
             return {"detection_disabled": True}
@@ -208,7 +208,7 @@ class YOLODetector:
         except Exception:
             pass
 
-    def _detect_one(self, image: Image.Image, model) -> Dict[str, Any]:
+    def _detect_one(self, image: Image.Image, model) -> dict[str, Any]:
         w, h = image.size
         try:
             results = model(
@@ -228,8 +228,8 @@ class YOLODetector:
             logger.warning("YOLO detection failed: %s", exc)
             return {"detection_error": True, "error": str(exc)}
 
-    def _parse_results(self, results, w: int, h: int) -> List[Dict[str, Any]]:
-        detections: List[Dict[str, Any]] = []
+    def _parse_results(self, results, w: int, h: int) -> list[dict[str, Any]]:
+        detections: list[dict[str, Any]] = []
         for result in results:
             boxes = result.boxes
             if boxes is None:

@@ -20,8 +20,9 @@ dict with keys:
 """
 import json
 import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -38,7 +39,7 @@ _MIN_USEFUL_SFM_POSES = 20
 def _sfm_point_cloud(
     video_path: str,
     video_id: str,
-) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], int, int, Optional[List], List[Dict[str, Any]]]:
+) -> tuple[np.ndarray | None, np.ndarray | None, int, int, list | None, list[dict[str, Any]]]:
     """Run pycolmap SfM and return point cloud plus per-frame anchor positions.
 
     sfm_frames is the raw frame list from run_sfm (with pose_json per frame) — used
@@ -55,7 +56,7 @@ def _sfm_point_cloud(
         return None, None, sfm_poses, scene_count, sfm_result["frames"], []
 
     pts, cols = [], []
-    frame_positions: List[Dict[str, Any]] = []
+    frame_positions: list[dict[str, Any]] = []
     max_t = max(sfm_result["frames"][-1]["t_sec"], 1.0)
     for f in success_frames:
         pose = f["pose_json"]
@@ -89,9 +90,9 @@ def _sfm_point_cloud(
 
 
 def _pca_point_cloud(
-    frame_list: List[Tuple[str, float]],
-    models: Dict[str, Any],
-) -> Tuple[np.ndarray, np.ndarray, str, List[Dict[str, Any]]]:
+    frame_list: list[tuple[str, float]],
+    models: dict[str, Any],
+) -> tuple[np.ndarray, np.ndarray, str, list[dict[str, Any]]]:
     """Project frame embeddings to 3D via PCA and return per-frame anchor positions."""
     dino_model = models.get("dino")
     model_for_pca = dino_model or models["clip"]
@@ -127,8 +128,8 @@ def _pca_point_cloud(
 
 
 def _visual_pca_point_cloud(
-    frame_list: List[Tuple[str, float]],
-) -> Tuple[np.ndarray, np.ndarray, str, List[Dict[str, Any]]]:
+    frame_list: list[tuple[str, float]],
+) -> tuple[np.ndarray, np.ndarray, str, list[dict[str, Any]]]:
     """CPU-only PCA fallback from low-resolution frame appearance.
 
     The local pipeline can build SfM in a background thread while foreground
@@ -147,8 +148,8 @@ def _visual_pca_point_cloud(
 
     step = max(1, len(frame_list) // 200)
     sampled_frames = frame_list[::step]
-    features: List[np.ndarray] = []
-    colours_src: List[np.ndarray] = []
+    features: list[np.ndarray] = []
+    colours_src: list[np.ndarray] = []
     max_t = max((float(t_sec) for _, t_sec in sampled_frames), default=1.0) or 1.0
 
     for fp, t_sec in sampled_frames:
@@ -179,7 +180,7 @@ def _visual_pca_point_cloud(
             points = points / float(scale)
 
     colours = np.stack(colours_src, axis=0).astype(np.float32)
-    frame_positions: List[Dict[str, Any]] = []
+    frame_positions: list[dict[str, Any]] = []
     for (frame_path, t_sec), point in zip(sampled_frames, points):
         frame_positions.append(
             {
@@ -197,9 +198,9 @@ def _visual_pca_point_cloud(
 
 
 def _interpolate_frame_positions(
-    frame_list: List[Tuple[str, float]],
-    sparse_positions: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    frame_list: list[tuple[str, float]],
+    sparse_positions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Interpolate sparse SfM camera centres across all frame timestamps."""
     if not frame_list or not sparse_positions:
         return []
@@ -225,7 +226,7 @@ def _interpolate_frame_positions(
         src_y = np.array([src_y[0], src_y[0]], dtype=np.float32)
         src_z = np.array([src_z[0], src_z[0]], dtype=np.float32)
 
-    interpolated: List[Dict[str, Any]] = []
+    interpolated: list[dict[str, Any]] = []
     for frame_path, t_sec in frame_list:
         t = float(t_sec)
         interpolated.append(
@@ -242,9 +243,9 @@ def _interpolate_frame_positions(
     return interpolated
 
 
-def _position_lookup(frame_positions: List[Dict[str, Any]]) -> tuple[Dict[str, Dict[str, float]], List[Tuple[float, Dict[str, float]]]]:
-    by_path: Dict[str, Dict[str, float]] = {}
-    by_time: List[Tuple[float, Dict[str, float]]] = []
+def _position_lookup(frame_positions: list[dict[str, Any]]) -> tuple[dict[str, dict[str, float]], list[tuple[float, dict[str, float]]]]:
+    by_path: dict[str, dict[str, float]] = {}
+    by_time: list[tuple[float, dict[str, float]]] = []
     for item in frame_positions:
         pos = item.get("position")
         if not isinstance(pos, dict):
@@ -263,12 +264,12 @@ def _position_lookup(frame_positions: List[Dict[str, Any]]) -> tuple[Dict[str, D
 
 
 def _nearest_position(
-    frame_path: Optional[str],
+    frame_path: str | None,
     t_sec: float,
     *,
-    by_path: Dict[str, Dict[str, float]],
-    by_time: List[Tuple[float, Dict[str, float]]],
-) -> Optional[Dict[str, float]]:
+    by_path: dict[str, dict[str, float]],
+    by_time: list[tuple[float, dict[str, float]]],
+) -> dict[str, float] | None:
     if frame_path and frame_path in by_path:
         return by_path[frame_path]
     if not by_time:
@@ -279,7 +280,7 @@ def _nearest_position(
     return None
 
 
-def _bbox_area(bbox: Optional[Iterable[float]]) -> float:
+def _bbox_area(bbox: Iterable[float] | None) -> float:
     if not bbox:
         return 0.0
     x1, y1, x2, y2 = [float(v) for v in bbox]
@@ -299,11 +300,11 @@ def _priority_color(priority_label: str) -> np.ndarray:
 
 def _build_semantic_enriched_point_cloud(
     *,
-    frame_positions: List[Dict[str, Any]],
-    yolo_detection_results: Optional[List[Dict[str, Any]]] = None,
-    tracking_results: Optional[Dict[str, Any]] = None,
-    depth_results: Optional[List[Dict[str, Any]]] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    frame_positions: list[dict[str, Any]],
+    yolo_detection_results: list[dict[str, Any]] | None = None,
+    tracking_results: dict[str, Any] | None = None,
+    depth_results: list[dict[str, Any]] | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Build a denser pseudo-3D cloud from trajectory anchors and detections.
 
     This is not metrically exact geometry. It produces a richer structural map
@@ -314,14 +315,14 @@ def _build_semantic_enriched_point_cloud(
         return np.zeros((0, 3), dtype=np.float32), np.zeros((0, 3), dtype=np.float32)
 
     by_path, by_time = _position_lookup(frame_positions)
-    depth_by_t: Dict[float, Dict[str, Any]] = {
+    depth_by_t: dict[float, dict[str, Any]] = {
         float(r.get("t_sec")): r.get("depth", {})
         for r in (depth_results or [])
         if r.get("t_sec") is not None and isinstance(r.get("depth"), dict)
     }
 
-    points: List[List[float]] = []
-    colours: List[np.ndarray] = []
+    points: list[list[float]] = []
+    colours: list[np.ndarray] = []
 
     ordered_positions = sorted(frame_positions, key=lambda item: float(item.get("t_sec", 0.0)))
     for idx, item in enumerate(ordered_positions):
@@ -353,14 +354,14 @@ def _build_semantic_enriched_point_cloud(
             colours.append(np.array([0.85, 0.55, 0.10], dtype=np.float32))
             colours.append(np.array([0.85, 0.55, 0.10], dtype=np.float32))
 
-    obs_frames: List[Dict[str, Any]] = []
+    obs_frames: list[dict[str, Any]] = []
     obs_frames.extend(yolo_detection_results or [])
     if tracking_results:
         obs_frames.extend(tracking_results.get("frames", []) or [])
 
-    seen_keys: set[Tuple[str, float, str, str]] = set()
-    track_points: Dict[str, List[np.ndarray]] = {}
-    track_colors: Dict[str, np.ndarray] = {}
+    seen_keys: set[tuple[str, float, str, str]] = set()
+    track_points: dict[str, list[np.ndarray]] = {}
+    track_colors: dict[str, np.ndarray] = {}
     for frame in obs_frames:
         detections = frame.get("detections") or []
         if not detections:
@@ -468,15 +469,15 @@ def build_sparse_map(
     video_path: str,
     video_id: str,
     map_dir: Path,
-    frame_list: List[Tuple[str, float]],
-    models: Dict[str, Any],
+    frame_list: list[tuple[str, float]],
+    models: dict[str, Any],
     run_sfm_flag: bool = True,
     run_gsplat_flag: bool = True,
     device: str = "cuda",
-    depth_results: Optional[List[Dict[str, Any]]] = None,
-    yolo_detection_results: Optional[List[Dict[str, Any]]] = None,
-    tracking_results: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    depth_results: list[dict[str, Any]] | None = None,
+    yolo_detection_results: list[dict[str, Any]] | None = None,
+    tracking_results: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build sparse 3D map and optionally a 3D Gaussian Splat, saving to *map_dir*.
 
     Parameters
@@ -496,13 +497,13 @@ def build_sparse_map(
     npz_path   = map_dir / "sparse_map.npz"
     stats_path = map_dir / "map_stats.json"
 
-    points3d: Optional[np.ndarray] = None
-    colours:  Optional[np.ndarray] = None
+    points3d: np.ndarray | None = None
+    colours:  np.ndarray | None = None
     sfm_poses   = 0
     scene_count = 0
     method      = "none"
-    sfm_frames: Optional[List] = None
-    frame_positions: List[Dict[str, Any]] = []
+    sfm_frames: list | None = None
+    frame_positions: list[dict[str, Any]] = []
     quality_note = ""
 
     if run_sfm_flag:

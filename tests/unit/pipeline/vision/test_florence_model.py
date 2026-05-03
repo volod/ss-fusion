@@ -7,9 +7,10 @@ Non-GPU tests cover the confidence computation logic with mocked tensors so they
 can run anywhere without model weights.
 """
 
+from types import SimpleNamespace
+
 import pytest
 import torch
-from types import SimpleNamespace
 from PIL import Image
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -303,6 +304,7 @@ def test_caption_batch_chunk_falls_back_to_single_image_on_square_feature_assert
 def test_caption_batch_returns_correct_length():
     """caption_batch returns exactly one result per input image."""
     from PIL import Image
+
     from selfsuvis.pipeline.vision.florence import FlorenceModel
 
     model = FlorenceModel()
@@ -317,6 +319,7 @@ def test_caption_batch_returns_correct_length():
 def test_caption_batch_confidence_is_float_in_range():
     """confidence is a float in [0.0, 1.0] — validates output_scores wiring."""
     from PIL import Image
+
     from selfsuvis.pipeline.vision.florence import FlorenceModel
 
     model = FlorenceModel()
@@ -346,6 +349,7 @@ def test_caption_batch_empty_input():
 def test_caption_batch_caption_non_null():
     """Non-empty image produces a non-NULL caption (may be empty string but not None)."""
     from PIL import Image
+
     from selfsuvis.pipeline.vision.florence import FlorenceModel
 
     model = FlorenceModel()

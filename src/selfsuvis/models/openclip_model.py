@@ -1,9 +1,9 @@
-from typing import List, Optional
+
+import warnings
 
 import numpy as np
-import torch
 import open_clip
-import warnings
+import torch
 from PIL import Image
 
 from selfsuvis.pipeline.core.config import settings
@@ -38,7 +38,7 @@ class OpenCLIPEmbedder:
     def _resolve_device(self) -> str:
         return resolve_device()
 
-    def encode_images(self, images: List[Image.Image], batch_size: int = 16) -> np.ndarray:
+    def encode_images(self, images: list[Image.Image], batch_size: int = 16) -> np.ndarray:
         embeddings = []
         for i in range(0, len(images), batch_size):
             batch = images[i : i + batch_size]
@@ -77,7 +77,7 @@ class OpenCLIPEmbedder:
             return np.zeros((0, self.model.visual.output_dim), dtype=np.float32)
         return np.vstack(embeddings).astype(np.float32)
 
-    def encode_texts(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
+    def encode_texts(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
         embeddings = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]

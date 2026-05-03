@@ -2,7 +2,6 @@
 
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -32,9 +31,9 @@ class ArtifactRecord:
 
 @dataclass
 class ArtifactInventory:
-    files: List[ArtifactRecord] = field(default_factory=list)
-    by_suffix: Dict[str, int] = field(default_factory=dict)
-    by_category: Dict[str, int] = field(default_factory=dict)
+    files: list[ArtifactRecord] = field(default_factory=list)
+    by_suffix: dict[str, int] = field(default_factory=dict)
+    by_category: dict[str, int] = field(default_factory=dict)
 
     @property
     def total_files(self) -> int:
@@ -49,8 +48,8 @@ class ArtifactInventory:
 class DetectionStats:
     total_objects: int
     n_frames: int
-    by_class: Dict[str, int]
-    per_frame_counts: List[int]
+    by_class: dict[str, int]
+    per_frame_counts: list[int]
     model: str = ""
 
     @property
@@ -68,12 +67,12 @@ class DetectionStats:
 class TemporalStats:
     method: str
     n_frames: int
-    surprise_scores: List[float]
+    surprise_scores: list[float]
     mean_surprise: float
-    peak_frames: List[int]          # indices where surprise is in top 10 %
+    peak_frames: list[int]          # indices where surprise is in top 10 %
 
     @property
-    def surprise_timeline(self) -> List[float]:
+    def surprise_timeline(self) -> list[float]:
         return self.surprise_scores
 
 
@@ -81,7 +80,7 @@ class TemporalStats:
 class TrainingStats:
     ssl_best_loss: float = 0.0
     ssl_epochs: int = 0
-    ssl_losses: List[float] = field(default_factory=list)
+    ssl_losses: list[float] = field(default_factory=list)
     distill_best_loss: float = 0.0
     distill_best_r1: float = 0.0
     distill_compression: float = 0.0
@@ -94,8 +93,8 @@ class TrainingStats:
 class TrackingStats:
     model: str = ""
     gemma_scene_type: str = ""
-    tracking_priority: List[str] = field(default_factory=list)
-    tracking_targets_effective: List[str] = field(default_factory=list)
+    tracking_priority: list[str] = field(default_factory=list)
+    tracking_targets_effective: list[str] = field(default_factory=list)
     filter_retry_mode: str = "none"
     total_detections: int = 0
     unique_track_ids: int = 0
@@ -136,7 +135,7 @@ class RunHealth:
     florence_runtime_mode: str = ""
     restore_failures: int = 0
     vram_wait_time_sec: float = 0.0
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -165,13 +164,13 @@ class RunSummary:
     n_frames: int
     duration_sec: float
     fps: float
-    frames: List[FrameRecord]
-    detection_stats: Optional[DetectionStats]
-    temporal_stats: Optional[TemporalStats]
-    training_stats: Optional[TrainingStats]
-    tracking_stats: Optional[TrackingStats] = None
-    embedding_stats: Optional[EmbeddingStats] = None
-    map_stats: Optional[MapStats] = None
+    frames: list[FrameRecord]
+    detection_stats: DetectionStats | None
+    temporal_stats: TemporalStats | None
+    training_stats: TrainingStats | None
+    tracking_stats: TrackingStats | None = None
+    embedding_stats: EmbeddingStats | None = None
+    map_stats: MapStats | None = None
     artifact_inventory: ArtifactInventory = field(default_factory=ArtifactInventory)
     run_health: RunHealth = field(default_factory=RunHealth)
     diagnostics: AnalyticsDiagnostics = field(default_factory=AnalyticsDiagnostics)

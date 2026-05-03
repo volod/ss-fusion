@@ -1,5 +1,6 @@
 
 from types import SimpleNamespace
+
 import torch
 
 from selfsuvis.pipeline.vision import unidrive

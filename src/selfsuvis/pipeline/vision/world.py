@@ -48,7 +48,7 @@ CLI override::
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PIL import Image
 
@@ -87,14 +87,14 @@ def _is_videomae_pretraining_checkpoint(model_id: str, config: Any) -> bool:
     )
 
 
-def _remap_videomae_state_dict_for_modern_transformers(state_dict: Dict[str, Any]) -> Dict[str, Any]:
+def _remap_videomae_state_dict_for_modern_transformers(state_dict: dict[str, Any]) -> dict[str, Any]:
     """Convert legacy VideoMAE checkpoint keys to the current HF layout.
 
     Older VideoMAE checkpoints store attention biases as ``q_bias`` / ``v_bias``
     and omit ``key.bias`` entirely. Newer transformers expect explicit
     ``query.bias`` / ``key.bias`` / ``value.bias`` tensors.
     """
-    remapped: Dict[str, Any] = {}
+    remapped: dict[str, Any] = {}
 
     for key, value in state_dict.items():
         new_key = key
@@ -114,7 +114,7 @@ def _remap_videomae_state_dict_for_modern_transformers(state_dict: Dict[str, Any
     return remapped
 
 
-def _load_videomae_checkpoint_state_dict(source: Path) -> Dict[str, Any]:
+def _load_videomae_checkpoint_state_dict(source: Path) -> dict[str, Any]:
     safetensors_path = source / "model.safetensors"
     if safetensors_path.exists():
         from safetensors.torch import load_file
@@ -143,7 +143,7 @@ def _load_videomae_encoder_from_local_checkpoint(source: Path, *, device: str, d
     model = VideoMAEModel(config)
 
     raw_state = _load_videomae_checkpoint_state_dict(source)
-    encoder_state: Dict[str, Any] = {}
+    encoder_state: dict[str, Any] = {}
     for key, value in raw_state.items():
         if key.startswith("videomae."):
             encoder_state[key.removeprefix("videomae.")] = value
@@ -179,9 +179,9 @@ class WorldModel:
     def __init__(self) -> None:
         self._feature_extractor = None
         self._model = None
-        self._model_id: Optional[str] = None
-        self._load_note: Optional[str] = None
-        self._frame_buffer: List[Image.Image] = []
+        self._model_id: str | None = None
+        self._load_note: str | None = None
+        self._frame_buffer: list[Image.Image] = []
         self._clip_frames = settings.WORLD_MODEL_CLIP_FRAMES
         self._load_failed: bool = False
         self._inference_failed: bool = False
@@ -195,7 +195,7 @@ class WorldModel:
             self._model_id = _resolve_model_id()
         return self._model_id
 
-    def process_clip(self, images: List[Image.Image]) -> Dict[str, Any]:
+    def process_clip(self, images: list[Image.Image]) -> dict[str, Any]:
         """Extract world-model features from a list of consecutive frames.
 
         Returns a dict suitable for merging into ``frame_facts_json``.
@@ -238,7 +238,7 @@ class WorldModel:
             hidden = outputs.last_hidden_state  # (1, T, D) or (1, D)
             embedding_np = hidden.mean(dim=1).squeeze(0).cpu().float().numpy()
 
-            result: Dict[str, Any] = {
+            result: dict[str, Any] = {
                 "world_model": {
                     "embedding_dim": int(embedding_np.shape[0]),
                     "model": self.model_id,
@@ -260,7 +260,7 @@ class WorldModel:
         if self._load_failed:
             return None, None
         candidate_ids = _candidate_model_ids(self.model_id)
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
 
         for candidate_id in candidate_ids:
             source = _resolve_local_world_model_path(candidate_id)
@@ -378,7 +378,7 @@ class WorldModel:
             pass
 
 
-def _sample_indices(n: int, target: int) -> List[int]:
+def _sample_indices(n: int, target: int) -> list[int]:
     """Return up to *target* evenly spaced indices from [0, n)."""
     if n <= target:
         return list(range(n))
@@ -386,7 +386,7 @@ def _sample_indices(n: int, target: int) -> List[int]:
     return [int(i * step) for i in range(target)]
 
 
-def _sample_exact_frames(images: List[Image.Image], target: int) -> List[Image.Image]:
+def _sample_exact_frames(images: list[Image.Image], target: int) -> list[Image.Image]:
     """Return exactly *target* frames by evenly sampling with duplication if needed."""
     if not images:
         return []
@@ -413,9 +413,9 @@ def _get_model_dtype(model) -> Any:
             return None
 
 
-def _prepare_model_inputs(inputs: Dict[str, Any], *, device: str, dtype: Any) -> Dict[str, Any]:
+def _prepare_model_inputs(inputs: dict[str, Any], *, device: str, dtype: Any) -> dict[str, Any]:
     """Move tensors to the target device and align floating tensors with model dtype."""
-    prepared: Dict[str, Any] = {}
+    prepared: dict[str, Any] = {}
     for key, value in inputs.items():
         if value is None:
             continue
@@ -435,7 +435,7 @@ def _normalise_video_pixel_values(pixel_values, target_frames: int):
         return None
 
     try:
-        import torch
+        import torch  # noqa: F401
     except ImportError:
         return pixel_values
 
@@ -501,7 +501,7 @@ def _resolve_local_world_model_path(model_id: str) -> str | Path:
     return model_id
 
 
-def _candidate_model_ids(model_id: str) -> List[str]:
+def _candidate_model_ids(model_id: str) -> list[str]:
     supported = normalize_model_id("world_model", model_id)
     if supported == model_id:
         return [model_id]
@@ -535,8 +535,8 @@ class _SimpleVideoPreprocessor:
         return {"pixel_values": pixel_values}
 
 
-def _load_world_preprocessor(source_label: str, load_kwargs: Dict[str, Any], *loader_classes):
-    last_exc: Optional[Exception] = None
+def _load_world_preprocessor(source_label: str, load_kwargs: dict[str, Any], *loader_classes):
+    last_exc: Exception | None = None
     for loader_cls in loader_classes:
         try:
             return loader_cls.from_pretrained(source_label, **load_kwargs)

@@ -23,7 +23,7 @@ Clustering:
     based on settings.KMEANS_BATCH_THRESHOLD. Switch threshold is tunable via the
     KMEANS_BATCH_THRESHOLD env var (default 25_000 frames).
 """
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -41,7 +41,7 @@ _DEFAULT_NOVEL_THRESHOLD = 0.7  # dino_dist above this (outside top-K) → novel
 def compute_al_score(
     dino_dist: float,
     caption_confidence: float,
-    rssm_surprise: Optional[float] = None,
+    rssm_surprise: float | None = None,
 ) -> float:
     """Compute active learning score for a single frame.
 
@@ -65,12 +65,12 @@ def compute_al_score(
 
 
 def assign_al_tags(
-    dino_dists: List[float],
-    caption_confidences: List[float],
-    top_k: Optional[int] = None,
+    dino_dists: list[float],
+    caption_confidences: list[float],
+    top_k: int | None = None,
     novel_threshold: float = _DEFAULT_NOVEL_THRESHOLD,
-    rssm_surprises: Optional[List[float]] = None,
-) -> Tuple[List[float], List[str]]:
+    rssm_surprises: list[float] | None = None,
+) -> tuple[list[float], list[str]]:
     """Compute al_scores and assign al_tags for a batch of frames from one mission.
 
     Args:
@@ -118,7 +118,7 @@ def assign_al_tags(
 def fit_kmeans(
     embeddings: np.ndarray,
     n_clusters: int = 20,
-    batch_threshold: Optional[int] = None,
+    batch_threshold: int | None = None,
     random_state: int = 42,
 ) -> Any:
     """Fit k-means clustering on embeddings, auto-selecting KMeans vs MiniBatchKMeans.

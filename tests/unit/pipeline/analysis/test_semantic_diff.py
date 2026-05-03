@@ -5,15 +5,14 @@ integration of semantic_diff_json into detect_changes output.
 """
 
 from unittest.mock import MagicMock, patch
+
 import numpy as np
-import pytest
 
 from selfsuvis.pipeline.analysis.change_detection import (
     compute_semantic_diff,
     detect_changes,
     generate_change_explanation,
 )
-
 
 # ── compute_semantic_diff ─────────────────────────────────────────────────────
 

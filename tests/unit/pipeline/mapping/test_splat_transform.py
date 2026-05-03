@@ -109,11 +109,13 @@ class TestQuatMultiply:
 
     def test_180_twice_is_identity(self):
         """Rotating 180° around Z twice should give identity."""
-        from selfsuvis.pipeline.mapping.splat_io import _rot_matrix_to_quat_wxyz, _quat_multiply_wxyz
+        from selfsuvis.pipeline.mapping.splat_io import (
+            _quat_multiply_wxyz,
+            _rot_matrix_to_quat_wxyz,
+        )
         R_180z = np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=np.float64)
         q_180 = _rot_matrix_to_quat_wxyz(R_180z)
         q_id = np.array([[1, 0, 0, 0]], dtype=np.float32)
-        q_180_batch = q_180[np.newaxis, :]  # (1, 4)
         step1 = _quat_multiply_wxyz(q_180, q_id)
         step2 = _quat_multiply_wxyz(q_180, step1)
         # q² = ±identity (sign can flip but represents same rotation)
@@ -318,7 +320,7 @@ class TestMergeSplats:
             os.unlink(out)
 
     def test_positions_are_concatenated(self):
-        from selfsuvis.pipeline.mapping.splat_io import merge_splats, read_splat, splat_positions
+        from selfsuvis.pipeline.mapping.splat_io import merge_splats, splat_positions
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -334,7 +336,7 @@ class TestMergeSplats:
             os.unlink(out)
 
     def test_merged_is_valid_splat(self):
-        from selfsuvis.pipeline.mapping.splat_io import merge_splats, is_splat_ply
+        from selfsuvis.pipeline.mapping.splat_io import is_splat_ply, merge_splats
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -382,8 +384,9 @@ class TestFuseSplatFiles:
         assert result is None
 
     def test_temp_file_cleaned_up(self):
-        from selfsuvis.pipeline.mapping.mapper import _fuse_splat_files
         import shutil
+
+        from selfsuvis.pipeline.mapping.mapper import _fuse_splat_files
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.TemporaryDirectory() as tmpdir:

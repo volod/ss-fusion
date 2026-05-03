@@ -1,7 +1,7 @@
 """Load Indian Pines / Salinas hyperspectral .mat and show band statistics."""
-import scipy.io
-import numpy as np
 import pathlib
+
+import scipy.io
 
 for mat_file in pathlib.Path(__file__).parent.glob("*.mat"):
     data = scipy.io.loadmat(mat_file)

@@ -13,8 +13,7 @@ RTS smoother history is accumulated so that the caller can retrieve smoothed
 estimates in a backward pass after all frames are processed.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -25,7 +24,7 @@ _MAHA_GATE_4DOF = 13.277
 _MIN_OBS_NOISE = 1e-6
 
 
-def _bbox_to_state(bbox_norm: List[float]) -> np.ndarray:
+def _bbox_to_state(bbox_norm: list[float]) -> np.ndarray:
     x1, y1, x2, y2 = bbox_norm
     cx = (x1 + x2) * 0.5
     cy = (y1 + y2) * 0.5
@@ -34,7 +33,7 @@ def _bbox_to_state(bbox_norm: List[float]) -> np.ndarray:
     return np.array([cx, cy, w, h], dtype=np.float64)
 
 
-def _state_to_bbox(x: np.ndarray) -> List[float]:
+def _state_to_bbox(x: np.ndarray) -> list[float]:
     cx, cy, w, h = x[0], x[1], x[2], x[3]
     return [cx - w * 0.5, cy - h * 0.5, cx + w * 0.5, cy + h * 0.5]
 
@@ -68,7 +67,7 @@ class ObjectKalmanFilter:
         self,
         track_id: int,
         label: str,
-        initial_bbox: List[float],
+        initial_bbox: list[float],
         t_sec: float,
         obs_noise: float = 0.005,
     ) -> None:
@@ -78,7 +77,7 @@ class ObjectKalmanFilter:
         self.misses = 0
         self.state = "tentative"
         self._obs_noise = max(obs_noise, _MIN_OBS_NOISE)
-        self._history: List[ObjectFilterHistory] = []
+        self._history: list[ObjectFilterHistory] = []
 
         z = _bbox_to_state(initial_bbox)
         self.x = np.zeros(6, dtype=np.float64)
@@ -115,7 +114,7 @@ class ObjectKalmanFilter:
         self.P = self._P_pred.copy()
         self.t_sec = t_sec
 
-    def update(self, bbox_norm: List[float], t_sec: float) -> None:
+    def update(self, bbox_norm: list[float], t_sec: float) -> None:
         """Apply a matched detection as a measurement update."""
         z = _bbox_to_state(bbox_norm)
         H = np.zeros((4, 6), dtype=np.float64)
@@ -147,7 +146,7 @@ class ObjectKalmanFilter:
     def mark_missed(self) -> None:
         self.misses += 1
 
-    def mahalanobis_distance_sq(self, bbox_norm: List[float]) -> float:
+    def mahalanobis_distance_sq(self, bbox_norm: list[float]) -> float:
         """Return gated Mahalanobis distance² to a candidate detection."""
         z = _bbox_to_state(bbox_norm)
         H = np.zeros((4, 6), dtype=np.float64)
@@ -160,12 +159,12 @@ class ObjectKalmanFilter:
         except np.linalg.LinAlgError:
             return float("inf")
 
-    def is_gated(self, bbox_norm: List[float]) -> bool:
+    def is_gated(self, bbox_norm: list[float]) -> bool:
         return self.mahalanobis_distance_sq(bbox_norm) <= _MAHA_GATE_4DOF
 
-    def predicted_bbox(self) -> List[float]:
+    def predicted_bbox(self) -> list[float]:
         return _state_to_bbox(self.x)
 
     @property
-    def history(self) -> List[ObjectFilterHistory]:
+    def history(self) -> list[ObjectFilterHistory]:
         return self._history

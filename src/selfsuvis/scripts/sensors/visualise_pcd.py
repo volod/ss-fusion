@@ -1,5 +1,6 @@
 """Visualise a PCD or KITTI .bin file with open3d."""
 import sys
+
 import numpy as np
 
 try:

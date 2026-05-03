@@ -18,9 +18,9 @@ the alignment diagnostics.
 """
 
 import logging
-from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -29,12 +29,11 @@ from selfsuvis.pipeline.fusion.filters.platform import PlatformStateFilter
 from selfsuvis.pipeline.fusion.filters.rts_smoother import FilteredStep, rts_smooth
 from selfsuvis.pipeline.fusion.measurements import PlatformMeasurement
 from selfsuvis.pipeline.fusion.semantic_priors import SemanticPrior
-from selfsuvis.pipeline.fusion.state import PlatformFusionResult, PlatformPosteriorSample
+from selfsuvis.pipeline.fusion.state import PlatformPosteriorSample
 from selfsuvis.pipeline.fusion.summaries import (
-    _Event,
-    _build_gps_measurements,
-    _build_imu_measurements,
     _build_baro_measurements,
+    _build_imu_measurements,
+    _Event,
     _measurement_covariance,
     _recent_measurement_kinds,
     _sample_quality,
@@ -49,13 +48,13 @@ logger = logging.getLogger(__name__)
 class MapStateSample:
     """Smoothed platform state estimate at one frame timestamp."""
     t_sec: float
-    position_enu_m: Dict[str, float]
-    velocity_enu_mps: Dict[str, float]
-    covariance_diag: List[float]   # diagonal of 6×6 P (6 values)
+    position_enu_m: dict[str, float]
+    velocity_enu_mps: dict[str, float]
+    covariance_diag: list[float]   # diagonal of 6×6 P (6 values)
     cov_trace: float
     quality: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "t_sec": self.t_sec,
             "position_enu_m": self.position_enu_m,
@@ -72,12 +71,12 @@ class MapFusionResult:
     status: str
     reason: str = ""
     source: str = "map_rts_v1"
-    sfm_alignment: Optional[Dict[str, Any]] = None
-    smoothed_samples: List[MapStateSample] = field(default_factory=list)
-    raw_samples: List[PlatformPosteriorSample] = field(default_factory=list)
-    diagnostics: Dict[str, Any] = field(default_factory=dict)
+    sfm_alignment: dict[str, Any] | None = None
+    smoothed_samples: list[MapStateSample] = field(default_factory=list)
+    raw_samples: list[PlatformPosteriorSample] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "enabled": self.enabled,
             "status": self.status,
@@ -94,9 +93,9 @@ def run_map_state_fusion(
     *,
     video_path: str,
     frame_times_sec: Sequence[float],
-    gps_samples: Sequence[Optional[Dict[str, float]]],
-    sfm_frame_positions: Optional[Sequence[Dict[str, Any]]] = None,
-    prior: Optional[SemanticPrior] = None,
+    gps_samples: Sequence[dict[str, float] | None],
+    sfm_frame_positions: Sequence[dict[str, Any]] | None = None,
+    prior: SemanticPrior | None = None,
     enable_smoother: bool = True,
 ) -> MapFusionResult:
     """Run map-state fusion with visual pose constraints and RTS smoothing.
@@ -140,10 +139,10 @@ def run_map_state_fusion(
     baro_measurements = _build_baro_measurements(video_path, origin_lla)
 
     # ── 2. Visual pose constraints (SfM → ENU alignment) ────────────────────
-    sfm_alignment_info: Optional[Dict[str, Any]] = None
-    sfm_measurements: List[PlatformMeasurement] = []
+    sfm_alignment_info: dict[str, Any] | None = None
+    sfm_measurements: list[PlatformMeasurement] = []
     if sfm_frame_positions:
-        gps_enu_by_t: Dict[float, Tuple[float, float, float]] = {}
+        gps_enu_by_t: dict[float, tuple[float, float, float]] = {}
         for t_sec, gps in zip(frame_times_sec, gps_samples):
             if gps is None:
                 continue
@@ -181,7 +180,7 @@ def run_map_state_fusion(
         key=lambda m: (m.t_sec, _kind_priority.get(m.kind, 9))
     )
 
-    events: List[_Event] = []
+    events: list[_Event] = []
     for m in all_measurements:
         events.append(_Event(
             t_sec=m.t_sec,
@@ -203,8 +202,8 @@ def run_map_state_fusion(
         init_vel_std_mps=float(settings.STATE_FUSION_INIT_VEL_STD_MPS),
     )
 
-    raw_samples: List[PlatformPosteriorSample] = []
-    filtered_history: List[FilteredStep] = []
+    raw_samples: list[PlatformPosteriorSample] = []
+    filtered_history: list[FilteredStep] = []
     context_gap = float(settings.STATE_FUSION_CONTEXT_GAP_SEC)
 
     for event in events:
@@ -249,7 +248,7 @@ def run_map_state_fusion(
     else:
         rts_result = None
 
-    smoothed_samples: List[MapStateSample] = []
+    smoothed_samples: list[MapStateSample] = []
     for i, raw in enumerate(raw_samples):
         if rts_result is not None:
             x_s = rts_result[i].x
@@ -315,9 +314,9 @@ def run_map_state_fusion(
 
 def _build_gps_measurements_scaled(
     frame_times_sec: Sequence[float],
-    gps_samples: Sequence[Optional[Dict[str, float]]],
+    gps_samples: Sequence[dict[str, float] | None],
     gps_pos_std: float,
-) -> Tuple[Optional[Dict[str, float]], List[PlatformMeasurement]]:
+) -> tuple[dict[str, float] | None, list[PlatformMeasurement]]:
     """Like summaries._build_gps_measurements but with explicit noise std."""
     origin = next((g for g in gps_samples if g is not None), None)
     if origin is None:
@@ -328,7 +327,7 @@ def _build_gps_measurements_scaled(
         "alt": float(origin.get("alt", 0.0)),
     }
     cov = _measurement_covariance([gps_pos_std ** 2] * 3)
-    measurements: List[PlatformMeasurement] = []
+    measurements: list[PlatformMeasurement] = []
     for t_sec, sample in zip(frame_times_sec, gps_samples):
         if sample is None:
             continue

@@ -5,8 +5,7 @@ produce a finite RKD loss rather than NaN/inf that would corrupt training.
 """
 
 import math
-import numpy as np
-import pytest
+
 import torch
 import torch.nn as nn
 
@@ -76,7 +75,6 @@ def _make_distiller(teacher: nn.Module):
 
 def test_all_nan_teacher_produces_finite_embedding():
     """_forward_teacher replaces NaN with 0 and returns a finite, normalised tensor."""
-    from selfsuvis.pipeline.training.distill import KnowledgeDistiller
 
     teacher = _AllNaNTeacher(dim=8)
     distiller = _make_distiller(teacher)
@@ -89,7 +87,7 @@ def test_all_nan_teacher_produces_finite_embedding():
 
 def test_all_nan_teacher_produces_finite_rkd_loss():
     """End-to-end: all-NaN teacher → finite RKD loss (no NaN in training)."""
-    from selfsuvis.pipeline.training.distill import rkd_distance_loss, rkd_angle_loss
+    from selfsuvis.pipeline.training.distill import rkd_angle_loss, rkd_distance_loss
 
     teacher = _AllNaNTeacher(dim=8)
     distiller = _make_distiller(teacher)

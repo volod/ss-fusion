@@ -19,9 +19,8 @@ to get per-frame segmentation masks from SCENETOK_MODE=masks.
 import base64
 import gc
 import io
-import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -40,7 +39,7 @@ def _encode_image_b64(image: Image.Image, quality: int = 85) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def _decode_b64_png(b64: str) -> Optional[np.ndarray]:
+def _decode_b64_png(b64: str) -> np.ndarray | None:
     """Decode a base64 PNG string into an HxWxC uint8 array."""
     try:
         data = base64.b64decode(b64)
@@ -51,7 +50,7 @@ def _decode_b64_png(b64: str) -> Optional[np.ndarray]:
         return None
 
 
-def _decode_b64_npz(b64: str) -> Optional[np.ndarray]:
+def _decode_b64_npz(b64: str) -> np.ndarray | None:
     try:
         data = base64.b64decode(b64)
         npz = np.load(io.BytesIO(data))
@@ -126,10 +125,10 @@ class SceneTokModel:
 
     def _call_sidecar(
         self,
-        frames: List[Tuple[str, float]],
-        images: List[Image.Image],
+        frames: list[tuple[str, float]],
+        images: list[Image.Image],
         mode: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         api_url = str(getattr(settings, "SCENETOK_API_URL", "") or "")
         checkpoint = str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
         timeout = float(getattr(settings, "SCENETOK_TIMEOUT_SEC", 300) or 300)
@@ -164,7 +163,7 @@ class SceneTokModel:
             return False
         try:
             import torch
-            from scenetok import SceneTokEncoder, SceneTokDecoder  # type: ignore[import]
+            from scenetok import SceneTokDecoder, SceneTokEncoder  # type: ignore[import]
 
             checkpoint = str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
             cache_dir = Path.home() / ".cache" / "selfsuvis" / "scenetok"
@@ -197,10 +196,10 @@ class SceneTokModel:
 
     def _run_local(
         self,
-        frames: List[Tuple[str, float]],
-        images: List[Image.Image],
+        frames: list[tuple[str, float]],
+        images: list[Image.Image],
         mode: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if not self._load_local():
             return {"service_unavailable": True, "reason": "local model unavailable"}
         try:
@@ -244,10 +243,10 @@ class SceneTokModel:
 
     def encode_decode(
         self,
-        frames: List[Tuple[str, float]],
-        images: List[Image.Image],
+        frames: list[tuple[str, float]],
+        images: list[Image.Image],
         mode: str = "masks",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Encode frames into scene tokens then decode to masks or novel views.
 
         Args:

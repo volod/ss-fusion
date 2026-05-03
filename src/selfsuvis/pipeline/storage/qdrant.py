@@ -1,4 +1,3 @@
-from typing import Dict, Any, List, Optional
 
 import numpy as np
 from qdrant_client import QdrantClient
@@ -9,7 +8,7 @@ from selfsuvis.pipeline.core import get_logger, settings
 
 
 class QdrantStore:
-    def __init__(self, clip_dim: int, dino_dim: Optional[int] = None):
+    def __init__(self, clip_dim: int, dino_dim: int | None = None):
         self.logger = get_logger(__name__)
         self.client = QdrantClient(
             host=settings.QDRANT_HOST,
@@ -45,7 +44,7 @@ class QdrantStore:
         else:
             self.logger.info("Using existing Qdrant collection: %s", self.collection)
 
-    def upsert_points(self, points: List[qmodels.PointStruct]) -> None:
+    def upsert_points(self, points: list[qmodels.PointStruct]) -> None:
         if not points:
             return
         self.client.upsert(collection_name=self.collection, points=points)
@@ -55,8 +54,8 @@ class QdrantStore:
         vector_name: str,
         query_vector: np.ndarray,
         limit: int,
-        payload_filter: Optional[qmodels.Filter] = None,
-    ) -> List[qmodels.ScoredPoint]:
+        payload_filter: qmodels.Filter | None = None,
+    ) -> list[qmodels.ScoredPoint]:
         # qdrant-client >= 1.7 removed client.search(); use query_points() instead.
         response = self.client.query_points(
             collection_name=self.collection,

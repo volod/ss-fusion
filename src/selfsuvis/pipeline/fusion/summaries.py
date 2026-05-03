@@ -1,30 +1,39 @@
 
 import logging
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.fusion.filters import PlatformStateFilter
 from selfsuvis.pipeline.fusion.measurements import PlatformMeasurement
-from selfsuvis.pipeline.fusion.sidecars import load_baro_sidecar, load_imu_sidecar, normalize_baro_rows
-from selfsuvis.pipeline.fusion.state import PlatformFusionResult, PlatformPosteriorSample
+from selfsuvis.pipeline.fusion.sidecars import (
+    load_baro_sidecar,
+    load_imu_sidecar,
+    normalize_baro_rows,
+)
+from selfsuvis.pipeline.fusion.state import (
+    FullFusionResult,
+    PlatformFusionResult,
+    PlatformPosteriorSample,
+)
 from selfsuvis.pipeline.mapping.gps_registration import gps_to_enu
 
 logger = logging.getLogger(__name__)
 
 
-def _measurement_covariance(diag: Sequence[float]) -> Tuple[Tuple[float, ...], ...]:
+def _measurement_covariance(diag: Sequence[float]) -> tuple[tuple[float, ...], ...]:
     mat = np.diag(diag).astype(np.float64)
     return tuple(tuple(float(v) for v in row) for row in mat)
 
 
 def _build_gps_measurements(
     frame_times_sec: Sequence[float],
-    gps_samples: Sequence[Optional[Dict[str, float]]],
-) -> Tuple[Optional[Dict[str, float]], List[PlatformMeasurement]]:
+    gps_samples: Sequence[dict[str, float] | None],
+) -> tuple[dict[str, float] | None, list[PlatformMeasurement]]:
     origin = next((g for g in gps_samples if g is not None), None)
     if origin is None:
         return None, []
@@ -32,7 +41,7 @@ def _build_gps_measurements(
     origin_lla = {"lat": float(origin["lat"]), "lon": float(origin["lon"]), "alt": float(origin.get("alt", 0.0))}
     pos_std = float(settings.STATE_FUSION_GPS_POS_STD_M)
     gps_cov = _measurement_covariance([pos_std ** 2, pos_std ** 2, pos_std ** 2])
-    measurements: List[PlatformMeasurement] = []
+    measurements: list[PlatformMeasurement] = []
     for t_sec, sample in zip(frame_times_sec, gps_samples):
         if sample is None:
             continue
@@ -57,11 +66,11 @@ def _build_gps_measurements(
     return origin_lla, measurements
 
 
-def _build_imu_measurements(video_path: str) -> List[PlatformMeasurement]:
+def _build_imu_measurements(video_path: str) -> list[PlatformMeasurement]:
     accel_std = float(settings.STATE_FUSION_IMU_ACCEL_STD_MPS2)
     cov = _measurement_covariance([accel_std ** 2, accel_std ** 2, accel_std ** 2])
     rows = load_imu_sidecar(video_path)
-    measurements: List[PlatformMeasurement] = []
+    measurements: list[PlatformMeasurement] = []
     for row in rows:
         t_sec = float(row.get("t", row.get("timestamp", 0.0)) or 0.0)
         ax = float(row.get("ax", 0.0))
@@ -81,11 +90,11 @@ def _build_imu_measurements(video_path: str) -> List[PlatformMeasurement]:
     return measurements
 
 
-def _build_baro_measurements(video_path: str, origin_lla: Dict[str, float]) -> List[PlatformMeasurement]:
+def _build_baro_measurements(video_path: str, origin_lla: dict[str, float]) -> list[PlatformMeasurement]:
     alt_std = float(settings.STATE_FUSION_BARO_ALT_STD_M)
     cov = _measurement_covariance([alt_std ** 2])
     rows = normalize_baro_rows(load_baro_sidecar(video_path), origin_lla["alt"])
-    measurements: List[PlatformMeasurement] = []
+    measurements: list[PlatformMeasurement] = []
     for row in rows:
         measurements.append(
             PlatformMeasurement(
@@ -116,7 +125,7 @@ def _sample_quality(cov_trace: float) -> str:
     return "uncertain"
 
 
-def _recent_measurement_kinds(measurements: Iterable[PlatformMeasurement], t_sec: float, max_gap_sec: float) -> List[str]:
+def _recent_measurement_kinds(measurements: Iterable[PlatformMeasurement], t_sec: float, max_gap_sec: float) -> list[str]:
     kinds = {
         measurement.kind
         for measurement in measurements
@@ -129,7 +138,7 @@ def run_platform_state_fusion(
     *,
     video_path: str,
     frame_times_sec: Sequence[float],
-    gps_samples: Sequence[Optional[Dict[str, float]]],
+    gps_samples: Sequence[dict[str, float] | None],
 ) -> PlatformFusionResult:
     """Run the platform-state fusion MVP on frame times and telemetry sidecars."""
 
@@ -155,14 +164,14 @@ def run_platform_state_fusion(
         init_vel_std_mps=float(settings.STATE_FUSION_INIT_VEL_STD_MPS),
     )
 
-    events: List[_Event] = []
+    events: list[_Event] = []
     for measurement in all_measurements:
         events.append(_Event(t_sec=measurement.t_sec, priority={"imu_accel": 0, "gps_position": 1, "barometer_altitude": 2}[measurement.kind], event_type="measurement", payload=measurement))
     for t_sec in frame_times_sec:
         events.append(_Event(t_sec=float(t_sec), priority=3, event_type="frame_sample", payload=float(t_sec)))
     events.sort(key=lambda event: (event.t_sec, event.priority))
 
-    posterior_samples: List[PlatformPosteriorSample] = []
+    posterior_samples: list[PlatformPosteriorSample] = []
     for event in events:
         filter_.predict(event.t_sec)
         if event.event_type == "measurement":
@@ -228,13 +237,13 @@ def run_full_state_fusion(
     *,
     video_path: str,
     frame_times_sec: Sequence[float],
-    gps_samples: Sequence[Optional[Dict[str, float]]],
-    sfm_frame_positions: Optional[Sequence[Dict[str, Any]]] = None,
-    tracking_results: Optional[Sequence[Dict[str, Any]]] = None,
-    gemma_analysis: Optional[Dict[str, Any]] = None,
-    qwen_captions: Optional[Sequence[Dict[str, Any]]] = None,
-    rssm_surprise_mean: Optional[float] = None,
-) -> "FullFusionResult":
+    gps_samples: Sequence[dict[str, float] | None],
+    sfm_frame_positions: Sequence[dict[str, Any]] | None = None,
+    tracking_results: Sequence[dict[str, Any]] | None = None,
+    gemma_analysis: dict[str, Any] | None = None,
+    qwen_captions: Sequence[dict[str, Any]] | None = None,
+    rssm_surprise_mean: float | None = None,
+) -> FullFusionResult:
     """Orchestrate all four fusion layers into a single FullFusionResult.
 
     Layers:

@@ -1,18 +1,14 @@
 """Unit tests for pipeline.gps_registration."""
 import json
-import math
 
 import numpy as np
 import pytest
 
 from selfsuvis.pipeline.mapping.gps_registration import (
-    _geodetic_to_ecef,
-    _ecef_to_enu,
     build_registration_transform,
     gps_to_enu,
     register_mission_gps,
 )
-
 
 # ── gps_to_enu ────────────────────────────────────────────────────────────────
 

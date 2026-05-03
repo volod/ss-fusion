@@ -1,11 +1,12 @@
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 
-def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
-    rows: List[Dict[str, Any]] = []
+def _load_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     if not path.is_file():
         return rows
     with path.open(encoding="utf-8") as fh:
@@ -27,11 +28,11 @@ def _sidecar_path(video_path: str, suffix: str) -> Path:
     return Path(video_path).with_suffix(suffix)
 
 
-def load_imu_sidecar(video_path: str) -> List[Dict[str, Any]]:
+def load_imu_sidecar(video_path: str) -> list[dict[str, Any]]:
     return _load_jsonl(_sidecar_path(video_path, ".imu.jsonl"))
 
 
-def load_baro_sidecar(video_path: str) -> List[Dict[str, Any]]:
+def load_baro_sidecar(video_path: str) -> list[dict[str, Any]]:
     return _load_jsonl(_sidecar_path(video_path, ".baro.jsonl"))
 
 
@@ -40,8 +41,8 @@ def pressure_hpa_to_altitude_m(pressure_hpa: float) -> float:
     return 44330.0 * (1.0 - (pressure_hpa / 1013.25) ** 0.1903)
 
 
-def normalize_baro_rows(rows: Iterable[Dict[str, Any]], origin_alt_m: float) -> List[Dict[str, float]]:
-    normalized: List[Dict[str, float]] = []
+def normalize_baro_rows(rows: Iterable[dict[str, Any]], origin_alt_m: float) -> list[dict[str, float]]:
+    normalized: list[dict[str, float]] = []
     for row in rows:
         t_sec = float(row.get("t", row.get("timestamp", 0.0)) or 0.0)
         if "alt_m" in row:

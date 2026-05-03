@@ -29,7 +29,7 @@ import os
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -39,7 +39,12 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from .common import checkpoint_path, ensure_output_dir, epoch_checkpoint_path, save_backbone_checkpoint
+from .common import (
+    checkpoint_path,
+    ensure_output_dir,
+    epoch_checkpoint_path,
+    save_backbone_checkpoint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +54,13 @@ class TemporalVisualPair:
     anchor_frame_path: str
     positive_frame_path: str
     time_delta_sec: float = 0.0
-    track_id: Optional[int] = None
-    pose_overlap_score: Optional[float] = None
+    track_id: int | None = None
+    pose_overlap_score: float | None = None
     sample_weight: float = 1.0
-    modality_payload: Dict[str, Any] = field(default_factory=dict)
+    modality_payload: dict[str, Any] = field(default_factory=dict)
     pair_source: str = "temporal_visual"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pair_type": "temporal_visual",
             "pair_source": self.pair_source,
@@ -74,13 +79,13 @@ class CrossModalPair:
     anchor_frame_path: str
     positive_frame_path: str
     time_delta_sec: float = 0.0
-    track_id: Optional[int] = None
-    pose_overlap_score: Optional[float] = None
+    track_id: int | None = None
+    pose_overlap_score: float | None = None
     sample_weight: float = 1.0
-    modality_payload: Dict[str, Any] = field(default_factory=dict)
+    modality_payload: dict[str, Any] = field(default_factory=dict)
     pair_source: str = "cross_modal"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pair_type": "cross_modal",
             "pair_source": self.pair_source,
@@ -99,13 +104,13 @@ class GeometryPair:
     anchor_frame_path: str
     positive_frame_path: str
     time_delta_sec: float = 0.0
-    track_id: Optional[int] = None
-    pose_overlap_score: Optional[float] = None
+    track_id: int | None = None
+    pose_overlap_score: float | None = None
     sample_weight: float = 1.0
-    modality_payload: Dict[str, Any] = field(default_factory=dict)
+    modality_payload: dict[str, Any] = field(default_factory=dict)
     pair_source: str = "geometry"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pair_type": "geometry",
             "pair_source": self.pair_source,
@@ -119,18 +124,18 @@ class GeometryPair:
         }
 
 
-MultimodalPair = Union[TemporalVisualPair, CrossModalPair, GeometryPair]
+MultimodalPair = TemporalVisualPair | CrossModalPair | GeometryPair
 
 
 def collate_multimodal_pairs(
-    pairs: List[MultimodalPair],
-) -> Dict[str, Any]:
+    pairs: list[MultimodalPair],
+) -> dict[str, Any]:
     """Collate pair metadata into a JSON-friendly batch payload.
 
     Missing optional modality targets are represented as ``None`` so callers can
     mask them out without losing batch alignment.
     """
-    batch: Dict[str, Any] = {
+    batch: dict[str, Any] = {
         "records": pairs,
         "pair_types": [],
         "pair_sources": [],
@@ -148,8 +153,8 @@ def collate_multimodal_pairs(
     if not pairs:
         return batch
 
-    time_deltas: List[float] = []
-    sample_weights: List[float] = []
+    time_deltas: list[float] = []
+    sample_weights: list[float] = []
     for pair in pairs:
         payload = dict(getattr(pair, "modality_payload", {}) or {})
         pair_type = pair.to_dict().get("pair_type", "unknown")
@@ -211,10 +216,10 @@ def build_eval_transform(image_size: int = 224) -> transforms.Compose:
 
 # ── Datasets ──────────────────────────────────────────────────────────────────
 
-def _collect_frame_paths(frames_dir: str) -> List[str]:
+def _collect_frame_paths(frames_dir: str) -> list[str]:
     """Recursively collect all JPEG/PNG frame files under frames_dir."""
     exts = ("*.jpg", "*.jpeg", "*.png")
-    paths: List[str] = []
+    paths: list[str] = []
     for ext in exts:
         paths.extend(glob.glob(os.path.join(frames_dir, "**", ext), recursive=True))
     return sorted(paths)
@@ -237,14 +242,14 @@ class AugmentPairDataset(Dataset):
     def __len__(self) -> int:
         return len(self.paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         img = Image.open(self.paths[idx]).convert("RGB")
         return self.transform(img), self.transform(img)
 
 
 def _crop_bbox(
     img: "Image.Image",
-    bbox_norm: List[float],
+    bbox_norm: list[float],
     padding: float = 0.15,
     size: int = 224,
 ) -> "Image.Image":
@@ -291,7 +296,7 @@ class TemporalPairDataset(Dataset):
     ):
         self.transform = transform
         self.max_gap = max(1, max_gap)
-        self.pairs: List[Tuple[str, str]] = []
+        self.pairs: list[tuple[str, str]] = []
         self._build_pairs(frames_dir)
         if not self.pairs:
             raise ValueError(
@@ -320,7 +325,7 @@ class TemporalPairDataset(Dataset):
                 continue
             self._append_pairs_for_sequence(frames)
 
-    def _append_pairs_for_sequence(self, frames: List[Path]) -> None:
+    def _append_pairs_for_sequence(self, frames: list[Path]) -> None:
         # Iterate over all frames except the last (which has no successor)
         for i in range(len(frames) - 1):
             max_possible = len(frames) - 1 - i
@@ -330,7 +335,7 @@ class TemporalPairDataset(Dataset):
     def __len__(self) -> int:
         return len(self.pairs)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         p1, p2 = self.pairs[idx]
         img1 = Image.open(p1).convert("RGB")
         img2 = Image.open(p2).convert("RGB")
@@ -358,7 +363,7 @@ class TrackPairDataset(Dataset):
 
     def __init__(
         self,
-        track_map: "Dict[int, List[Tuple[str, List[float], float]]]",
+        track_map: "dict[int, list[tuple[str, list[float], float]]]",
         transform: transforms.Compose,
         min_gap: int = 2,
         max_gap: int = 5,
@@ -368,7 +373,7 @@ class TrackPairDataset(Dataset):
         self.transform = transform
         self.image_size = image_size
         self.crop_pad = crop_pad
-        self.pairs: List[Tuple[str, List[float], str, List[float]]] = []
+        self.pairs: list[tuple[str, list[float], str, list[float]]] = []
         for appearances in track_map.values():
             n = len(appearances)
             if n < 2:
@@ -391,7 +396,7 @@ class TrackPairDataset(Dataset):
     def __len__(self) -> int:
         return len(self.pairs)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         fp_a, bbox_a, fp_b, bbox_b = self.pairs[idx]
         img_a = Image.open(fp_a).convert("RGB")
         img_b = Image.open(fp_b).convert("RGB")
@@ -425,7 +430,7 @@ class TrackTripletDataset(Dataset):
 
     def __init__(
         self,
-        track_map: "Dict[int, List[Tuple[str, List[float], float]]]",
+        track_map: "dict[int, list[tuple[str, list[float], float]]]",
         transform: transforms.Compose,
         min_gap: int = 2,
         max_gap: int = 5,
@@ -435,8 +440,8 @@ class TrackTripletDataset(Dataset):
         self.transform = transform
         self.image_size = image_size
         self.crop_pad = crop_pad
-        self.triplets: List[
-            Tuple[str, List[float], str, List[float], str, List[float]]
+        self.triplets: list[
+            tuple[str, list[float], str, list[float], str, list[float]]
         ] = []
         for appearances in track_map.values():
             n = len(appearances)
@@ -448,12 +453,12 @@ class TrackTripletDataset(Dataset):
                     continue
                 k = random.randint(min_gap, max_k)
                 j = i + k
-                l = i + 2 * k
-                if l >= n:
+                end_idx = i + 2 * k
+                if end_idx >= n:
                     continue
                 fp_a, bbox_a, _ = appearances[i]
                 fp_b, bbox_b, _ = appearances[j]
-                fp_c, bbox_c, _ = appearances[l]
+                fp_c, bbox_c, _ = appearances[end_idx]
                 self.triplets.append((fp_a, bbox_a, fp_b, bbox_b, fp_c, bbox_c))
         if not self.triplets:
             raise ValueError(
@@ -466,7 +471,7 @@ class TrackTripletDataset(Dataset):
 
     def __getitem__(
         self, idx: int
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         fp_a, bbox_a, fp_b, bbox_b, fp_c, bbox_c = self.triplets[idx]
         img_a = Image.open(fp_a).convert("RGB")
         img_b = Image.open(fp_b).convert("RGB")
@@ -486,7 +491,7 @@ class MultimodalPairDataset(Dataset):
 
     def __init__(
         self,
-        pairs: List[MultimodalPair],
+        pairs: list[MultimodalPair],
         transform: transforms.Compose,
     ):
         if not pairs:
@@ -497,7 +502,7 @@ class MultimodalPairDataset(Dataset):
     def __len__(self) -> int:
         return len(self.pairs)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, MultimodalPair]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, MultimodalPair]:
         pair = self.pairs[idx]
         img1 = Image.open(pair.anchor_frame_path).convert("RGB")
         img2 = Image.open(pair.positive_frame_path).convert("RGB")
@@ -505,8 +510,8 @@ class MultimodalPairDataset(Dataset):
 
 
 def multimodal_batch_collate(
-    batch: List[Tuple[torch.Tensor, torch.Tensor, MultimodalPair]],
-) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, Any]]:
+    batch: list[tuple[torch.Tensor, torch.Tensor, MultimodalPair]],
+) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
     """Stack image tensors and collate typed pair metadata."""
     v1 = torch.stack([item[0] for item in batch], dim=0)
     v2 = torch.stack([item[1] for item in batch], dim=0)
@@ -625,7 +630,7 @@ class MultimodalConsistencyLoss(nn.Module):
     @staticmethod
     def _masked_target_loss(
         pair_cos: torch.Tensor,
-        targets: List[Optional[float]],
+        targets: list[float | None],
         sample_weight: torch.Tensor,
     ) -> torch.Tensor:
         target_values = [
@@ -645,11 +650,11 @@ class MultimodalConsistencyLoss(nn.Module):
         self,
         z1: torch.Tensor,
         z2: torch.Tensor,
-        batch_meta: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, float]]:
+        batch_meta: dict[str, Any] | None = None,
+    ) -> tuple[torch.Tensor, dict[str, float]]:
         base_loss = self.base(z1, z2)
         total = base_loss
-        components: Dict[str, float] = {
+        components: dict[str, float] = {
             "contrastive_loss": float(base_loss.detach().item()),
             "depth_consistency_loss": 0.0,
             "motion_consistency_loss": 0.0,
@@ -899,7 +904,7 @@ def run_finetune(cfg: FinetuneConfig) -> str:
 
     for epoch in range(1, cfg.epochs + 1):
         tuner.train()
-        epoch_losses: List[float] = []
+        epoch_losses: list[float] = []
 
         for v1, v2 in loader:
             v1 = v1.to(cfg.device)
@@ -1009,7 +1014,7 @@ class GemmaSSLFinetuner:
 
     def train(
         self,
-        frame_paths: List[str],
+        frame_paths: list[str],
         output_dir: str,
         epochs: int = 5,
         batch_size: int = 16,
@@ -1054,7 +1059,7 @@ class GemmaSSLFinetuner:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
         for epoch in range(1, epochs + 1):
-            epoch_losses: List[float] = []
+            epoch_losses: list[float] = []
             # Process frame_paths in batches
             indices = list(range(len(frame_paths)))
             random.shuffle(indices)

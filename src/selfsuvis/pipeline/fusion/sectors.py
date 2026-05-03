@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 _EARTH_RADIUS_M = 6_378_137.0
 
@@ -15,7 +16,7 @@ def enu_to_geodetic(
     origin_lat: float,
     origin_lon: float,
     origin_alt: float = 0.0,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Approximate ENU -> geodetic conversion for local-scale trajectories."""
     lat_rad = math.radians(origin_lat)
     dlat = north_m / _EARTH_RADIUS_M
@@ -41,12 +42,12 @@ def latlon_to_sector_id(
 
 
 def sectorize_global_positions(
-    origin_lla: Dict[str, float],
-    positions_enu_m: Sequence[Dict[str, float]],
+    origin_lla: dict[str, float],
+    positions_enu_m: Sequence[dict[str, float]],
     tile_size_m: float = 50.0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Map ENU trajectory samples into global sector IDs."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     origin_lat = float(origin_lla["lat"])
     origin_lon = float(origin_lla["lon"])
     origin_alt = float(origin_lla.get("alt", 0.0))
@@ -67,9 +68,9 @@ def sectorize_global_positions(
     return out
 
 
-def unique_sector_sequence(sector_samples: Sequence[Dict[str, Any]]) -> List[str]:
+def unique_sector_sequence(sector_samples: Sequence[dict[str, Any]]) -> list[str]:
     """Collapse consecutive duplicates while preserving route order."""
-    sequence: List[str] = []
+    sequence: list[str] = []
     prev = None
     for item in sector_samples:
         sector_id = str(item.get("sector_id", ""))
@@ -90,8 +91,8 @@ def build_route_segment_id(video_name: str, sector_sequence: Sequence[str]) -> s
     return f"route_{start}__{end}"
 
 
-def build_sector_adjacency(sector_sequence: Sequence[str]) -> List[Dict[str, Any]]:
-    edges: List[Dict[str, Any]] = []
+def build_sector_adjacency(sector_sequence: Sequence[str]) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
     for left, right in zip(sector_sequence, sector_sequence[1:]):
         if not left or not right or left == right:
             continue

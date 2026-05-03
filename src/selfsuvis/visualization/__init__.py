@@ -11,11 +11,11 @@ Typical usage::
     generate_report(summary, out_dir="data/local_runs/drone_mission")
 """
 
-from .timeline import plot_timeline
 from .detections import plot_detections
 from .embeddings import plot_embedding_pca, plot_similarity_matrix
-from .training import plot_training_curves
 from .report import generate_report
+from .timeline import plot_timeline
+from .training import plot_training_curves
 
 __all__ = [
     "plot_timeline",

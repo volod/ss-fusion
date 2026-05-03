@@ -36,7 +36,7 @@ import logging
 import os
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from xml.etree import ElementTree as ET
 
 import numpy as np
@@ -47,12 +47,17 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from .common import checkpoint_path, ensure_output_dir, epoch_checkpoint_path, save_backbone_checkpoint
+from .common import (
+    checkpoint_path,
+    ensure_output_dir,
+    epoch_checkpoint_path,
+    save_backbone_checkpoint,
+)
 
 logger = logging.getLogger(__name__)
 
 # VisDrone-2019-inspired default label vocabulary (alphabetical = index order)
-VISDRONE_LABELS: List[str] = [
+VISDRONE_LABELS: list[str] = [
     "bicycle",
     "bus",
     "car",
@@ -65,9 +70,9 @@ VISDRONE_LABELS: List[str] = [
 # ── Label taxonomy normalization ──────────────────────────────────────────────
 
 def _normalize_labels(
-    rows: List[Tuple[str, str]],
-    mappings: Dict[str, str],
-) -> List[Tuple[str, str]]:
+    rows: list[tuple[str, str]],
+    mappings: dict[str, str],
+) -> list[tuple[str, str]]:
     """Apply a canonical label mapping to (frame_path, label) rows.
 
     Labels absent from *mappings* are passed through unchanged.
@@ -87,7 +92,7 @@ def _normalize_labels(
     if not mappings and not rows:
         return rows
 
-    seen: Dict[str, str] = {}  # frame_path → canonical label seen so far
+    seen: dict[str, str] = {}  # frame_path → canonical label seen so far
 
     for frame_path, raw_label in rows:
         canonical = mappings.get(raw_label, raw_label)
@@ -125,8 +130,8 @@ class CvatAnnotationParser:
 
     def __init__(self, xml_path: str):
         self.xml_path = xml_path
-        self.label_names: List[str] = []
-        self.frame_labels: Dict[str, str] = {}
+        self.label_names: list[str] = []
+        self.frame_labels: dict[str, str] = {}
         self._parse()
 
     def _parse(self) -> None:
@@ -134,7 +139,7 @@ class CvatAnnotationParser:
         root = tree.getroot()
 
         # Extract declared label order from <meta><task><labels>
-        label_order: List[str] = []
+        label_order: list[str] = []
         for lbl_el in root.findall("./meta/task/labels/label"):
             name_el = lbl_el.find("name")
             if name_el is not None and name_el.text:
@@ -142,7 +147,7 @@ class CvatAnnotationParser:
 
         # Fallback: collect all labels that appear in box elements
         if not label_order:
-            seen: Dict[str, int] = {}
+            seen: dict[str, int] = {}
             for img_el in root.findall("image"):
                 for box in img_el.findall("box"):
                     lbl = box.get("label", "").strip()
@@ -160,7 +165,7 @@ class CvatAnnotationParser:
                 continue
 
             # Count label occurrences for majority vote
-            counts: Dict[str, int] = {}
+            counts: dict[str, int] = {}
             for box in img_el.findall("box"):
                 lbl = box.get("label", "").strip()
                 if lbl:
@@ -186,17 +191,17 @@ class CvatAnnotationParser:
             self.xml_path, self.label_names, len(self.frame_labels),
         )
 
-    def label_to_idx(self) -> Dict[str, int]:
+    def label_to_idx(self) -> dict[str, int]:
         """Return {label_name: int_index} mapping."""
         return {name: i for i, name in enumerate(self.label_names)}
 
 
 # ── Dataset ────────────────────────────────────────────────────────────────────
 
-def _scan_frames(frames_dir: str) -> Dict[str, str]:
+def _scan_frames(frames_dir: str) -> dict[str, str]:
     """Return {basename: abs_path} for all images under frames_dir."""
     exts = ("*.jpg", "*.jpeg", "*.png")
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
     for ext in exts:
         for p in glob.glob(os.path.join(frames_dir, "**", ext), recursive=True):
             result[os.path.basename(p)] = p
@@ -218,7 +223,7 @@ class AnnotatedFrameDataset(Dataset):
 
     def __init__(
         self,
-        items: List[Tuple[str, int]],
+        items: list[tuple[str, int]],
         transform: transforms.Compose,
         two_views: bool = True,
     ):
@@ -258,7 +263,7 @@ class AnnotatedFrameDataset(Dataset):
         all_labels = sorted({lbl for _, lbl in normalized_pairs})
         label_to_idx = {lbl: i for i, lbl in enumerate(all_labels)}
 
-        items: List[Tuple[str, int]] = []
+        items: list[tuple[str, int]] = []
         skipped_unknown_label = 0
 
         for frame_path, label_name in normalized_pairs:
@@ -289,7 +294,7 @@ class AnnotatedFrameDataset(Dataset):
         cls,
         transform: transforms.Compose,
         two_views: bool = True,
-        mission_id: Optional[str] = None,
+        mission_id: str | None = None,
     ) -> "AnnotatedFrameDataset":
         """Build from PostgreSQL frames table (DB-native annotation path).
 
@@ -300,7 +305,9 @@ class AnnotatedFrameDataset(Dataset):
         Raises RuntimeError if DATABASE_URL is not configured.
         """
         import asyncio
+
         import asyncpg
+
         from selfsuvis.pipeline.core.config import settings
 
         db_url = settings.DATABASE_URL
@@ -343,7 +350,7 @@ class AnnotatedFrameDataset(Dataset):
         all_labels = sorted({label for _, label in normalized_pairs})
         label_to_idx = {lbl: i for i, lbl in enumerate(all_labels)}
 
-        items: List[Tuple[str, int]] = []
+        items: list[tuple[str, int]] = []
         for frame_path, label_name in normalized_pairs:
             if not os.path.isfile(frame_path):
                 logger.debug("AnnotatedFrameDataset.from_db: frame not on disk %s", frame_path)
@@ -370,10 +377,10 @@ class AnnotatedFrameDataset(Dataset):
 # ── Eval gate ──────────────────────────────────────────────────────────────────
 
 def _stratified_split(
-    items: List[Tuple[str, int]],
+    items: list[tuple[str, int]],
     eval_fraction: float,
     min_per_class: int,
-) -> Tuple[List[Tuple[str, int]], List[Tuple[str, int]]]:
+) -> tuple[list[tuple[str, int]], list[tuple[str, int]]]:
     """Split items into (train, eval) lists using stratified sampling.
 
     Raises ValueError if:
@@ -381,7 +388,7 @@ def _stratified_split(
     - any class has fewer than min_per_class samples in the eval split
     """
     from collections import defaultdict
-    by_class: Dict[int, List[Tuple[str, int]]] = defaultdict(list)
+    by_class: dict[int, list[tuple[str, int]]] = defaultdict(list)
     for item in items:
         by_class[item[1]].append(item)
 
@@ -390,8 +397,8 @@ def _stratified_split(
             f"Dataset has only {len(by_class)} class(es); SupCon requires ≥2 classes."
         )
 
-    train_items: List[Tuple[str, int]] = []
-    eval_items: List[Tuple[str, int]] = []
+    train_items: list[tuple[str, int]] = []
+    eval_items: list[tuple[str, int]] = []
 
     for label_idx, class_items in by_class.items():
         shuffled = list(class_items)
@@ -413,7 +420,7 @@ def _stratified_split(
 
 def _eval_accuracy(
     backbone: torch.nn.Module,
-    eval_items: List[Tuple[str, int]],
+    eval_items: list[tuple[str, int]],
     device: str,
     transform: transforms.Compose,
 ) -> float:
@@ -463,7 +470,7 @@ def _eval_accuracy(
 
 def _eval_distribution_shift(
     backbone: torch.nn.Module,
-    eval_items: List[Tuple[str, int]],
+    eval_items: list[tuple[str, int]],
     device: str,
     transform: transforms.Compose,
 ) -> float:
@@ -495,8 +502,8 @@ def _eval_distribution_shift(
         return 0.0
 
     backbone.eval()
-    embeddings: List[torch.Tensor] = []
-    labels: List[int] = []
+    embeddings: list[torch.Tensor] = []
+    labels: list[int] = []
 
     with torch.no_grad():
         for path, label_idx in eval_items:
@@ -633,7 +640,7 @@ class SupervisedFineTuner:
         device: str = "cpu",
         embed_dim: int = 768,
         proj_out_dim: int = 128,
-        ssl_checkpoint: Optional[str] = None,
+        ssl_checkpoint: str | None = None,
     ):
         self.device = device
         self.model_name = model_name
@@ -705,7 +712,7 @@ class SupervisedFineTuner:
 class SupervisedFinetuneConfig:
     frames_dir: str
     output_dir: str
-    cvat_xml_path: Optional[str] = None  # None → use from_db() path
+    cvat_xml_path: str | None = None  # None → use from_db() path
     model_name: str = "dinov3_vitb14"
     epochs: int = 10
     batch_size: int = 16
@@ -719,18 +726,18 @@ class SupervisedFinetuneConfig:
     save_every: int = 1
     device: str = "cpu"
     seed: int = 42
-    ssl_checkpoint: Optional[str] = None   # warm-start from SSL backbone if set
+    ssl_checkpoint: str | None = None   # warm-start from SSL backbone if set
     eval_fraction: float = 0.1             # fraction of data held out for eval gate
     min_per_class_eval: int = 2            # min eval samples per class
     overfitting_shift_threshold: float = 0.9  # gap > this logs an overfitting warning
     min_eval_gate_frames: int = 20         # reject dataset smaller than this
     eval_gate_threshold: float = 0.6       # min 1-NN accuracy to accept checkpoint
-    mission_id: Optional[str] = None       # when using from_db(), filter by mission
+    mission_id: str | None = None       # when using from_db(), filter by mission
 
 
 # ── Training loop ──────────────────────────────────────────────────────────────
 
-def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> Dict[str, Any]:
+def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
     """Run supervised contrastive fine-tuning on CVAT-annotated frames.
 
     Args:
@@ -826,7 +833,7 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> Dict[str, Any]:
 
     for epoch in range(1, cfg.epochs + 1):
         tuner.train()
-        epoch_losses: List[float] = []
+        epoch_losses: list[float] = []
 
         for v1, v2, labels in loader:
             v1 = v1.to(cfg.device)
@@ -925,9 +932,9 @@ def _build_augment_transform(image_size: int = 224) -> transforms.Compose:
 
 def config_from_settings(
     frames_dir: str,
-    cvat_xml_path: Optional[str] = None,
-    output_dir: Optional[str] = None,
-    mission_id: Optional[str] = None,
+    cvat_xml_path: str | None = None,
+    output_dir: str | None = None,
+    mission_id: str | None = None,
 ) -> SupervisedFinetuneConfig:
     """Build SupervisedFinetuneConfig from pipeline.core.config.settings.
 

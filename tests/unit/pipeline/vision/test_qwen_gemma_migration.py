@@ -6,11 +6,11 @@ QWEN_API_URL is set.
 """
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 from PIL import Image
 
 import selfsuvis.pipeline.vision.qwen as qm
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ def test_extract_frame_facts_sends_gemma_model(gemma_settings, small_image):
     fake_client.chat.completions.create.return_value = fake_response
 
     with patch("openai.OpenAI", return_value=fake_client):
-        result = model.extract_frame_facts(small_image)
+        model.extract_frame_facts(small_image)
 
     # Verify model name sent is the Gemma model
     call_kwargs = fake_client.chat.completions.create.call_args[1]

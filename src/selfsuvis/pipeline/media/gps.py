@@ -13,7 +13,7 @@ import json
 import os
 import re
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from selfsuvis.pipeline.core import get_logger, settings
 from selfsuvis.pipeline.media.subprocess_common import run_captured
@@ -26,7 +26,7 @@ _LON_RE = re.compile(r"longit?ude\s*[:(EW]\s*([+-]?\d+\.\d+)", re.IGNORECASE)
 _ALT_RE = re.compile(r"alt(?:itude)?\s*[:(m]\s*([+-]?\d+\.?\d*)", re.IGNORECASE)
 
 
-def _run_ffprobe(video_path: str, args: List[str], timeout: int = 30) -> Optional[str]:
+def _run_ffprobe(video_path: str, args: list[str], timeout: int = 30) -> str | None:
     """Run ffprobe and return stdout, or None on error/timeout."""
     cmd = ["ffprobe", "-v", "quiet"] + args + [video_path]
     try:
@@ -36,7 +36,7 @@ def _run_ffprobe(video_path: str, args: List[str], timeout: int = 30) -> Optiona
         return None
 
 
-def _extract_from_ffprobe_atoms(video_path: str) -> Optional[Dict[str, float]]:
+def _extract_from_ffprobe_atoms(video_path: str) -> dict[str, float] | None:
     """Extract a single GPS fix from the MP4 location atom.
 
     Returns {lat, lon, alt} or None.
@@ -62,7 +62,7 @@ def _extract_from_ffprobe_atoms(video_path: str) -> Optional[Dict[str, float]]:
         return None
 
 
-def _parse_srt_file(srt_path: str) -> List[Dict[str, Any]]:
+def _parse_srt_file(srt_path: str) -> list[dict[str, Any]]:
     """Parse a DJI SRT sidecar file.
 
     Returns list of {lat, lon, alt, timestamp_ms} sorted by timestamp_ms.
@@ -74,7 +74,7 @@ def _parse_srt_file(srt_path: str) -> List[Dict[str, Any]]:
     except OSError:
         return []
 
-    records: List[Dict[str, Any]] = []
+    records: list[dict[str, Any]] = []
     # SRT blocks separated by blank lines
     for block in re.split(r"\n\s*\n", content.strip()):
         lines = block.strip().splitlines()
@@ -110,7 +110,7 @@ def _parse_srt_file(srt_path: str) -> List[Dict[str, Any]]:
     return sorted(records, key=lambda r: r["timestamp_ms"])
 
 
-def _extract_from_srt(video_path: str) -> List[Dict[str, Any]]:
+def _extract_from_srt(video_path: str) -> list[dict[str, Any]]:
     """Return GPS records from an SRT sidecar, or [] if none found."""
     srt_path = settings.GPS_SIDECAR_PATH or (os.path.splitext(video_path)[0] + ".srt")
     if not os.path.isfile(srt_path):
@@ -121,7 +121,7 @@ def _extract_from_srt(video_path: str) -> List[Dict[str, Any]]:
     return records
 
 
-def _extract_from_gpmf(video_path: str) -> List[Dict[str, Any]]:
+def _extract_from_gpmf(video_path: str) -> list[dict[str, Any]]:
     """Detect GPMF telemetry stream (GoPro). Full parse deferred to v2.
 
     Returns [] always (detection only); logs a debug message if stream found.
@@ -146,9 +146,9 @@ def _extract_from_gpmf(video_path: str) -> List[Dict[str, Any]]:
 
 
 def _interpolate_gps(
-    records: List[Dict[str, Any]],
-    frame_timestamps_ms: List[float],
-) -> List[Optional[Dict[str, Any]]]:
+    records: list[dict[str, Any]],
+    frame_timestamps_ms: list[float],
+) -> list[dict[str, Any] | None]:
     """Linearly interpolate GPS records to match frame timestamps.
 
     Clamps to the first/last record for timestamps outside the recorded range.
@@ -165,7 +165,7 @@ def _interpolate_gps(
         return [None] * len(frame_timestamps_ms)
 
     rec_ts = [float(r["timestamp_ms"]) for r in records]
-    result: List[Optional[Dict[str, Any]]] = []
+    result: list[dict[str, Any] | None] = []
 
     for ts in frame_timestamps_ms:
         ts = float(ts)
@@ -203,8 +203,8 @@ def _interpolate_gps(
 
 def extract_gps(
     video_path: str,
-    frame_timestamps_ms: List[float],
-) -> List[Optional[Dict[str, Any]]]:
+    frame_timestamps_ms: list[float],
+) -> list[dict[str, Any] | None]:
     """Extract GPS and interpolate to frame timestamps.
 
     Priority: SRT sidecar → ffprobe atoms → GPMF → null fallback.

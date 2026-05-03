@@ -31,7 +31,7 @@ dict:
 import math
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -100,7 +100,7 @@ def _set_cuda_home_for_build() -> None:
         pass
 
 
-def _check_gsplat() -> Tuple[bool, str]:
+def _check_gsplat() -> tuple[bool, str]:
     """Return (ok, reason). ok=True when gsplat + CUDA are available."""
     try:
         import torch
@@ -117,13 +117,13 @@ def _check_gsplat() -> Tuple[bool, str]:
 
 
 def build_gaussian_splat(
-    frame_list: List[Tuple[str, float]],
+    frame_list: list[tuple[str, float]],
     map_dir: Path,
-    sfm_frames: Optional[List[Dict[str, Any]]] = None,
+    sfm_frames: list[dict[str, Any]] | None = None,
     device: str = "cuda",
     max_steps: int = _TRAIN_STEPS,
     seed: int = 42,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Train 3D Gaussians from video frames and export standard PLY.
 
     Parameters
@@ -139,10 +139,16 @@ def build_gaussian_splat(
     max_steps   : Training iterations.
     seed        : Random seed.
     """
-    _skip = lambda r: {
-        "splat_ply": None, "viewer_html": None, "point_count": 0,
-        "train_sec": 0.0, "method": "skipped", "skipped": True, "reason": r,
-    }
+    def _skip(reason_text: str) -> dict[str, Any]:
+        return {
+            "splat_ply": None,
+            "viewer_html": None,
+            "point_count": 0,
+            "train_sec": 0.0,
+            "method": "skipped",
+            "skipped": True,
+            "reason": reason_text,
+        }
 
     ok, reason = _check_gsplat()
     if not ok:
@@ -171,13 +177,13 @@ def build_gaussian_splat(
 
 
 def _train(
-    frames: List[Dict[str, Any]],
+    frames: list[dict[str, Any]],
     map_dir: Path,
     device: str,
     max_steps: int,
     seed: int,
     mode: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     import torch
     import torch.nn.functional as F
     from gsplat.rendering import rasterization
@@ -289,10 +295,10 @@ def _train(
 
 
 def _load_data(
-    frames: List[Dict[str, Any]],
+    frames: list[dict[str, Any]],
     map_dir: Path,
     device: str,
-) -> Tuple[List, Any, Any, Tuple[int, int]]:
+) -> tuple[list, Any, Any, tuple[int, int]]:
     """Load images + camera matrices from frame dicts."""
     import torch
     from torchvision import transforms as T
@@ -339,8 +345,8 @@ def _load_data(
 
 
 def _get_intrinsics(
-    recon, camera_id: int, W: int, H: int, pose: Dict
-) -> Tuple[float, float, float, float]:
+    recon, camera_id: int, W: int, H: int, pose: dict
+) -> tuple[float, float, float, float]:
     """Extract (fx, fy, cx, cy), falling back to estimated pinhole."""
     # Prefer stored intrinsics from pose_json (added by pose-free init)
     if "fx" in pose:
@@ -348,20 +354,30 @@ def _get_intrinsics(
     # Try pycolmap reconstruction
     if recon is not None:
         try:
-            cam    = recon.cameras[camera_id]
-            p      = cam.params
+            cam = recon.cameras[camera_id]
+            p = cam.params
             cW, cH = cam.width, cam.height
-            model  = (cam.model.name if hasattr(cam.model, "name") else str(cam.model)).upper()
+            model = (cam.model.name if hasattr(cam.model, "name") else str(cam.model)).upper()
             if "SIMPLE_RADIAL" in model or "SIMPLE_PINHOLE" in model:
-                fx = fy = float(p[0]); cx = float(p[1]); cy = float(p[2])
+                fx = fy = float(p[0])
+                cx = float(p[1])
+                cy = float(p[2])
             elif "PINHOLE" in model:
-                fx = float(p[0]); fy = float(p[1]); cx = float(p[2]); cy = float(p[3])
+                fx = float(p[0])
+                fy = float(p[1])
+                cx = float(p[2])
+                cy = float(p[3])
             elif "RADIAL" in model:
-                fx = fy = float(p[0]); cx = float(p[1]); cy = float(p[2])
+                fx = fy = float(p[0])
+                cx = float(p[1])
+                cy = float(p[2])
             else:
-                fx = fy = cW / (2.0 * math.tan(math.radians(35))); cx = cW/2; cy = cH/2
+                fx = fy = cW / (2.0 * math.tan(math.radians(35)))
+                cx = cW / 2
+                cy = cH / 2
             # Scale for our resized image
-            sx = W / cW; sy = H / cH
+            sx = W / cW
+            sy = H / cH
             return fx * sx, fy * sy, cx * sx, cy * sy
         except Exception:
             pass
@@ -374,7 +390,7 @@ def _get_intrinsics(
 
 
 def _init_gaussians(
-    frames: List[Dict[str, Any]],
+    frames: list[dict[str, Any]],
     map_dir: Path,
     mode: str,
     device: str,
@@ -401,10 +417,10 @@ def _init_gaussians(
 
 
 def _get_init_points(
-    frames: List[Dict[str, Any]],
+    frames: list[dict[str, Any]],
     map_dir: Path,
     mode: str,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Return (pts [N,3], cols [N,3]) for Gaussian initialisation."""
     # SfM mode: try pycolmap 3D points first
     if mode == "sfm":
@@ -443,7 +459,6 @@ def _get_init_points(
 def _load_sfm_points(colmap_dir: Path):
     """Load 3D points from pycolmap Reconstruction. Returns (pts, cols) or (None, None)."""
     try:
-        import pycolmap
         recon = _load_pycolmap_recon(colmap_dir)
         if recon is None or len(recon.points3D) == 0:
             return None, None
@@ -472,15 +487,14 @@ def _load_pycolmap_recon(colmap_dir: Path):
 
 
 def _make_free_poses(
-    frame_list: List[Tuple[str, float]],
-) -> List[Dict[str, Any]]:
+    frame_list: list[tuple[str, float]],
+) -> list[dict[str, Any]]:
     """Assign synthetic forward-facing poses to keyframes.
 
     Places cameras at positions [i * 0.1, 0, 0] (lateral motion along X),
     all looking toward +Z.  Intrinsics are estimated per frame from image size.
     """
     result = []
-    n = len(frame_list)
     for i, (fp, t_sec) in enumerate(frame_list):
         # Camera position: (i * baseline, 0, 0) in world space
         baseline = 0.1
@@ -498,7 +512,8 @@ def _make_free_poses(
             W, H = 1920, 1080
         if max(W, H) > _MAX_SIDE:
             scale = _MAX_SIDE / max(W, H)
-            W = int(W * scale); H = int(H * scale)
+            W = int(W * scale)
+            H = int(H * scale)
         fx = fy = W / (2.0 * math.tan(math.radians(35)))
         cx, cy = W / 2.0, H / 2.0
 
@@ -537,7 +552,6 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
         logger.debug("gsplat.export_splats failed (%s), using plyfile fallback", exc)
 
     # Manual plyfile write in 3DGS property format
-    import torch
     import torch.nn.functional as F
 
     N = len(means)
@@ -564,8 +578,12 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
 
     from plyfile import PlyData, PlyElement
     vertex = np.empty(N, dtype=dtype)
-    vertex["x"] = means_np[:, 0]; vertex["y"] = means_np[:, 1]; vertex["z"] = means_np[:, 2]
-    vertex["nx"] = 0; vertex["ny"] = 0; vertex["nz"] = 0
+    vertex["x"] = means_np[:, 0]
+    vertex["y"] = means_np[:, 1]
+    vertex["z"] = means_np[:, 2]
+    vertex["nx"] = 0
+    vertex["ny"] = 0
+    vertex["nz"] = 0
     vertex["f_dc_0"] = sh0_np[:, 0]
     vertex["f_dc_1"] = sh0_np[:, 1]
     vertex["f_dc_2"] = sh0_np[:, 2]
@@ -574,8 +592,10 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
     vertex["scale_1"] = scales_np[:, 1]
     vertex["scale_2"] = scales_np[:, 2]
     # 3DGS stores quats as (w, x, y, z)
-    vertex["rot_0"] = quats_n[:, 0]; vertex["rot_1"] = quats_n[:, 1]
-    vertex["rot_2"] = quats_n[:, 2]; vertex["rot_3"] = quats_n[:, 3]
+    vertex["rot_0"] = quats_n[:, 0]
+    vertex["rot_1"] = quats_n[:, 1]
+    vertex["rot_2"] = quats_n[:, 2]
+    vertex["rot_3"] = quats_n[:, 3]
     if shN.shape[1] > 0:
         for k in range(sh_rest.shape[1]):
             vertex[f"f_rest_{k}"] = sh_rest[:, k]

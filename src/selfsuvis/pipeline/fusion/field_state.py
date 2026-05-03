@@ -7,7 +7,7 @@ field reconstruction exists.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -18,10 +18,10 @@ class FieldObservation:
     t_sec: float
     intensity: float
     uncertainty: float
-    evidence_sources: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    evidence_sources: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "field_type": self.field_type,
             "cell_id": self.cell_id,
@@ -42,11 +42,11 @@ class FieldCellEstimate:
     intensity_uncertainty: float
     temporal_gradient: float
     source_count: int
-    evidence_sources: List[str] = field(default_factory=list)
-    support_frames: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    evidence_sources: list[str] = field(default_factory=list)
+    support_frames: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cell_id": self.cell_id,
             "field_type": self.field_type,
@@ -65,13 +65,13 @@ class FieldStateResult:
     enabled: bool
     status: str
     reason: str = ""
-    field_types: List[str] = field(default_factory=list)
-    cells: List[FieldCellEstimate] = field(default_factory=list)
-    clip_level_fields: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    observations: List[FieldObservation] = field(default_factory=list)
-    diagnostics: Dict[str, Any] = field(default_factory=dict)
+    field_types: list[str] = field(default_factory=list)
+    cells: list[FieldCellEstimate] = field(default_factory=list)
+    clip_level_fields: dict[str, dict[str, Any]] = field(default_factory=dict)
+    observations: list[FieldObservation] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "enabled": self.enabled,
             "status": self.status,
@@ -83,7 +83,7 @@ class FieldStateResult:
             "diagnostics": dict(self.diagnostics),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         payload = self.summary()
         payload["cells"] = [cell.to_dict() for cell in self.cells]
         payload["observations"] = [obs.to_dict() for obs in self.observations]

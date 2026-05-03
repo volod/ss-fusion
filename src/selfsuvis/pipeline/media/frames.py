@@ -1,13 +1,18 @@
 import os
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Generator, List, Optional, Tuple
 
 import cv2
 import numpy as np
 
 from selfsuvis.pipeline.core import get_logger
 from selfsuvis.pipeline.media.fs_common import ensure_parent_dir
-from selfsuvis.pipeline.media.heuristics import downsample_gray, histogram_diff, mean_abs_diff, ssim_diff
+from selfsuvis.pipeline.media.heuristics import (
+    downsample_gray,
+    histogram_diff,
+    mean_abs_diff,
+    ssim_diff,
+)
 
 
 @dataclass
@@ -30,7 +35,7 @@ def _frame_output_path(out_dir: str, index: int, t_sec: float) -> str:
 
 def _should_keep_frame(
     small: np.ndarray,
-    last_kept_small: Optional[np.ndarray],
+    last_kept_small: np.ndarray | None,
     t_sec: float,
     last_kept_t: float,
     min_interval_sec: float,
@@ -59,7 +64,7 @@ def _should_keep_frame(
 
 def _iter_stepped_frames(
     cap: cv2.VideoCapture, step: int
-) -> Generator[Tuple[int, np.ndarray], None, None]:
+) -> Generator[tuple[int, np.ndarray], None, None]:
     """Yield (frame_idx, frame_bgr) for every `step`-th decoded frame."""
     frame_idx = 0
     while True:
@@ -75,14 +80,14 @@ def extract_frames_fixed(
     video_path: str,
     out_dir: str,
     interval_sec: float = 1.0,
-    max_frames: Optional[int] = None,
-) -> List[FrameRecord]:
+    max_frames: int | None = None,
+) -> list[FrameRecord]:
     logger = get_logger(__name__)
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"failed to open video: {video_path}")
 
-    frames: List[FrameRecord] = []
+    frames: list[FrameRecord] = []
     t_sec = 0.0
     idx = 0
 
@@ -114,7 +119,7 @@ def extract_frames_adaptive(
     max_gap_sec: float = 10.0,
     diff_threshold: float = 0.12,
     probe_fps: float = 5.0,
-) -> List[FrameRecord]:
+) -> list[FrameRecord]:
     logger = get_logger(__name__)
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -123,7 +128,7 @@ def extract_frames_adaptive(
     fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
     step = max(1, int(round(fps / probe_fps))) if fps > 0 and probe_fps > 0 else 1
 
-    frames: List[FrameRecord] = []
+    frames: list[FrameRecord] = []
     idx = 0
     last_kept_small = None
     last_kept_t = -1e9
@@ -156,8 +161,8 @@ def extract_stream_frames(
     max_gap_sec: float = 10.0,
     diff_threshold: float = 0.12,
     probe_fps: float = 5.0,
-    max_frames: Optional[int] = None,
-) -> List[FrameRecord]:
+    max_frames: int | None = None,
+) -> list[FrameRecord]:
     logger = get_logger(__name__)
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
@@ -166,7 +171,7 @@ def extract_stream_frames(
     fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
     step = max(1, int(round(fps / probe_fps))) if fps > 0 and probe_fps > 0 else 1
 
-    frames: List[FrameRecord] = []
+    frames: list[FrameRecord] = []
     idx = 0
     last_kept_small = None
     last_kept_t = 0.0

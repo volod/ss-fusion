@@ -1,6 +1,5 @@
 """Unit tests for path validation (resolve_allowed_path, resolve_allowed_paths_for_walk)."""
 
-import pytest
 
 from selfsuvis.pipeline.core import config
 from selfsuvis.pipeline.core.utils import resolve_allowed_path, resolve_allowed_paths_for_walk

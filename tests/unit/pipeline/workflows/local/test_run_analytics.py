@@ -1,8 +1,6 @@
 from types import SimpleNamespace
 
-from selfsuvis.pipeline.workflows.local import runner
-from selfsuvis.pipeline.workflows.local import steps_report
-from selfsuvis.pipeline.workflows.local import steps_caption
+from selfsuvis.pipeline.workflows.local import runner, steps_caption, steps_report
 
 
 def test_build_local_run_analytics_payload_includes_high_signal_fields():

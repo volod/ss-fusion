@@ -1,17 +1,19 @@
 """Timeline chart: per-frame metrics over time."""
 
-
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from selfsuvis.analytics.models import RunSummary
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 
 def plot_timeline(
     summary: RunSummary,
-    out_path: Optional[str | Path] = None,
+    out_path: str | Path | None = None,
     show: bool = False,
-) -> "matplotlib.figure.Figure":
+) -> "Figure":
     """Two-panel timeline: RSSM surprise and detection count per frame.
 
     Args:

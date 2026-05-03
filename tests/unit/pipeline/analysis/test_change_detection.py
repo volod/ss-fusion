@@ -9,7 +9,6 @@ from selfsuvis.pipeline.analysis.change_detection import (
     threshold_for_model,
 )
 
-
 # ── latlon_bbox ───────────────────────────────────────────────────────────────
 
 def test_latlon_bbox_center_inside():

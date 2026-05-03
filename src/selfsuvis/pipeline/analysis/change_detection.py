@@ -10,7 +10,8 @@ optional natural-language `change_explanation` is generated via the Gemma API.
 
 The query_fn abstraction lets unit tests inject a mock without a live Qdrant.
 """
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -22,12 +23,12 @@ logger = get_logger(__name__)
 # Approximate metres per degree of latitude at the equator
 _M_PER_DEG_LAT = 111_320.0
 
-QueryFn = Callable[[np.ndarray, Tuple[float, float, float, float]], List[Dict[str, Any]]]
+QueryFn = Callable[[np.ndarray, tuple[float, float, float, float]], list[dict[str, Any]]]
 
 
 def latlon_bbox(
     lat: float, lon: float, radius_m: float
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """Return (min_lat, max_lat, min_lon, max_lon) bounding box for a GPS circle.
 
     Uses a flat-earth approximation valid for radius_m << Earth radius.
@@ -57,11 +58,11 @@ def threshold_for_model() -> float:
 
 
 def detect_changes(
-    new_frames: List[Dict[str, Any]],
+    new_frames: list[dict[str, Any]],
     query_fn: QueryFn,
-    threshold: Optional[float] = None,
+    threshold: float | None = None,
     radius_m: float = 50.0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Detect visual changes between new_frames and historically indexed frames.
 
     Args:
@@ -81,7 +82,7 @@ def detect_changes(
     if threshold is None:
         threshold = threshold_for_model()
 
-    changes: List[Dict[str, Any]] = []
+    changes: list[dict[str, Any]] = []
     for frame in new_frames:
         gps = frame.get("gps")
         if not gps or gps.get("lat") is None or gps.get("lon") is None:
@@ -91,8 +92,8 @@ def detect_changes(
         embedding = np.asarray(frame["embedding"], dtype=np.float32)
         candidates = query_fn(embedding, bbox)
 
-        best_dist: Optional[float] = None
-        best_ref: Optional[Dict[str, Any]] = None
+        best_dist: float | None = None
+        best_ref: dict[str, Any] | None = None
         for cand in candidates:
             if cand.get("mission_id") == frame["mission_id"]:
                 continue  # skip same-mission frames
@@ -135,9 +136,9 @@ def detect_changes(
 # ── Phase 4: Semantic diff ────────────────────────────────────────────────────
 
 def compute_semantic_diff(
-    ref_facts: Dict[str, Any],
-    new_facts: Dict[str, Any],
-) -> Dict[str, Any]:
+    ref_facts: dict[str, Any],
+    new_facts: dict[str, Any],
+) -> dict[str, Any]:
     """Compute a structured diff between two frame_facts_json dicts.
 
     Compares vehicle count, road_condition, and road_surface between the
@@ -158,7 +159,7 @@ def compute_semantic_diff(
         Empty dict if no structured difference is detected.
     """
 
-    def _vehicle_count(facts: Dict[str, Any]) -> Optional[int]:
+    def _vehicle_count(facts: dict[str, Any]) -> int | None:
         groups = facts.get("vehicle_groups")
         if not isinstance(groups, list):
             return None
@@ -168,7 +169,7 @@ def compute_semantic_diff(
                 total += int(g.get("count", 0))
         return total
 
-    diff: Dict[str, Any] = {}
+    diff: dict[str, Any] = {}
 
     ref_count = _vehicle_count(ref_facts)
     new_count = _vehicle_count(new_facts)
@@ -189,9 +190,9 @@ def compute_semantic_diff(
 
 
 def generate_change_explanation(
-    semantic_diff: Dict[str, Any],
+    semantic_diff: dict[str, Any],
     change_score: float,
-) -> Optional[str]:
+) -> str | None:
     """Generate a natural language change explanation via the Gemma API.
 
     Only called when ``GEMMA_API_URL`` is configured.  Returns ``None`` if

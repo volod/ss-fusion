@@ -1,7 +1,5 @@
 """Unit tests for pipeline/audio_extractor.py — no ffmpeg/GPU required."""
-import pytest
-from selfsuvis.pipeline.media.audio import map_subtitles_to_frames, _normalise_segments
-
+from selfsuvis.pipeline.media.audio import _normalise_segments, map_subtitles_to_frames
 
 # ── _normalise_segments ────────────────────────────────────────────────────────
 

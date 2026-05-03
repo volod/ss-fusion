@@ -27,12 +27,18 @@ CLI override::
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 from PIL import Image
 
-from selfsuvis.pipeline.core import get_logger, is_cuda_oom, pipeline_device_arg, resolve_device, settings
+from selfsuvis.pipeline.core import (
+    get_logger,
+    is_cuda_oom,
+    pipeline_device_arg,
+    resolve_device,
+    settings,
+)
 from selfsuvis.pipeline.vision._quiet import suppress_runtime_noise
 
 from ._pipe_mixin import _HFPipeMixin
@@ -75,9 +81,9 @@ class DepthModel(_HFPipeMixin):
 
     def __init__(self) -> None:
         self._pipe = None
-        self._model_id: Optional[str] = None
+        self._model_id: str | None = None
         self._load_failed: bool = False
-        self._device: Optional[str] = None
+        self._device: str | None = None
 
     def is_enabled(self) -> bool:
         return settings.DEPTH_ENABLED
@@ -88,7 +94,7 @@ class DepthModel(_HFPipeMixin):
             self._model_id = _resolve_model_id()
         return self._model_id
 
-    def estimate_batch(self, images: List[Image.Image]) -> List[Dict[str, Any]]:
+    def estimate_batch(self, images: list[Image.Image]) -> list[dict[str, Any]]:
         """Return depth summary dicts for a list of images."""
         if not self.is_enabled():
             return [{"depth_disabled": True}] * len(images)
@@ -98,7 +104,7 @@ class DepthModel(_HFPipeMixin):
             return [{"depth_unavailable": True}] * len(images)
         return self._estimate_many(images, pipe)
 
-    def estimate(self, image: Image.Image) -> Dict[str, Any]:
+    def estimate(self, image: Image.Image) -> dict[str, Any]:
         if not self.is_enabled():
             return {"depth_disabled": True}
         image = _prepare_depth_image(image)
@@ -107,7 +113,7 @@ class DepthModel(_HFPipeMixin):
             return {"depth_unavailable": True}
         return self._estimate_one(image, pipe)
 
-    def estimate_dense(self, image: Image.Image) -> Dict[str, Any]:
+    def estimate_dense(self, image: Image.Image) -> dict[str, Any]:
         """Return a dense depth map payload when enabled.
 
         For pipelines that only expose image-space relative depth, the returned
@@ -141,7 +147,7 @@ class DepthModel(_HFPipeMixin):
             logger.warning("Dense depth estimation failed", exc_info=True)
             return {"depth_error": True}
 
-    def _estimate_one(self, image: Image.Image, pipe) -> Dict[str, Any]:
+    def _estimate_one(self, image: Image.Image, pipe) -> dict[str, Any]:
         try:
             with suppress_runtime_noise(
                 r"You seem to be using the pipelines sequentially on GPU.*",
@@ -164,7 +170,7 @@ class DepthModel(_HFPipeMixin):
             logger.warning("Depth estimation failed", exc_info=True)
             return {"depth_error": True}
 
-    def _estimate_many(self, images: List[Image.Image], pipe) -> List[Dict[str, Any]]:
+    def _estimate_many(self, images: list[Image.Image], pipe) -> list[dict[str, Any]]:
         try:
             with suppress_runtime_noise(
                 r"You seem to be using the pipelines sequentially on GPU.*",
@@ -186,7 +192,7 @@ class DepthModel(_HFPipeMixin):
             logger.debug("Depth batch inference failed; falling back to per-image processing", exc_info=True)
         return [self._estimate_one(image, pipe) for image in images]
 
-    def _normalise_depth_output(self, output: Any) -> Dict[str, Any]:
+    def _normalise_depth_output(self, output: Any) -> dict[str, Any]:
         # HuggingFace depth-estimation pipeline returns {"depth": PIL.Image, ...}
         depth_img = output.get("depth") if isinstance(output, dict) else output
         if depth_img is None:
@@ -203,7 +209,7 @@ class DepthModel(_HFPipeMixin):
             }
         }
 
-    def _dense_depth_output(self, output: Any) -> Dict[str, Any]:
+    def _dense_depth_output(self, output: Any) -> dict[str, Any]:
         depth_img = output.get("depth") if isinstance(output, dict) else output
         if depth_img is None:
             return {"depth_unavailable": True}
@@ -224,7 +230,7 @@ class DepthModel(_HFPipeMixin):
             },
         }
 
-    def _get_pipe(self, force_device: Optional[str] = None):
+    def _get_pipe(self, force_device: str | None = None):
         target_device = force_device or self._device or _get_device()
         if self._pipe is not None and self._device == target_device:
             return self._pipe

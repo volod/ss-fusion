@@ -8,9 +8,10 @@ what capture changes would most improve the next flight.
 import json
 import math
 import subprocess
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from statistics import median
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageFilter
@@ -18,7 +19,7 @@ from PIL import Image, ImageFilter
 from selfsuvis.pipeline.mapping.common import write_json_report, write_markdown_report
 
 
-def _sample_evenly(frame_list: Sequence[Tuple[str, float]], max_frames: int = 24) -> List[Tuple[str, float]]:
+def _sample_evenly(frame_list: Sequence[tuple[str, float]], max_frames: int = 24) -> list[tuple[str, float]]:
     if len(frame_list) <= max_frames:
         return list(frame_list)
     idxs = np.linspace(0, len(frame_list) - 1, num=max_frames, dtype=int)
@@ -45,7 +46,7 @@ def _laplacian_variance(gray: np.ndarray) -> float:
         return float(edges.var())
 
 
-def _estimate_pair_motion(gray_a: np.ndarray, gray_b: np.ndarray) -> Dict[str, float]:
+def _estimate_pair_motion(gray_a: np.ndarray, gray_b: np.ndarray) -> dict[str, float]:
     """Estimate adjacent-frame matchability and translation proxy."""
     try:
         import cv2  # type: ignore
@@ -124,7 +125,7 @@ def _estimate_pair_motion(gray_a: np.ndarray, gray_b: np.ndarray) -> Dict[str, f
         }
 
 
-def _ffprobe_video(video_path: str) -> Dict[str, Any]:
+def _ffprobe_video(video_path: str) -> dict[str, Any]:
     try:
         proc = subprocess.run(
             [
@@ -170,8 +171,8 @@ def _parse_frame_rate(rate: str) -> float:
         return 0.0
 
 
-def _collect_bbox_areas(items: Iterable[Dict[str, Any]], labels: Optional[set[str]] = None) -> List[float]:
-    out: List[float] = []
+def _collect_bbox_areas(items: Iterable[dict[str, Any]], labels: set[str] | None = None) -> list[float]:
+    out: list[float] = []
     for det in items:
         label = str(det.get("label", "") or "").lower()
         if labels and label not in labels:
@@ -198,7 +199,7 @@ def _score_band(value: float, *, good: float, fair: float, high_is_good: bool = 
     return "poor"
 
 
-def _text_angle_hint(texts: Sequence[str]) -> Dict[str, Any]:
+def _text_angle_hint(texts: Sequence[str]) -> dict[str, Any]:
     blob = " ".join(t.lower() for t in texts if t).strip()
     overhead_terms = ["from above", "aerial", "top-down", "drone view", "bird's-eye", "birds-eye"]
     oblique_terms = ["oblique", "angled", "facade", "horizon", "side view"]
@@ -214,12 +215,12 @@ def _text_angle_hint(texts: Sequence[str]) -> Dict[str, Any]:
 def advise_map_quality(
     *,
     video_path: str,
-    frame_list: Sequence[Tuple[str, float]],
-    map_result: Optional[Dict[str, Any]] = None,
-    caption_results: Optional[List[Dict[str, Any]]] = None,
-    tracking_results: Optional[Dict[str, Any]] = None,
-    output_dir: Optional[Path] = None,
-) -> Dict[str, Any]:
+    frame_list: Sequence[tuple[str, float]],
+    map_result: dict[str, Any] | None = None,
+    caption_results: list[dict[str, Any]] | None = None,
+    tracking_results: dict[str, Any] | None = None,
+    output_dir: Path | None = None,
+) -> dict[str, Any]:
     sampled = _sample_evenly(frame_list, max_frames=18)
     gray_frames = [_load_gray(fp) for fp, _ in sampled]
     brightness = [float(arr.mean()) for arr in gray_frames]
@@ -249,7 +250,7 @@ def advise_map_quality(
     texts.append(str((map_result or {}).get("quality_note", "") or ""))
     angle_hint = _text_angle_hint(texts)
 
-    bbox_areas: List[float] = []
+    bbox_areas: list[float] = []
     if tracking_results:
         for frame in tracking_results.get("frames", []) or []:
             bbox_areas.extend(_collect_bbox_areas(frame.get("detections", []) or [], labels={"car", "truck", "bus", "motorcycle", "vehicle"}))
@@ -296,8 +297,8 @@ def advise_map_quality(
         "camera_angle": "poor" if angle_hint["label"] == "mostly_overhead" else ("good" if angle_hint["label"] == "oblique" else "fair"),
     }
 
-    issues: List[str] = []
-    recommendations: List[str] = []
+    issues: list[str] = []
+    recommendations: list[str] = []
     if assessments["duration"] == "poor":
         issues.append(f"Clip is too short for robust mapping ({metrics['clip_duration_sec']:.1f}s).")
         recommendations.append("Capture at least 25-40 s over the area of interest before expecting high-quality SfM.")

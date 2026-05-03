@@ -16,8 +16,8 @@ import base64
 import concurrent.futures
 import io
 import json
-import logging
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from PIL import Image
 
@@ -75,8 +75,8 @@ def _looks_like_ollama(api_url: str) -> bool:
     return ":11434" in (api_url or "")
 
 
-def _request_kwargs_for_backend(api_url: str) -> Dict[str, Any]:
-    kwargs: Dict[str, Any] = {
+def _request_kwargs_for_backend(api_url: str) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
         "max_tokens": 512,
         "temperature": 0.0,
     }
@@ -90,9 +90,9 @@ def _request_kwargs_for_backend(api_url: str) -> Dict[str, Any]:
 
 def _build_user_content(
     image: Image.Image,
-    subtitle_text: Optional[str] = None,
-    ocr_text: Optional[str] = None,
-    extra_context: Optional[str] = None,
+    subtitle_text: str | None = None,
+    ocr_text: str | None = None,
+    extra_context: str | None = None,
 ) -> list:
     """Build the user-message content list enriched with all available prior knowledge.
 
@@ -170,7 +170,7 @@ def _health_check_ollama(base_url: str, timeout: int) -> bool:
         return False
 
 
-def _parse_qwen_response(raw_text: str) -> Dict[str, Any]:
+def _parse_qwen_response(raw_text: str) -> dict[str, Any]:
     """Parse raw Qwen response text into a structured dict.
 
     Strips markdown code fences, parses JSON, validates top-level structure,
@@ -196,7 +196,7 @@ def _parse_qwen_response(raw_text: str) -> Dict[str, Any]:
         return {"parse_error": True, "raw": raw_text[:500]}
 
     # Normalise: ensure expected keys are present with safe defaults
-    normalised: Dict[str, Any] = {
+    normalised: dict[str, Any] = {
         "vehicle_groups": data.get("vehicle_groups", []),
         "road_surface": data.get("road_surface", "unknown"),
         "road_condition": data.get("road_condition", "unknown"),
@@ -230,10 +230,10 @@ class QwenModel:
         OpenCLIPEmbedder.
     """
 
-    def __init__(self, clip_prescreen_fn: Optional[Callable[[Image.Image], bool]] = None):
+    def __init__(self, clip_prescreen_fn: Callable[[Image.Image], bool] | None = None):
         self._clip_prescreen_fn = clip_prescreen_fn
         self._tagger = None  # lazily initialised OpenCLIPTagger
-        self._healthy: Optional[bool] = None  # cached health state
+        self._healthy: bool | None = None  # cached health state
         self._client = None
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -257,9 +257,9 @@ class QwenModel:
     def extract_frame_facts(
         self,
         image: Image.Image,
-        subtitle_text: Optional[str] = None,
-        ocr_text: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        subtitle_text: str | None = None,
+        ocr_text: str | None = None,
+    ) -> dict[str, Any]:
         """Extract structured scene facts from a single frame image.
 
         Parameters
@@ -370,12 +370,12 @@ class QwenModel:
 
     def extract_batch(
         self,
-        images: List[Image.Image],
-        subtitle_texts: Optional[List[Optional[str]]] = None,
-        ocr_texts: Optional[List[Optional[str]]] = None,
-        extra_contexts: Optional[List[Optional[str]]] = None,
-        domain_hint: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        images: list[Image.Image],
+        subtitle_texts: list[str | None] | None = None,
+        ocr_texts: list[str | None] | None = None,
+        extra_contexts: list[str | None] | None = None,
+        domain_hint: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Extract frame facts for a list of images with optional per-image context.
 
         ``subtitle_texts``, ``ocr_texts``, and ``extra_contexts`` must be the
@@ -406,7 +406,7 @@ class QwenModel:
             return [self._extract_frame_facts_with_context(img, s, o, c, domain_hint) for img, s, o, c in jobs]
 
         max_workers = min(concurrency, len(jobs))
-        results: List[Optional[Dict[str, Any]]] = [None] * len(jobs)
+        results: list[dict[str, Any] | None] = [None] * len(jobs)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
             future_to_idx = {
                 pool.submit(self._extract_frame_facts_with_context, img, s, o, c, domain_hint): idx
@@ -424,11 +424,11 @@ class QwenModel:
     def _extract_frame_facts_with_context(
         self,
         image: Image.Image,
-        subtitle_text: Optional[str] = None,
-        ocr_text: Optional[str] = None,
-        extra_context: Optional[str] = None,
-        domain_hint: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        subtitle_text: str | None = None,
+        ocr_text: str | None = None,
+        extra_context: str | None = None,
+        domain_hint: str | None = None,
+    ) -> dict[str, Any]:
         """Internal: extract_frame_facts extended with extra_context and domain_hint."""
         if not self.is_enabled():
             return {"disabled": True}
@@ -469,7 +469,7 @@ class QwenModel:
         _api_url   = settings.GEMMA_API_URL or settings.QWEN_API_URL
         _api_model = settings.GEMMA_API_MODEL if settings.GEMMA_API_URL else settings.QWEN_MODEL
         try:
-            from openai import OpenAI, APITimeoutError
+            from openai import OpenAI
 
             client = OpenAI(
                 api_key="EMPTY",

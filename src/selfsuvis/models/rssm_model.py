@@ -37,7 +37,7 @@ Graceful degradation:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -78,7 +78,7 @@ class RSSMEmbedder:
         self.train_steps = train_steps
         self.lr = lr
         self.kl_beta = kl_beta
-        self._torch_available: Optional[bool] = None
+        self._torch_available: bool | None = None
 
     def _check_torch(self) -> bool:
         if self._torch_available is None:
@@ -95,8 +95,8 @@ class RSSMEmbedder:
     def encode_sequence(
         self,
         clip_embeddings: np.ndarray,
-        device: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        device: str | None = None,
+    ) -> dict[str, Any]:
         """Encode a sequence of CLIP embeddings with the RSSM.
 
         Trains the RSSM online on the provided sequence, then returns per-frame
@@ -136,8 +136,8 @@ class RSSMEmbedder:
         self,
         embeddings: np.ndarray,
         clip_dim: int,
-        device: Optional[str],
-    ) -> Dict[str, Any]:
+        device: str | None,
+    ) -> dict[str, Any]:
         import torch
         import torch.nn as nn
         import torch.nn.functional as F
@@ -216,7 +216,7 @@ class RSSMEmbedder:
 
         with torch.no_grad():
             h = torch.zeros(1, self.hidden_dim, device=dev)
-            z_prev_pred: Optional[torch.Tensor] = None
+            z_prev_pred: torch.Tensor | None = None
 
             for t in range(N):
                 x = emb_t[t : t + 1]
@@ -257,7 +257,7 @@ class RSSMEmbedder:
 
     # ── EMA fallback ──────────────────────────────────────────────────────────
 
-    def _encode_with_ema(self, embeddings: np.ndarray) -> Dict[str, Any]:
+    def _encode_with_ema(self, embeddings: np.ndarray) -> dict[str, Any]:
         """Exponential moving average baseline — no gradient computation required."""
         N, D = embeddings.shape
         alpha = 0.1  # slow EMA → captures longer-range temporal context
@@ -289,7 +289,7 @@ class RSSMEmbedder:
             "latent_dim": self.latent_dim,
         }
 
-    def _empty_result(self, n: int) -> Dict[str, Any]:
+    def _empty_result(self, n: int) -> dict[str, Any]:
         return {
             "surprise_scores": np.zeros(n, dtype=np.float32),
             "recurrent_states": np.zeros((n, self.hidden_dim), dtype=np.float32),

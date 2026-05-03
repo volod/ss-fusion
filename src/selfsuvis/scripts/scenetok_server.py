@@ -15,16 +15,15 @@ import gc
 import io
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 import numpy as np
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
 from PIL import Image
+from pydantic import BaseModel, Field
 
 from selfsuvis.pipeline.core import resolve_device, settings
-
 
 app = FastAPI(title="selfsuvis-scenetok", version="1.0.0")
 
@@ -55,7 +54,7 @@ class FramePayload(BaseModel):
 
 
 class ProcessRequest(BaseModel):
-    frames: List[FramePayload] = Field(default_factory=list)
+    frames: list[FramePayload] = Field(default_factory=list)
     checkpoint: str = Field(
         default_factory=lambda: str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
     )
@@ -72,7 +71,7 @@ class DecodedFrame(BaseModel):
 class ProcessResponse(BaseModel):
     tokens_b64_npz: str
     n_tokens: int
-    results: List[DecodedFrame]
+    results: list[DecodedFrame]
 
 
 class SceneTokService:
@@ -133,7 +132,7 @@ class SceneTokService:
         self._decoder = SceneTokDecoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
         self._checkpoint = checkpoint
 
-    def _run_locked(self, req: ProcessRequest) -> Dict[str, Any]:
+    def _run_locked(self, req: ProcessRequest) -> dict[str, Any]:
         import torch
 
         if not req.frames:
@@ -141,8 +140,8 @@ class SceneTokService:
 
         self._load_locked(req.checkpoint)
 
-        images: List[Image.Image] = []
-        timestamps: List[float] = []
+        images: list[Image.Image] = []
+        timestamps: list[float] = []
         for frame in req.frames:
             images.append(_decode_b64_jpeg(frame.b64_jpeg))
             timestamps.append(frame.t_sec)
@@ -155,7 +154,7 @@ class SceneTokService:
         tokens_buf = io.BytesIO()
         np.savez_compressed(tokens_buf, tokens=tokens_np)
 
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for t_sec, item in zip(timestamps, outputs):
             arr = item.detach().cpu().numpy()
             results.append({"t_sec": t_sec, "b64_png": _encode_png_b64(arr)})
@@ -166,7 +165,7 @@ class SceneTokService:
             "results": results,
         }
 
-    async def health(self) -> Dict[str, Any]:
+    async def health(self) -> dict[str, Any]:
         checkpoint = str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
         ckpt_path = _checkpoint_path(checkpoint)
         return {
@@ -179,7 +178,7 @@ class SceneTokService:
             "cuda_visible_devices": os.getenv("CUDA_VISIBLE_DEVICES", ""),
         }
 
-    async def process(self, req: ProcessRequest) -> Dict[str, Any]:
+    async def process(self, req: ProcessRequest) -> dict[str, Any]:
         async with self._lock:
             try:
                 return await asyncio.to_thread(self._run_locked, req)
@@ -197,7 +196,7 @@ SERVICE = SceneTokService()
 
 
 @app.get("/health")
-async def health() -> Dict[str, Any]:
+async def health() -> dict[str, Any]:
     return await SERVICE.health()
 
 

@@ -2,7 +2,10 @@
 
 Usage: python generate_imu_sidecar.py [BASENAME] [OUTPUT_DIR]
 """
-import json, math, random, pathlib, sys
+import json
+import pathlib
+import random
+import sys
 
 _BASE   = sys.argv[1] if len(sys.argv) > 1 else "sample_mission_042"
 _OUTDIR = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else pathlib.Path(__file__).parent

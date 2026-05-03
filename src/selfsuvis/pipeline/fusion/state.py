@@ -1,23 +1,23 @@
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from selfsuvis.pipeline.fusion.object_state import ObjectFusionResult
     from selfsuvis.pipeline.fusion.map_state import MapFusionResult
+    from selfsuvis.pipeline.fusion.object_state import ObjectFusionResult
     from selfsuvis.pipeline.fusion.semantic_priors import SemanticPrior
 
 
 @dataclass
 class PlatformPosteriorSample:
     t_sec: float
-    position_enu_m: Dict[str, float]
-    velocity_enu_mps: Dict[str, float]
+    position_enu_m: dict[str, float]
+    velocity_enu_mps: dict[str, float]
     covariance_trace: float
     quality: str
-    measurement_kinds: List[str] = field(default_factory=list)
+    measurement_kinds: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "t_sec": self.t_sec,
             "position_enu_m": self.position_enu_m,
@@ -34,13 +34,13 @@ class PlatformFusionResult:
     status: str
     reason: str = ""
     source: str = "platform_kalman_v1"
-    origin_lla: Optional[Dict[str, float]] = None
-    telemetry_sources: List[str] = field(default_factory=list)
-    measurement_counts: Dict[str, int] = field(default_factory=dict)
-    posterior_samples: List[PlatformPosteriorSample] = field(default_factory=list)
-    diagnostics: Dict[str, Any] = field(default_factory=dict)
+    origin_lla: dict[str, float] | None = None
+    telemetry_sources: list[str] = field(default_factory=list)
+    measurement_counts: dict[str, int] = field(default_factory=dict)
+    posterior_samples: list[PlatformPosteriorSample] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         final_sample = self.posterior_samples[-1].to_dict() if self.posterior_samples else None
         cov_values = [s.covariance_trace for s in self.posterior_samples]
         return {
@@ -58,7 +58,7 @@ class PlatformFusionResult:
             "diagnostics": dict(self.diagnostics),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         payload = self.summary()
         payload["posterior_samples"] = [sample.to_dict() for sample in self.posterior_samples]
         return payload
@@ -72,7 +72,7 @@ class FullFusionResult:
     map_state: "MapFusionResult"
     semantic_prior: "SemanticPrior"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "platform": self.platform.to_dict(),
             "object_state": self.object_state.to_dict(),
@@ -87,7 +87,7 @@ class FullFusionResult:
             },
         }
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "platform_status": self.platform.status,
             "object_tracks": self.object_state.track_count,

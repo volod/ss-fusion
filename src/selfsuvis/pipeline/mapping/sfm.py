@@ -22,10 +22,9 @@ pose_status values:
     "failed"   — registered frame but no valid pose
     "skipped"  — frame was not registered by pycolmap
 """
-import json
 import os
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from selfsuvis.pipeline.core import ensure_dir, get_logger, settings
 
@@ -50,7 +49,7 @@ def _validate_camera_model(model: str) -> str:
 
 def _extract_dense_frames(
     video_path: str, video_id: str, fps: float
-) -> List[str]:
+) -> list[str]:
     """Extract dense frames for SfM into frames/{video_id}_sfm/.
 
     Returns sorted list of absolute frame paths.
@@ -83,7 +82,7 @@ def _run_pycolmap(
     output_dir: str,
     camera_model: str,
     n_images: int,
-) -> List[Any]:
+) -> list[Any]:
     """Run pycolmap incremental mapping.
 
     Returns a list of pycolmap Reconstruction objects sorted by size (largest first),
@@ -211,7 +210,7 @@ def _configure_pycolmap_logging(pycolmap) -> None:
         pass
 
 
-def _pose_to_dict(image) -> Dict[str, Any]:
+def _pose_to_dict(image) -> dict[str, Any]:
     """Convert a pycolmap Image object to a serialisable dict."""
     cam_from_world = image.cam_from_world()
     R = cam_from_world.rotation.matrix().tolist()
@@ -228,7 +227,7 @@ def run_sfm(
     video_path: str,
     video_id: str,
     mission_id: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run the full SfM pipeline for a mission.
 
     1. Extract dense frames at SFM_FPS.
@@ -289,14 +288,14 @@ def run_sfm(
     reconstructions = _run_pycolmap(image_dir, output_dir, camera_model, len(frame_paths))
 
     # Build name → (scene_index, Image) lookup across all components
-    name_to_scene: Dict[str, Any] = {}
+    name_to_scene: dict[str, Any] = {}
     for scene_idx, recon in enumerate(reconstructions):
         for img in recon.images.values():
             name_to_scene[img.name] = (scene_idx, img)
 
     sfm_failed = len(reconstructions) == 0
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for idx, frame_path in enumerate(frame_paths):
         t_sec = idx / fps
         fname = os.path.basename(frame_path)

@@ -10,25 +10,26 @@ nodes are connected with ``near`` edges.
 
 import math
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.mapping.common import write_json_report, write_markdown_report
 
 
-def _euclidean(a: Tuple[float, float, float], b: Tuple[float, float, float]) -> float:
+def _euclidean(a: tuple[float, float, float], b: tuple[float, float, float]) -> float:
     return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
 
 
-def _bbox_area(bbox_norm: Optional[Iterable[float]]) -> float:
+def _bbox_area(bbox_norm: Iterable[float] | None) -> float:
     if not bbox_norm:
         return 0.0
     x1, y1, x2, y2 = [float(v) for v in bbox_norm]
     return max(0.0, x2 - x1) * max(0.0, y2 - y1)
 
 
-def _position_tuple(anchor: Dict[str, Any]) -> Tuple[float, float, float]:
+def _position_tuple(anchor: dict[str, Any]) -> tuple[float, float, float]:
     return (
         float(anchor.get("x", 0.0)),
         float(anchor.get("y", 0.0)),
@@ -36,7 +37,7 @@ def _position_tuple(anchor: Dict[str, Any]) -> Tuple[float, float, float]:
     )
 
 
-def _anchor_from_global_pose(global_pose_json: Optional[Dict[str, Any]]) -> Optional[Dict[str, float]]:
+def _anchor_from_global_pose(global_pose_json: dict[str, Any] | None) -> dict[str, float] | None:
     if not isinstance(global_pose_json, dict):
         return None
     if not {"tx", "ty", "tz"}.issubset(global_pose_json):
@@ -49,12 +50,12 @@ def _anchor_from_global_pose(global_pose_json: Optional[Dict[str, Any]]) -> Opti
 
 
 def _build_frame_anchor_lookup(
-    frame_positions: Optional[List[Dict[str, Any]]],
-    frame_observations: List[Dict[str, Any]],
-) -> tuple[Dict[str, Dict[str, float]], Dict[str, Dict[str, float]], List[Tuple[float, Dict[str, float]]], str]:
-    by_frame_path: Dict[str, Dict[str, float]] = {}
-    by_frame_id: Dict[str, Dict[str, float]] = {}
-    by_time: List[Tuple[float, Dict[str, float]]] = []
+    frame_positions: list[dict[str, Any]] | None,
+    frame_observations: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, float]], list[tuple[float, dict[str, float]]], str]:
+    by_frame_path: dict[str, dict[str, float]] = {}
+    by_frame_id: dict[str, dict[str, float]] = {}
+    by_time: list[tuple[float, dict[str, float]]] = []
 
     for item in frame_positions or []:
         if not isinstance(item, dict):
@@ -96,13 +97,13 @@ def _build_frame_anchor_lookup(
 
 
 def _nearest_anchor(
-    frame: Dict[str, Any],
+    frame: dict[str, Any],
     *,
-    by_frame_path: Dict[str, Dict[str, float]],
-    by_frame_id: Dict[str, Dict[str, float]],
-    by_time: List[Tuple[float, Dict[str, float]]],
+    by_frame_path: dict[str, dict[str, float]],
+    by_frame_id: dict[str, dict[str, float]],
+    by_time: list[tuple[float, dict[str, float]]],
     anchor_source: str,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     frame_path = frame.get("frame_path")
     if frame_path and frame_path in by_frame_path:
         return by_frame_path[frame_path]
@@ -122,12 +123,12 @@ def _nearest_anchor(
 
 
 def build_semantic_environment_graph(
-    frame_observations: List[Dict[str, Any]],
+    frame_observations: list[dict[str, Any]],
     *,
     graph_id: str,
-    frame_positions: Optional[List[Dict[str, Any]]] = None,
-    output_path: Optional[str | Path] = None,
-) -> Dict[str, Any]:
+    frame_positions: list[dict[str, Any]] | None = None,
+    output_path: str | Path | None = None,
+) -> dict[str, Any]:
     """Build a semantic environment graph from YOLO detections.
 
     Parameters
@@ -157,11 +158,11 @@ def build_semantic_environment_graph(
         else settings.YOLO_SSG_NEAR_EDGE_RADIUS_METERS
     )
 
-    nodes: List[Dict[str, Any]] = []
-    frame_assignments: Dict[str, List[str]] = defaultdict(list)
-    observations: List[Dict[str, Any]] = []
+    nodes: list[dict[str, Any]] = []
+    frame_assignments: dict[str, list[str]] = defaultdict(list)
+    observations: list[dict[str, Any]] = []
 
-    def assign_detection(frame: Dict[str, Any], detection: Dict[str, Any]) -> Optional[str]:
+    def assign_detection(frame: dict[str, Any], detection: dict[str, Any]) -> str | None:
         label = str(detection.get("label", "")).strip()
         if not label:
             return None
@@ -240,7 +241,7 @@ def build_semantic_environment_graph(
         detections = frame.get("detections")
         if detections is None:
             detections = (frame.get("frame_facts_json") or {}).get("yolo_detections", [])
-        assigned: List[str] = []
+        assigned: list[str] = []
         for detection in detections or []:
             node_id = assign_detection(frame, detection)
             if node_id:
@@ -249,7 +250,7 @@ def build_semantic_environment_graph(
         if frame_key:
             frame_assignments[frame_key] = assigned
 
-    filtered_nodes: List[Dict[str, Any]] = []
+    filtered_nodes: list[dict[str, Any]] = []
     kept_ids: set[str] = set()
     for node in nodes:
         if node["observations"] < settings.YOLO_SSG_MIN_OBSERVATIONS:
@@ -265,14 +266,14 @@ def build_semantic_environment_graph(
     for frame_key, node_ids in list(frame_assignments.items()):
         frame_assignments[frame_key] = [node_id for node_id in node_ids if node_id in kept_ids]
 
-    co_observed: Counter[Tuple[str, str]] = Counter()
+    co_observed: Counter[tuple[str, str]] = Counter()
     for node_ids in frame_assignments.values():
         unique = sorted(set(node_ids))
         for idx, source in enumerate(unique):
             for target in unique[idx + 1 :]:
                 co_observed[(source, target)] += 1
 
-    edges: List[Dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
     for idx, source in enumerate(filtered_nodes):
         source_pos = _position_tuple(source["position"])
         for target in filtered_nodes[idx + 1 :]:
@@ -317,7 +318,7 @@ def build_semantic_environment_graph(
 
 
 def write_semantic_graph_markdown(
-    graph: Dict[str, Any],
+    graph: dict[str, Any],
     output_path: str | Path,
     *,
     title: str,
@@ -327,7 +328,7 @@ def write_semantic_graph_markdown(
     lines = [
         f"# {title}",
         "",
-        f"- Builder: `yolo_ssg`",
+        "- Builder: `yolo_ssg`",
         f"- Anchor source: `{graph.get('anchor_source', 'unknown')}`",
         f"- Coordinate frame: `{graph.get('coordinate_frame', 'unknown')}`",
         f"- Nodes: **{summary.get('node_count', 0)}**",

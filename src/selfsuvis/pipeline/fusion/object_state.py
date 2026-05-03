@@ -23,16 +23,16 @@ Output: ObjectFusionResult with per-frame smoothed track states.
 """
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 from selfsuvis.pipeline.fusion.filters.object_filter import (
-    ObjectKalmanFilter,
     ObjectFilterHistory,
-    _bbox_to_state,
+    ObjectKalmanFilter,
     _state_to_bbox,
 )
 from selfsuvis.pipeline.fusion.filters.rts_smoother import (
@@ -61,13 +61,13 @@ class ObjectStateSample:
     track_id: int
     label: str
     t_sec: float
-    bbox_norm: List[float]          # [x1, y1, x2, y2] smoothed
-    velocity_norm: List[float]      # [vcx, vcy] normalised/frame
-    bbox_std: List[float]           # [std_cx, std_cy, std_w, std_h]
+    bbox_norm: list[float]          # [x1, y1, x2, y2] smoothed
+    velocity_norm: list[float]      # [vcx, vcy] normalised/frame
+    bbox_std: list[float]           # [std_cx, std_cy, std_w, std_h]
     confidence: float
     track_state: str                # "tentative" | "confirmed" | "smoothed"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "track_id": self.track_id,
             "label": self.label,
@@ -88,10 +88,10 @@ class ObjectFusionResult:
     source: str = "object_kalman_mahalanobis_v1"
     track_count: int = 0
     confirmed_tracks: int = 0
-    per_frame: List[List[ObjectStateSample]] = field(default_factory=list)
-    diagnostics: Dict[str, Any] = field(default_factory=dict)
+    per_frame: list[list[ObjectStateSample]] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "enabled": self.enabled,
             "status": self.status,
@@ -106,7 +106,7 @@ class ObjectFusionResult:
             ],
         }
 
-    def to_local_state_summary(self) -> Dict[str, Any]:
+    def to_local_state_summary(self) -> dict[str, Any]:
         """Collapse per-frame object states into a clip-level physical belief.
 
         Returns a dict with:
@@ -126,8 +126,8 @@ class ObjectFusionResult:
 
 
 def _build_cost_matrix(
-    tracks: List[ObjectKalmanFilter],
-    detections: List[Dict[str, Any]],
+    tracks: list[ObjectKalmanFilter],
+    detections: list[dict[str, Any]],
 ) -> np.ndarray:
     """Build cost matrix [n_tracks × n_dets] using Mahalanobis distance².
     Cells exceeding the gate threshold are set to _INF_COST (infeasible).
@@ -148,7 +148,7 @@ def _build_cost_matrix(
 
 def _apply_speed_prior(
     kf: ObjectKalmanFilter,
-    speed_priors: Dict[str, float],
+    speed_priors: dict[str, float],
     dt: float,
 ) -> None:
     """Clamp the KF velocity estimate to the per-label speed cap."""
@@ -166,8 +166,8 @@ def _apply_speed_prior(
 
 
 def run_object_state_fusion(
-    tracking_results: Sequence[Dict[str, Any]],
-    prior: Optional[SemanticPrior] = None,
+    tracking_results: Sequence[dict[str, Any]],
+    prior: SemanticPrior | None = None,
     obs_noise: float = _OBS_NOISE,
     confirm_hits: int = _CONFIRM_HITS,
     max_miss_frames: int = _MAX_MISS_FRAMES,
@@ -190,9 +190,9 @@ def run_object_state_fusion(
         )
 
     speed_priors = (prior.object_speed_priors if prior else {})
-    active_tracks: Dict[int, ObjectKalmanFilter] = {}
+    active_tracks: dict[int, ObjectKalmanFilter] = {}
     next_id = 1
-    per_frame_raw: List[List[Dict[str, Any]]] = []  # for RTS
+    per_frame_raw: list[list[dict[str, Any]]] = []  # for RTS
 
     # ── Forward pass ─────────────────────────────────────────────────────────
     for frame_result in tracking_results:
@@ -250,7 +250,7 @@ def run_object_state_fusion(
                 next_id += 1
 
         # Snapshot for this frame
-        frame_snapshot: List[Dict[str, Any]] = []
+        frame_snapshot: list[dict[str, Any]] = []
         for trk in active_tracks.values():
             if trk.state in ("tentative", "confirmed"):
                 frame_snapshot.append({
@@ -266,13 +266,13 @@ def run_object_state_fusion(
 
     # ── RTS backward smoother per confirmed track ──────────────────────────
     # Collect complete forward history for each confirmed track
-    confirmed_filter_history: Dict[int, List[ObjectFilterHistory]] = {}
+    confirmed_filter_history: dict[int, list[ObjectFilterHistory]] = {}
     for trk in active_tracks.values():
         if trk.state == "confirmed" and len(trk.history) >= 2:
             confirmed_filter_history[trk.track_id] = trk.history
 
     # Run RTS over each confirmed track
-    smoothed_by_track: Dict[int, Dict[float, np.ndarray]] = {}
+    smoothed_by_track: dict[int, dict[float, np.ndarray]] = {}
     for tid, hist in confirmed_filter_history.items():
         steps = [
             FilteredStep(t_sec=h.t_sec, x=h.x, P=h.P)
@@ -282,9 +282,9 @@ def run_object_state_fusion(
         smoothed_by_track[tid] = {s.t_sec: s.x for s in rts_result}
 
     # ── Assemble output ────────────────────────────────────────────────────
-    per_frame_out: List[List[ObjectStateSample]] = []
+    per_frame_out: list[list[ObjectStateSample]] = []
     for frame_idx, frame_snapshot in enumerate(per_frame_raw):
-        frame_out: List[ObjectStateSample] = []
+        frame_out: list[ObjectStateSample] = []
         for snap in frame_snapshot:
             tid = snap["track_id"]
             t = snap["t_sec"]
@@ -335,8 +335,8 @@ def run_object_state_fusion(
 # ── Clip-level summary helper ─────────────────────────────────────────────────
 
 def summarize_object_frame_dicts(
-    per_frame_dicts: List[List[Dict[str, Any]]],
-) -> Dict[str, Any]:
+    per_frame_dicts: list[list[dict[str, Any]]],
+) -> dict[str, Any]:
     """Collapse serialised per-frame object states into a clip-level belief dict.
 
     Works on the output of ``ObjectFusionResult.to_dict()["per_frame"]`` so it
@@ -357,9 +357,9 @@ def summarize_object_frame_dicts(
     _NEAR_LO, _NEAR_HI = 0.3, 0.7          # central region boundaries
     _ACTIVE = {"confirmed", "smoothed"}
 
-    vel_by_label: Dict[str, List[float]] = {}
-    all_uncertainties: List[float] = []
-    frame_near_densities: List[float] = []
+    vel_by_label: dict[str, list[float]] = {}
+    all_uncertainties: list[float] = []
+    frame_near_densities: list[float] = []
     confirmed_track_ids: set[int] = set()
 
     for frame_samples in per_frame_dicts:

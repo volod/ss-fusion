@@ -14,7 +14,8 @@ Reference:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -31,7 +32,7 @@ _MIN_STD_M = 0.5
 def _umeyama_sim3(
     src: np.ndarray,  # (N, 3) source points (SfM)
     dst: np.ndarray,  # (N, 3) destination points (ENU)
-) -> Tuple[float, np.ndarray, np.ndarray, float]:
+) -> tuple[float, np.ndarray, np.ndarray, float]:
     """Fit the optimal Sim(3): dst ≈ scale * R @ src + t.
 
     Returns:
@@ -71,12 +72,12 @@ def _umeyama_sim3(
 
 
 def align_sfm_to_enu(
-    sfm_positions: Sequence[Dict[str, Any]],
-    gps_enu_by_t: Dict[float, Tuple[float, float, float]],
+    sfm_positions: Sequence[dict[str, Any]],
+    gps_enu_by_t: dict[float, tuple[float, float, float]],
     gps_std_m: float = 5.0,
     sfm_base_std_m: float = 2.0,
     min_frames: int = _MIN_ALIGNED_FRAMES,
-) -> Tuple[Optional[Dict[str, Any]], List[PlatformMeasurement]]:
+) -> tuple[dict[str, Any] | None, list[PlatformMeasurement]]:
     """Align SfM camera centres to GPS-ENU and produce visual-pose measurements.
 
     Args:
@@ -132,7 +133,7 @@ def align_sfm_to_enu(
     )
 
     # Build measurements for ALL SfM frames (not only the ones used for fitting)
-    measurements: List[PlatformMeasurement] = []
+    measurements: list[PlatformMeasurement] = []
     for sfm_f in sfm_positions:
         t = float(sfm_f.get("t_sec", 0.0))
         pos = sfm_f.get("position", {})

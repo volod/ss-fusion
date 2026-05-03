@@ -1,5 +1,6 @@
 """Unit tests for pipeline/model_registry.py — no GPU or network required."""
 import pytest
+
 from selfsuvis.pipeline.vision.registry import (
     CATALOGS,
     ModelEntry,
@@ -7,7 +8,6 @@ from selfsuvis.pipeline.vision.registry import (
     get_entry,
     list_models,
 )
-
 
 # ── CATALOGS structure ────────────────────────────────────────────────────────
 

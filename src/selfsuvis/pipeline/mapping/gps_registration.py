@@ -30,7 +30,7 @@ Usage:
 """
 import json
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -85,7 +85,7 @@ def gps_to_enu(
     origin_lat: float,
     origin_lon: float,
     origin_alt: float,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Convert a GPS coordinate to ENU relative to the given origin.
 
     Returns:
@@ -103,7 +103,7 @@ def _compose_global_pose(
     R_cam: np.ndarray,
     t_cam: np.ndarray,
     gps_enu: np.ndarray,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compose pycolmap camera pose with GPS-derived ENU position.
 
     pycolmap convention: X_world = R @ X_cam + t  (world=colmap local frame)
@@ -115,7 +115,6 @@ def _compose_global_pose(
         t_enu:        [tx, ty, tz]        — translation in ENU frame
     """
     # Camera centre in colmap world frame: C = -R^T @ t
-    C_colmap = -R_cam.T @ t_cam
     # Anchor to ENU: camera centre in global ENU = GPS position + colmap offset
     # For Phase 1 we use the GPS position directly as the camera's ENU position.
     # (pycolmap's translation is in the local SfM frame; Phase 1 uses GPS only.)
@@ -131,8 +130,8 @@ def _compose_global_pose(
 # ── Main registration function ────────────────────────────────────────────────
 
 def register_mission_gps(
-    frames: List[Dict[str, Any]],
-) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+    frames: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Phase 1 GPS-to-ENU registration for a mission.
 
     For each frame that has both a valid GPS fix (gps_json) and a pycolmap pose
@@ -152,7 +151,7 @@ def register_mission_gps(
                         Empty dict if no frames can be registered.
     """
     # Find first GPS-valid frame to use as ENU origin
-    enu_origin: Optional[Dict[str, Any]] = None
+    enu_origin: dict[str, Any] | None = None
     for frame in frames:
         gps = _parse_json_field(frame.get("gps_json"))
         if gps and gps.get("lat") is not None:
@@ -172,7 +171,7 @@ def register_mission_gps(
     origin_alt = enu_origin["alt"]
     origin_ecef = _geodetic_to_ecef(origin_lat, origin_lon, origin_alt)
 
-    global_poses: Dict[str, Any] = {}
+    global_poses: dict[str, Any] = {}
     n_registered = 0
     n_gps_only = 0
 
@@ -217,7 +216,7 @@ def register_mission_gps(
     return enu_origin, global_poses
 
 
-def _parse_json_field(value: Any) -> Optional[Dict]:
+def _parse_json_field(value: Any) -> dict | None:
     """Parse a field that may be a JSON string, dict, or None."""
     if value is None:
         return None
@@ -234,9 +233,9 @@ def _parse_json_field(value: Any) -> Optional[Dict]:
 # ── SE(3) registration transform ─────────────────────────────────────────────
 
 def build_registration_transform(
-    enu_origin: Dict[str, Any],
-    reference_origin: Dict[str, Any],
-) -> List[List[float]]:
+    enu_origin: dict[str, Any],
+    reference_origin: dict[str, Any],
+) -> list[list[float]]:
     """Build a 4×4 SE(3) registration transform between two ENU origins.
 
     Used for global_map_missions.registration_transform_json.

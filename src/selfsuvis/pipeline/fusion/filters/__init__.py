@@ -1,4 +1,4 @@
-from .object_filter import ObjectKalmanFilter, ObjectFilterHistory
+from .object_filter import ObjectFilterHistory, ObjectKalmanFilter
 from .platform import PlatformStateFilter
 from .rts_smoother import FilteredStep, SmoothedStep, rts_smooth
 

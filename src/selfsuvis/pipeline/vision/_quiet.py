@@ -5,7 +5,7 @@ import contextlib
 import io
 import logging
 import warnings
-from typing import Iterator, Mapping
+from collections.abc import Iterator, Mapping
 
 
 @contextlib.contextmanager

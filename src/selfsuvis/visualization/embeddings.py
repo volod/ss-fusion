@@ -1,8 +1,7 @@
 """Embedding visualizations: PCA scatter and cosine-similarity heatmap."""
 
-
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -12,12 +11,15 @@ from selfsuvis.analytics.embeddings import (
     pca_project,
 )
 
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
 
 def plot_embedding_pca(
     run_dir: str | Path,
-    out_path: Optional[str | Path] = None,
+    out_path: str | Path | None = None,
     show: bool = False,
-) -> "matplotlib.figure.Figure":
+) -> "Figure":
     """2-D PCA scatter of frame embeddings from edge_models/gallery.npz.
 
     Points are coloured by temporal index (early=blue, late=red).
@@ -54,9 +56,9 @@ def plot_embedding_pca(
 
 def plot_similarity_matrix(
     run_dir: str | Path,
-    out_path: Optional[str | Path] = None,
+    out_path: str | Path | None = None,
     show: bool = False,
-) -> "matplotlib.figure.Figure":
+) -> "Figure":
     """Cosine-similarity heatmap of all frame-pair embeddings."""
     import matplotlib
     matplotlib.use("Agg")

@@ -14,7 +14,6 @@ caption_batch() contract:
 
 import logging
 from pathlib import Path
-from typing import List, Tuple
 
 import torch
 from PIL import Image
@@ -341,9 +340,9 @@ class FlorenceModel:
 
     def caption_batch(
         self,
-        images: List[Image.Image],
+        images: list[Image.Image],
         batch_size: int | None = None,
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """Caption a list of PIL images.
 
         Returns a list of (caption, confidence) tuples, one per input image.
@@ -354,7 +353,7 @@ class FlorenceModel:
             return []
 
         effective_batch = batch_size if batch_size is not None else settings.FLORENCE_BATCH_SIZE
-        results: List[Tuple[str, float]] = []
+        results: list[tuple[str, float]] = []
 
         for batch_start in range(0, len(images), effective_batch):
             batch = images[batch_start : batch_start + effective_batch]
@@ -388,9 +387,9 @@ class FlorenceModel:
 
     def _caption_batch_chunk(
         self,
-        images: List[Image.Image],
+        images: list[Image.Image],
         batch_size: int,
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """Caption one chunk, with OOM fallback to batch=1."""
         try:
             return self._run_inference(images)
@@ -414,7 +413,7 @@ class FlorenceModel:
                 return [self._caption_single(img) for img in images]
             raise
 
-    def _run_inference(self, images: List[Image.Image]) -> List[Tuple[str, float]]:
+    def _run_inference(self, images: list[Image.Image]) -> list[tuple[str, float]]:
         """Run Florence inference on a list of images (same batch)."""
         prompts = [_TASK_PROMPT] * len(images)
         # Florence-2 requires square feature maps; pad non-square frames in place.
@@ -490,7 +489,7 @@ class FlorenceModel:
         self._generation_mode = "eager-noscores" if self._generation_mode == "eager" else "caption-only"
         return generated
 
-    def _caption_single(self, image: Image.Image) -> Tuple[str, float]:
+    def _caption_single(self, image: Image.Image) -> tuple[str, float]:
         """Caption one image, returning ("", 0.5) on any error."""
         try:
             results = self._run_inference([image])
@@ -524,7 +523,7 @@ def _resolve_local_model_source(model_id: str) -> str | Path:
 def _compute_confidences(
     scores: tuple | None,
     generated_ids: torch.Tensor,
-) -> List[float]:
+) -> list[float]:
     """Compute mean token probability for each sequence in the batch.
 
     scores: tuple of (vocab_size,) or (batch, vocab_size) tensors, one per step.

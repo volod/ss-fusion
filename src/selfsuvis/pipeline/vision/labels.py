@@ -1,6 +1,4 @@
 import os
-from typing import List, Optional
-
 
 DEFAULT_LABELS = [
     "person",
@@ -245,10 +243,10 @@ DEFAULT_LABELS = [
 ]
 
 
-def load_labels(path: Optional[str] = None) -> List[str]:
+def load_labels(path: str | None = None) -> list[str]:
     if path and os.path.exists(path):
-        labels: List[str] = []
-        with open(path, "r", encoding="utf-8") as f:
+        labels: list[str] = []
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 name = line.strip()
                 if not name or name.startswith("#"):

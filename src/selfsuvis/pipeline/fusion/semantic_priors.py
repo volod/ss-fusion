@@ -15,14 +15,15 @@ Usage::
 """
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # ── Scene-type → process noise scale ─────────────────────────────────────────
 # Higher value = more dynamic scene (starts/stops) → inflate Q.
-_SCENE_PROCESS_NOISE: Dict[str, float] = {
+_SCENE_PROCESS_NOISE: dict[str, float] = {
     "highway":        0.60,   # mostly constant velocity, low noise
     "motorway":       0.60,
     "rural_road":     0.80,
@@ -42,7 +43,7 @@ _SCENE_PROCESS_NOISE: Dict[str, float] = {
 
 # ── Object category → maximum plausible speed (m/s) ──────────────────────────
 # Used as a hard-clamp on the velocity state post-update.
-_OBJECT_SPEED_PRIORS: Dict[str, float] = {
+_OBJECT_SPEED_PRIORS: dict[str, float] = {
     "person":       3.5,
     "pedestrian":   3.5,
     "child":        3.0,
@@ -78,18 +79,18 @@ class SemanticPrior:
     temporal_noise_scale: float = 1.0  # from RSSM surprise
 
     # Per-label speed caps (m/s) for object velocity clamping
-    object_speed_priors: Dict[str, float] = field(default_factory=dict)
+    object_speed_priors: dict[str, float] = field(default_factory=dict)
 
     # Diagnostics
-    dominant_labels: List[str] = field(default_factory=list)
+    dominant_labels: list[str] = field(default_factory=list)
     urban_canyon_detected: bool = False
     raw_scene_type: str = "unknown"
 
 
 def build_semantic_prior(
-    gemma_analysis: Optional[Dict[str, Any]] = None,
-    qwen_captions: Optional[Sequence[Dict[str, Any]]] = None,
-    rssm_surprise_mean: Optional[float] = None,
+    gemma_analysis: dict[str, Any] | None = None,
+    qwen_captions: Sequence[dict[str, Any]] | None = None,
+    rssm_surprise_mean: float | None = None,
 ) -> SemanticPrior:
     """Derive SemanticPrior from structured VLM outputs.
 
@@ -101,7 +102,7 @@ def build_semantic_prior(
         rssm_surprise_mean: Mean RSSM temporal-surprise score [0, 1] for the video.
     """
     scene_type = "unknown"
-    dominant_labels: List[str] = []
+    dominant_labels: list[str] = []
     urban_canyon_detected = False
 
     # ── Parse Gemma analysis ──────────────────────────────────────────────────
@@ -162,7 +163,7 @@ def build_semantic_prior(
     combined_proc = proc_scale * temporal_scale
 
     # ── Object speed priors ───────────────────────────────────────────────────
-    obj_priors: Dict[str, float] = dict(_OBJECT_SPEED_PRIORS)
+    obj_priors: dict[str, float] = dict(_OBJECT_SPEED_PRIORS)
     # Label-specific priors from Gemma dominant objects
     for lbl in dominant_labels:
         if lbl not in obj_priors:

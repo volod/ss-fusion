@@ -1,12 +1,10 @@
 """Shared filesystem helpers for training stages."""
 
 from pathlib import Path
-from typing import Union
 
 import torch
 
-
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 def ensure_output_dir(path: PathLike) -> Path:

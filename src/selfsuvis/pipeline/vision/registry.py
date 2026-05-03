@@ -16,7 +16,6 @@ Usage::
 import os
 import subprocess
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 from selfsuvis.pipeline.core import get_logger
 
@@ -26,7 +25,7 @@ logger = get_logger(__name__)
 # ── Resource detection ────────────────────────────────────────────────────────
 
 
-def _env_float_override(key: str) -> Optional[float]:
+def _env_float_override(key: str) -> float | None:
     raw = os.environ.get(key)
     if raw is None or not raw.strip():
         return None
@@ -104,7 +103,7 @@ def detect_ram_gb() -> float:
     return 8.0  # conservative fallback
 
 
-def detect_resources() -> Dict[str, float]:
+def detect_resources() -> dict[str, float]:
     """Return dict with GPU total/free VRAM and system RAM."""
     vram = detect_vram_gb()
     free_vram = detect_free_vram_gb()
@@ -130,13 +129,13 @@ class ModelEntry:
     description: str           # One-line capability description
     supports_video: bool = False
     # Extra per-entry kwargs forwarded to the model loader (e.g. quantization hints)
-    extra: Dict = field(default_factory=dict)
+    extra: dict = field(default_factory=dict)
 
 
 # ── Top-10 catalogs per task ──────────────────────────────────────────────────
 # Each list is ordered small → large. ``auto_select`` picks the largest that fits.
 
-CATALOGS: Dict[str, List[ModelEntry]] = {
+CATALOGS: dict[str, list[ModelEntry]] = {
 
     # ── Automatic Speech Recognition ─────────────────────────────────────────
     # Note: current ASR models top out around 1.55B params. No 3B+ ASR models
@@ -359,7 +358,7 @@ CATALOGS: Dict[str, List[ModelEntry]] = {
 
 # VRAM safety margin: never use the last N GB to leave headroom for other workers.
 _VRAM_SAFETY_MARGIN_GB = 2.0
-_TASK_RUNTIME_FALLBACKS: Dict[str, Dict[str, str]] = {
+_TASK_RUNTIME_FALLBACKS: dict[str, dict[str, str]] = {
     "world_model": {
         "nvidia/Cosmos-1.0-": "MCG-NJU/videomae-base",
         "facebook/vjepa2-": "MCG-NJU/videomae-base",
@@ -388,10 +387,10 @@ def normalize_model_id(task: str, model_id: str) -> str:
 
 def auto_select(
     task: str,
-    resources: Optional[Dict[str, float]] = None,
+    resources: dict[str, float] | None = None,
     *,
     prefer_video: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Return the largest model for ``task`` that fits in available VRAM.
 
     Falls back to the smallest model if nothing fits.
@@ -442,7 +441,7 @@ def auto_select(
     return selected.model_id
 
 
-def get_entry(task: str, model_id: str) -> Optional[ModelEntry]:
+def get_entry(task: str, model_id: str) -> ModelEntry | None:
     """Look up a ModelEntry by task + exact model_id."""
     for entry in CATALOGS.get(task, []):
         if entry.model_id == model_id:
@@ -450,7 +449,7 @@ def get_entry(task: str, model_id: str) -> Optional[ModelEntry]:
     return None
 
 
-def list_models(task: str) -> List[ModelEntry]:
+def list_models(task: str) -> list[ModelEntry]:
     """Return the catalog for a task, or empty list."""
     return CATALOGS.get(task, [])
 

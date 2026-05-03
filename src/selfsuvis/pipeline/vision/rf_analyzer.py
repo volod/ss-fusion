@@ -38,8 +38,7 @@ the four signal-quality metrics above.
 import gc
 import json
 import os
-import struct
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -60,7 +59,7 @@ _DEFAULT_CLASSES = [
 # ── IQ file discovery ─────────────────────────────────────────────────────────
 
 
-def _find_iq_sidecar(video_path: str) -> Tuple[Optional[str], str]:
+def _find_iq_sidecar(video_path: str) -> tuple[str | None, str]:
     """Return (iq_path, source_tag) for the first sidecar found, or (None, '')."""
     base = os.path.splitext(video_path)[0]
     candidates = [
@@ -74,7 +73,7 @@ def _find_iq_sidecar(video_path: str) -> Tuple[Optional[str], str]:
     return None, ""
 
 
-def _load_iq_file(path: str, source: str) -> Tuple[Optional[np.ndarray], float]:
+def _load_iq_file(path: str, source: str) -> tuple[np.ndarray | None, float]:
     """Load IQ samples as complex64 array.  Returns (samples, sample_rate)."""
     sample_rate = float(settings.RF_SAMPLE_RATE)
     try:
@@ -103,7 +102,7 @@ def _load_iq_file(path: str, source: str) -> Tuple[Optional[np.ndarray], float]:
         return None, sample_rate
 
 
-def _load_audio_proxy(wav_path: str) -> Tuple[Optional[np.ndarray], float]:
+def _load_audio_proxy(wav_path: str) -> tuple[np.ndarray | None, float]:
     """Load a WAV file as a real-valued proxy signal (treated as I-only baseband)."""
     try:
         import wave
@@ -134,7 +133,7 @@ def _extract_features(
     segment: np.ndarray,
     sample_rate: float,
     nperseg: int = 256,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute spectral features from one IQ segment using numpy FFT.
 
     Falls back gracefully to torchsig.transforms.Spectrogram if available,
@@ -145,7 +144,7 @@ def _extract_features(
         return {"rf_insufficient_samples": True}
 
     # Try torchsig spectrogram transform first (better windowing options).
-    spec_db: Optional[np.ndarray] = _torchsig_spectrogram(segment, nperseg)
+    spec_db: np.ndarray | None = _torchsig_spectrogram(segment, nperseg)
 
     if spec_db is None:
         # Pure numpy STFT fallback
@@ -187,7 +186,7 @@ def _extract_features(
     }
 
 
-def _numpy_spectrogram(samples: np.ndarray, nperseg: int) -> Optional[np.ndarray]:
+def _numpy_spectrogram(samples: np.ndarray, nperseg: int) -> np.ndarray | None:
     """Compute magnitude spectrogram (dB) via numpy FFT with Hann window."""
     try:
         window = np.hanning(nperseg).astype(np.float32)
@@ -206,7 +205,7 @@ def _numpy_spectrogram(samples: np.ndarray, nperseg: int) -> Optional[np.ndarray
         return None
 
 
-def _torchsig_spectrogram(samples: np.ndarray, nperseg: int) -> Optional[np.ndarray]:
+def _torchsig_spectrogram(samples: np.ndarray, nperseg: int) -> np.ndarray | None:
     """Try to compute spectrogram via torchsig transforms; return None if unavailable."""
     try:
         import torch
@@ -248,9 +247,9 @@ def _load_classifier(checkpoint_path: str):
 def _classify_segment(
     segment: np.ndarray,
     classifier,
-    classes: List[str],
+    classes: list[str],
     nperseg: int = 256,
-) -> Tuple[str, float]:
+) -> tuple[str, float]:
     """Run modulation classifier; returns (class_name, confidence)."""
     try:
         import torch
@@ -290,7 +289,7 @@ class RFSignalAnalyzer:
 
     def __init__(self) -> None:
         self._classifier = None
-        self._classes: List[str] = _DEFAULT_CLASSES
+        self._classes: list[str] = _DEFAULT_CLASSES
         self._load_classifier_if_configured()
 
     def is_enabled(self) -> bool:
@@ -301,9 +300,9 @@ class RFSignalAnalyzer:
     def analyze_video(
         self,
         video_path: str,
-        frame_timestamps: List[float],
-        audio_wav_path: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        frame_timestamps: list[float],
+        audio_wav_path: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Analyze all frame timestamps for *video_path*.
 
         Returns a list of result dicts (one per timestamp), in the same order.
@@ -325,7 +324,7 @@ class RFSignalAnalyzer:
         )
 
         window_samples = int(settings.RF_WINDOW_SEC * sample_rate)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for t_sec in frame_timestamps:
             start = int(t_sec * sample_rate)
@@ -357,8 +356,8 @@ class RFSignalAnalyzer:
     def _load_signal(
         self,
         video_path: str,
-        audio_wav_path: Optional[str],
-    ) -> Tuple[Optional[np.ndarray], float, str]:
+        audio_wav_path: str | None,
+    ) -> tuple[np.ndarray | None, float, str]:
         """Return (samples, sample_rate, source_tag) from best available source."""
         iq_path, source = _find_iq_sidecar(video_path)
         if iq_path:

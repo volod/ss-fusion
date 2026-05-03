@@ -13,18 +13,14 @@ Tests cover:
 """
 import os
 import random
-import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import numpy as np
 import torch
 import torch.nn as nn
 from PIL import Image
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -541,7 +537,6 @@ class TestConfigFromSettings(unittest.TestCase):
         self.assertIn(cfg.approach, ("temporal", "augment"))
 
     def test_env_override_respected(self):
-        import importlib
         import selfsuvis.pipeline.core.config as pc
         original = pc.settings.SSL_FINETUNE_EPOCHS
         try:

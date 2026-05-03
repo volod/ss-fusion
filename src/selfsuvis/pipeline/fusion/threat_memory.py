@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 from .sectors import build_route_segment_id, sectorize_global_positions, unique_sector_sequence
 
@@ -14,18 +15,18 @@ from .sectors import build_route_segment_id, sectorize_global_positions, unique_
 class ThreatMemoryRecord:
     mission_id: str
     video_id: str
-    sector_ids: List[str] = field(default_factory=list)
+    sector_ids: list[str] = field(default_factory=list)
     route_id: str = ""
     local_threat_score: float = 0.0
     automation_confidence: float = 1.0
     trust_penalty: float = 0.0
-    top_threats: List[Dict[str, Any]] = field(default_factory=list)
-    contradiction_signals: List[Dict[str, Any]] = field(default_factory=list)
-    source_pair_conflicts: List[Dict[str, Any]] = field(default_factory=list)
-    platform_metadata: Dict[str, Any] = field(default_factory=dict)
-    sensor_metadata: Dict[str, Any] = field(default_factory=dict)
+    top_threats: list[dict[str, Any]] = field(default_factory=list)
+    contradiction_signals: list[dict[str, Any]] = field(default_factory=list)
+    source_pair_conflicts: list[dict[str, Any]] = field(default_factory=list)
+    platform_metadata: dict[str, Any] = field(default_factory=dict)
+    sensor_metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mission_id": self.mission_id,
             "video_id": self.video_id,
@@ -44,9 +45,9 @@ class ThreatMemoryRecord:
 
 def persist_threat_memory(
     output_dir: Path,
-    per_video_stats: Sequence[Dict[str, Any]],
-    global_threat_result: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    per_video_stats: Sequence[dict[str, Any]],
+    global_threat_result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     mission_id = output_dir.name or "mission"
     records = [
         record for record in (
@@ -72,12 +73,12 @@ def persist_threat_memory(
 
 def summarize_threat_memory(
     records: Sequence[ThreatMemoryRecord],
-    global_threat_result: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    global_threat_result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     global_threat_result = global_threat_result or {}
-    pattern_counts: Dict[str, int] = {}
-    route_penalties: Dict[str, List[float]] = {}
-    subsystem_conflicts: Dict[str, int] = {
+    pattern_counts: dict[str, int] = {}
+    route_penalties: dict[str, list[float]] = {}
+    subsystem_conflicts: dict[str, int] = {
         "unidrive": 0,
         "tracking": 0,
         "depth": 0,
@@ -136,11 +137,11 @@ def summarize_threat_memory(
         "sensor_health_flags": sensor_health_flags,
         "subsystem_reliability_trends": subsystem_reliability_trends,
         "route_level_trust_warnings": route_level_trust_warnings,
-        "global_routes": list((global_threat_result.get("route_advisories") or [])),
+        "global_routes": list(global_threat_result.get("route_advisories") or []),
     }
 
 
-def _collect_memory_record(video_dir: Path, mission_id: str) -> Optional[ThreatMemoryRecord]:
+def _collect_memory_record(video_dir: Path, mission_id: str) -> ThreatMemoryRecord | None:
     if not video_dir.exists():
         return None
     local_threat = _load_json(video_dir / "local_threat_assessment.json")
@@ -170,7 +171,7 @@ def _collect_memory_record(video_dir: Path, mission_id: str) -> Optional[ThreatM
     )
 
 
-def _extract_sector_index(full_fusion: Dict[str, Any], video_name: str) -> Tuple[List[str], str]:
+def _extract_sector_index(full_fusion: dict[str, Any], video_name: str) -> tuple[list[str], str]:
     platform = full_fusion.get("platform") or {}
     origin = platform.get("origin_lla") or {}
     smoothed = ((full_fusion.get("map_state") or {}).get("smoothed_samples") or [])
@@ -183,10 +184,10 @@ def _extract_sector_index(full_fusion: Dict[str, Any], video_name: str) -> Tuple
 
 
 def _sensor_metadata(
-    local_threat: Dict[str, Any],
-    primitives: Dict[str, Any],
-    physical_state: Dict[str, Any],
-) -> Dict[str, Any]:
+    local_threat: dict[str, Any],
+    primitives: dict[str, Any],
+    physical_state: dict[str, Any],
+) -> dict[str, Any]:
     source_labels = set()
     for threat in local_threat.get("top_threats") or []:
         for source in ((threat.get("evidence") or {}).get("evidence_sources") or []):
@@ -201,7 +202,7 @@ def _sensor_metadata(
     }
 
 
-def _time_range_from_fusion(full_fusion: Dict[str, Any]) -> List[float]:
+def _time_range_from_fusion(full_fusion: dict[str, Any]) -> list[float]:
     smoothed = ((full_fusion.get("map_state") or {}).get("smoothed_samples") or [])
     if not smoothed:
         return [0.0, 0.0]
@@ -211,7 +212,7 @@ def _time_range_from_fusion(full_fusion: Dict[str, Any]) -> List[float]:
     ]
 
 
-def _load_json(path: Path) -> Dict[str, Any]:
+def _load_json(path: Path) -> dict[str, Any]:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:

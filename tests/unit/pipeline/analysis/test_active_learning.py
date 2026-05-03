@@ -154,6 +154,7 @@ def test_fit_kmeans_caps_clusters_at_n_samples():
 def test_fit_kmeans_uses_settings_threshold(monkeypatch):
     """fit_kmeans uses settings.KMEANS_BATCH_THRESHOLD when batch_threshold=None."""
     from sklearn.cluster import MiniBatchKMeans
+
     from selfsuvis.pipeline.core import config
     monkeypatch.setattr(config.settings, "KMEANS_BATCH_THRESHOLD", 10)
     emb = _random_embeddings(50)

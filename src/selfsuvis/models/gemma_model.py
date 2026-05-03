@@ -19,9 +19,9 @@ Requirements:
 import hashlib
 import logging
 from collections import OrderedDict
-from typing import List, Optional
 
 import numpy as np
+import torch
 from PIL import Image
 
 _log = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class GemmaEmbedder:
         hf_token: str = "",
     ) -> None:
         import torch
-        from transformers import AutoProcessor, AutoModelForCausalLM
+        from transformers import AutoModelForCausalLM, AutoProcessor
 
         self._torch = torch
 
@@ -77,6 +77,7 @@ class GemmaEmbedder:
 
         # Resolve token: explicit arg > env var HUGGING_FACE_HUB_TOKEN > HF_TOKEN
         import os as _os
+
         from selfsuvis.pipeline.core.config import mask_secret as _mask_secret  # noqa: PLC0415
         token = hf_token or _os.getenv("HUGGING_FACE_HUB_TOKEN") or _os.getenv("HF_TOKEN") or None
         _log.info(
@@ -130,7 +131,7 @@ class GemmaEmbedder:
         )
         # True when the processor accepts image inputs (multimodal variants)
         self._is_multimodal = hasattr(self.processor, "image_processor")
-        self._image_cache: "OrderedDict[str, np.ndarray]" = OrderedDict()
+        self._image_cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._image_cache_max = 2048
 
         _log.info(
@@ -141,12 +142,12 @@ class GemmaEmbedder:
     # ── Public interface (matches OpenCLIPEmbedder) ───────────────────────────
 
     def encode_images(
-        self, images: List[Image.Image], batch_size: int = 4
+        self, images: list[Image.Image], batch_size: int = 4
     ) -> np.ndarray:
         """Return L2-normalised image embeddings, shape ``(N, dim)``."""
         if not images:
             return np.zeros((0, self._dim), dtype=np.float32)
-        results: List[np.ndarray] = []
+        results: list[np.ndarray] = []
         for start in range(0, len(images), batch_size):
             batch = images[start : start + batch_size]
             try:
@@ -158,10 +159,10 @@ class GemmaEmbedder:
         return self._l2_norm(arr)
 
     def encode_texts(
-        self, texts: List[str], batch_size: int = 16
+        self, texts: list[str], batch_size: int = 16
     ) -> np.ndarray:
         """Return L2-normalised text embeddings, shape ``(N, dim)``."""
-        results: List[np.ndarray] = []
+        results: list[np.ndarray] = []
         for start in range(0, len(texts), batch_size):
             batch = texts[start : start + batch_size]
             try:
@@ -173,7 +174,7 @@ class GemmaEmbedder:
         return self._l2_norm(arr)
 
     def encode_images_temporal(
-        self, images: List[Image.Image], batch_size: int = 4
+        self, images: list[Image.Image], batch_size: int = 4
     ) -> np.ndarray:
         """Return a single L2-normalised embedding for a sequence of frames.
 
@@ -194,7 +195,7 @@ class GemmaEmbedder:
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    def _input_device(self) -> "torch.device":
+    def _input_device(self) -> torch.device:
         """Device where the model's embedding layer lives.
 
         With ``device_map`` (accelerate), individual layers may be placed on
@@ -281,7 +282,7 @@ class GemmaEmbedder:
         digest = hashlib.sha1(rgb.tobytes()).hexdigest()
         return f"{rgb.size[0]}x{rgb.size[1]}:{digest}"
 
-    def _cache_get_image(self, key: str) -> Optional[np.ndarray]:
+    def _cache_get_image(self, key: str) -> np.ndarray | None:
         cached = self._image_cache.get(key)
         if cached is None:
             return None
@@ -294,13 +295,13 @@ class GemmaEmbedder:
         while len(self._image_cache) > self._image_cache_max:
             self._image_cache.popitem(last=False)
 
-    def _encode_image_batch(self, images: List[Image.Image]) -> np.ndarray:
+    def _encode_image_batch(self, images: list[Image.Image]) -> np.ndarray:
         """Forward pass for one batch of PIL images → numpy (batch, dim)."""
         if self._is_multimodal:
             # Gemma 4 multimodal: processor treats a list of images as multiple
             # images for ONE conversation, not N separate image-text pairs.
             # Process one image at a time and stack results.
-            per_image: List[np.ndarray] = []
+            per_image: list[np.ndarray] = []
             for img in images:
                 inputs = self._move_inputs_to_device(self._build_multimodal_inputs(img))
                 with self._torch.no_grad():
@@ -334,10 +335,10 @@ class GemmaEmbedder:
         mask = inputs.get("attention_mask")
         return self._pool(last_hidden, mask)
 
-    def _encode_images_cached(self, images: List[Image.Image], batch_size: int) -> np.ndarray:
-        outputs: List[Optional[np.ndarray]] = [None] * len(images)
-        misses: List[Image.Image] = []
-        miss_indices: List[int] = []
+    def _encode_images_cached(self, images: list[Image.Image], batch_size: int) -> np.ndarray:
+        outputs: list[np.ndarray | None] = [None] * len(images)
+        misses: list[Image.Image] = []
+        miss_indices: list[int] = []
 
         for idx, image in enumerate(images):
             key = self._image_cache_key(image)
@@ -358,7 +359,7 @@ class GemmaEmbedder:
 
         return np.stack([o for o in outputs if o is not None], axis=0)
 
-    def _encode_text_batch(self, texts: List[str]) -> np.ndarray:
+    def _encode_text_batch(self, texts: list[str]) -> np.ndarray:
         """Forward pass for one batch of strings → numpy (batch, dim)."""
         prompts = [_TEXT_PROMPT.format(text=t) for t in texts]
         inputs  = self.processor(
@@ -380,7 +381,7 @@ class GemmaEmbedder:
         return self._pool(last_hidden, mask)
 
     @staticmethod
-    def _pool(hidden: "torch.Tensor", mask: Optional["torch.Tensor"]) -> np.ndarray:
+    def _pool(hidden: torch.Tensor, mask: torch.Tensor | None) -> np.ndarray:
         """Mean pool *hidden* over non-padding positions, return numpy array."""
         if mask is not None:
             m = mask.unsqueeze(-1).float()

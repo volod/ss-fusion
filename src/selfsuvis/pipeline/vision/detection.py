@@ -31,11 +31,17 @@ CLI override::
 import contextlib
 import io
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PIL import Image
 
-from selfsuvis.pipeline.core import get_logger, is_cuda_oom, pipeline_device_arg, resolve_device, settings
+from selfsuvis.pipeline.core import (
+    get_logger,
+    is_cuda_oom,
+    pipeline_device_arg,
+    resolve_device,
+    settings,
+)
 
 from ._pipe_mixin import _HFPipeMixin
 from .registry import resolve_model_id
@@ -56,9 +62,9 @@ class DetectionModel(_HFPipeMixin):
 
     def __init__(self) -> None:
         self._pipe = None
-        self._model_id: Optional[str] = None
+        self._model_id: str | None = None
         self._load_failed: bool = False
-        self._device: Optional[str] = None
+        self._device: str | None = None
 
     def is_enabled(self) -> bool:
         return settings.DETECTION_ENABLED
@@ -71,9 +77,9 @@ class DetectionModel(_HFPipeMixin):
 
     def detect_batch(
         self,
-        images: List[Image.Image],
-        candidate_labels: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        images: list[Image.Image],
+        candidate_labels: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Run detection on a batch of images. Returns one result dict per image."""
         if not self.is_enabled():
             return [{"detection_disabled": True}] * len(images)
@@ -85,8 +91,8 @@ class DetectionModel(_HFPipeMixin):
     def detect(
         self,
         image: Image.Image,
-        candidate_labels: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        candidate_labels: list[str] | None = None,
+    ) -> dict[str, Any]:
         if not self.is_enabled():
             return {"detection_disabled": True}
         pipe = self._get_pipe()
@@ -98,8 +104,8 @@ class DetectionModel(_HFPipeMixin):
         self,
         image: Image.Image,
         pipe,
-        candidate_labels: Optional[List[str]],
-    ) -> Dict[str, Any]:
+        candidate_labels: list[str] | None,
+    ) -> dict[str, Any]:
         kwargs = self._detect_kwargs(candidate_labels)
         try:
             if hasattr(pipe, "call_count"):
@@ -120,10 +126,10 @@ class DetectionModel(_HFPipeMixin):
 
     def _detect_many(
         self,
-        images: List[Image.Image],
+        images: list[Image.Image],
         pipe,
-        candidate_labels: Optional[List[str]],
-    ) -> List[Dict[str, Any]]:
+        candidate_labels: list[str] | None,
+    ) -> list[dict[str, Any]]:
         kwargs = self._detect_kwargs(candidate_labels)
         try:
             if hasattr(pipe, "call_count"):
@@ -147,8 +153,8 @@ class DetectionModel(_HFPipeMixin):
             )
         return [self._detect_one(image, pipe, candidate_labels) for image in images]
 
-    def _detect_kwargs(self, candidate_labels: Optional[List[str]]) -> Dict[str, Any]:
-        kwargs: Dict[str, Any] = {"threshold": settings.DETECTION_CONFIDENCE}
+    def _detect_kwargs(self, candidate_labels: list[str] | None) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"threshold": settings.DETECTION_CONFIDENCE}
         if candidate_labels is not None:
             kwargs["candidate_labels"] = candidate_labels
         elif settings.DETECTION_LABELS:
@@ -157,7 +163,7 @@ class DetectionModel(_HFPipeMixin):
             ]
         return kwargs
 
-    def _normalise_detection_output(self, raw: Any, image: Image.Image) -> Dict[str, Any]:
+    def _normalise_detection_output(self, raw: Any, image: Image.Image) -> dict[str, Any]:
         if not isinstance(raw, list):
             raw = []
         w, h = image.size
@@ -175,7 +181,7 @@ class DetectionModel(_HFPipeMixin):
             })
         return {"detections": detections, "detection_model": self.model_id}
 
-    def _get_pipe(self, force_device: Optional[str] = None):
+    def _get_pipe(self, force_device: str | None = None):
         target_device = force_device or self._device or _get_device()
         if self._pipe is not None and self._device == target_device:
             return self._pipe

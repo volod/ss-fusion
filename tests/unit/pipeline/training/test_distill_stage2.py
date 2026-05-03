@@ -17,7 +17,6 @@ Covers:
 """
 
 import os
-import sys
 import tempfile
 import types
 import unittest
@@ -26,7 +25,6 @@ from unittest.mock import MagicMock, patch
 
 import torch
 import torch.nn as nn
-
 
 # ── Shared tiny model that accepts any spatial input ─────────────────────────
 

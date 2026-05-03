@@ -1,12 +1,13 @@
 import json
-from typing import Any, Dict, Iterable, List
+from collections.abc import Iterable
+from typing import Any
 
 import requests
 
 from selfsuvis.pipeline.core.logging import get_logger
 
 
-def _mapping() -> Dict[str, Any]:
+def _mapping() -> dict[str, Any]:
     return {
         "mappings": {
             "dynamic": "strict",
@@ -106,8 +107,8 @@ def ensure_index(es_url: str, index: str) -> None:
     logger.info("Created index=%s", index)
 
 
-def _bulk_lines(index: str, records: Iterable[Dict[str, Any]]) -> str:
-    lines: List[str] = []
+def _bulk_lines(index: str, records: Iterable[dict[str, Any]]) -> str:
+    lines: list[str] = []
     for rec in records:
         lines.append(json.dumps({"index": {"_index": index}}, ensure_ascii=True))
         lines.append(json.dumps(rec, ensure_ascii=True))
@@ -118,8 +119,8 @@ def bulk_index_jsonl(es_url: str, index: str, jsonl_path: str, batch_size: int =
     logger = get_logger(__name__)
     ensure_index(es_url, index)
 
-    batch: List[Dict[str, Any]] = []
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    batch: list[dict[str, Any]] = []
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -134,7 +135,7 @@ def bulk_index_jsonl(es_url: str, index: str, jsonl_path: str, batch_size: int =
             logger.info("Indexed batch size=%s", len(batch))
 
 
-def _post_bulk(es_url: str, index: str, records: List[Dict[str, Any]]) -> None:
+def _post_bulk(es_url: str, index: str, records: list[dict[str, Any]]) -> None:
     body = _bulk_lines(index, records)
     headers = {"Content-Type": "application/x-ndjson"}
     resp = requests.post(f"{es_url}/_bulk", data=body, headers=headers, timeout=30)

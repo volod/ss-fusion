@@ -1,17 +1,19 @@
 """Detection charts: class distribution and per-frame heatmap."""
 
-
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from selfsuvis.analytics.models import RunSummary
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 
 def plot_detections(
     summary: RunSummary,
-    out_path: Optional[str | Path] = None,
+    out_path: str | Path | None = None,
     show: bool = False,
-) -> "matplotlib.figure.Figure":
+) -> "Figure":
     """Two-panel figure: pie chart of object classes + bar chart by frame.
 
     Args:

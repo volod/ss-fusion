@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import os
 
 import numpy as np
@@ -131,7 +129,7 @@ def _load_dino_from_hf(model_name: str) -> torch.nn.Module:
     return _HFDINOWrapper(hf_model)
 
 
-def _resolve_dino_hub(model_name: str) -> Tuple[str, str, str]:
+def _resolve_dino_hub(model_name: str) -> tuple[str, str, str]:
     """Return *(source, repo_or_dir, actual_model_name)* for ``torch.hub.load``.
 
     Translates ``dinov3_*`` aliases to the real ``dinov2_*`` entry-point names
@@ -221,8 +219,9 @@ class DINOEmbedder:
         def _download_with_progress(url, dst, *args, **kwargs):
             self.logger.info("  ↓ %s", url)
             try:
-                from tqdm import tqdm as _tqdm
                 import urllib.request as _req
+
+                from tqdm import tqdm as _tqdm
                 with _req.urlopen(url) as resp:
                     total = int(resp.headers.get("Content-Length", 0))
                 bar = _tqdm(total=total, unit="B", unit_scale=True,
@@ -368,7 +367,7 @@ class DINOEmbedder:
         _set_dino_xformers_enabled(str(self.device).startswith("cuda"))
         self.logger.info("DINO: hot-swapped backbone checkpoint %s", path)
 
-    def encode_images(self, images: List[Image.Image], batch_size: int = 16) -> np.ndarray:
+    def encode_images(self, images: list[Image.Image], batch_size: int = 16) -> np.ndarray:
         embeddings = []
         for i in range(0, len(images), batch_size):
             batch = images[i : i + batch_size]

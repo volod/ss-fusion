@@ -19,10 +19,9 @@ Companion metadata (splat_meta.json next to the PLY):
 """
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
-
 
 # ── property names ────────────────────────────────────────────────────────────
 
@@ -78,8 +77,8 @@ def write_splat_from_arrays(
     opacities: np.ndarray,               # (N,)   float32  logit-encoded
     scales: np.ndarray,                  # (N, 3) float32  log-encoded
     rotations: np.ndarray,               # (N, 4) float32  WXYZ quaternion
-    sh_dc: Optional[np.ndarray] = None,  # (N, 3) float32; zeros if None
-    sh_rest: Optional[np.ndarray] = None,# (N,45) float32; zeros if None
+    sh_dc: np.ndarray | None = None,  # (N, 3) float32; zeros if None
+    sh_rest: np.ndarray | None = None,# (N,45) float32; zeros if None
 ) -> None:
     """Convenience wrapper: build structured array from component arrays then write."""
     n = len(positions)
@@ -158,14 +157,14 @@ def write_splat_metadata(
     origin_lat: float,
     origin_lon: float,
     origin_alt: float,
-    extra: Optional[Dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Write GPS ENU origin metadata alongside a splat.ply.
 
     Creates <splat_base>_meta.json with {origin_lat, origin_lon, origin_alt}.
     Required for Phase 2 ICP fusion to align splats across missions.
     """
-    meta: Dict[str, Any] = {
+    meta: dict[str, Any] = {
         "origin_lat": origin_lat,
         "origin_lon": origin_lon,
         "origin_alt": origin_alt,
@@ -176,7 +175,7 @@ def write_splat_metadata(
         json.dump(meta, f, indent=2)
 
 
-def read_splat_metadata(splat_path: str) -> Optional[Dict[str, Any]]:
+def read_splat_metadata(splat_path: str) -> dict[str, Any] | None:
     """Read companion GPS metadata for a splat.ply. Returns None if missing."""
     mp = _meta_path(splat_path)
     if not os.path.isfile(mp):
@@ -230,7 +229,10 @@ def _quat_multiply_wxyz(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     Returns same shape as q2.
     """
     w1, x1, y1, z1 = q1[0], q1[1], q1[2], q1[3]
-    w2 = q2[:, 0]; x2 = q2[:, 1]; y2 = q2[:, 2]; z2 = q2[:, 3]
+    w2 = q2[:, 0]
+    x2 = q2[:, 1]
+    y2 = q2[:, 2]
+    z2 = q2[:, 3]
     return np.stack([
         w1*w2 - x1*x2 - y1*y2 - z1*z2,
         w1*x2 + x1*w2 + y1*z2 - z1*y2,
@@ -243,7 +245,7 @@ def _quat_multiply_wxyz(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
 
 def apply_transform_to_splat(
     path_in: str,
-    transform_4x4: List[List[float]],
+    transform_4x4: list[list[float]],
     path_out: str,
 ) -> int:
     """Apply a SE(3) rigid-body transform to every Gaussian in a splat.ply.
@@ -310,7 +312,7 @@ def apply_transform_to_splat(
     return len(data)
 
 
-def merge_splats(paths: List[str], path_out: str) -> int:
+def merge_splats(paths: list[str], path_out: str) -> int:
     """Concatenate multiple splat.ply files into a single merged PLY.
 
     All inputs must be valid 3DGS PLY files (same 59-property schema).

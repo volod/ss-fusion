@@ -1,6 +1,5 @@
 """Unit tests for pipeline.media.gps."""
 import json
-import os
 from unittest import mock
 
 import pytest

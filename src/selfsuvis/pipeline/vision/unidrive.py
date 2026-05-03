@@ -11,7 +11,7 @@ import base64
 import gc
 import io
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PIL import Image
 
@@ -81,10 +81,10 @@ def _strip_code_fences(text: str) -> str:
     return "\n".join(inner).strip()
 
 
-def _normalise_object_list(raw: Any) -> List[Dict[str, Any]]:
+def _normalise_object_list(raw: Any) -> list[dict[str, Any]]:
     if not isinstance(raw, list):
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for item in raw:
         if not isinstance(item, dict):
             continue
@@ -100,13 +100,13 @@ def _normalise_object_list(raw: Any) -> List[Dict[str, Any]]:
     return out
 
 
-def _normalise_string_list(raw: Any) -> List[str]:
+def _normalise_string_list(raw: Any) -> list[str]:
     if not isinstance(raw, list):
         return []
     return [str(v).strip() for v in raw if str(v).strip()]
 
 
-def _parse_unidrive_response(raw_text: str) -> Dict[str, Any]:
+def _parse_unidrive_response(raw_text: str) -> dict[str, Any]:
     text = _strip_code_fences(raw_text)
     try:
         data = json.loads(text)
@@ -156,13 +156,13 @@ def _parse_unidrive_response(raw_text: str) -> Dict[str, Any]:
 def _build_user_content(
     image: Image.Image,
     *,
-    subtitle_text: Optional[str] = None,
-    ocr_text: Optional[str] = None,
-    extra_context: Optional[str] = None,
-    domain_hint: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    subtitle_text: str | None = None,
+    ocr_text: str | None = None,
+    extra_context: str | None = None,
+    domain_hint: str | None = None,
+) -> list[dict[str, Any]]:
     b64 = _encode_image_base64(image)
-    content: List[Dict[str, Any]] = [
+    content: list[dict[str, Any]] = [
         {
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
@@ -199,10 +199,10 @@ class UniDriveVLAModel:
     def _build_local_prompt(
         self,
         *,
-        subtitle_text: Optional[str] = None,
-        ocr_text: Optional[str] = None,
-        extra_context: Optional[str] = None,
-        domain_hint: Optional[str] = None,
+        subtitle_text: str | None = None,
+        ocr_text: str | None = None,
+        extra_context: str | None = None,
+        domain_hint: str | None = None,
     ) -> str:
         parts = [_SYSTEM_PROMPT, _USER_PROMPT]
         if domain_hint and domain_hint.strip():
@@ -253,11 +253,11 @@ class UniDriveVLAModel:
         self,
         image: Image.Image,
         *,
-        subtitle_text: Optional[str] = None,
-        ocr_text: Optional[str] = None,
-        extra_context: Optional[str] = None,
-        domain_hint: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        subtitle_text: str | None = None,
+        ocr_text: str | None = None,
+        extra_context: str | None = None,
+        domain_hint: str | None = None,
+    ) -> dict[str, Any]:
         model, processor = self._load_local_model()
         if model is None or processor is None:
             return {"service_unavailable": True, "reason": "local UniDrive model unavailable"}
@@ -316,11 +316,11 @@ class UniDriveVLAModel:
         self,
         image: Image.Image,
         *,
-        subtitle_text: Optional[str] = None,
-        ocr_text: Optional[str] = None,
-        extra_context: Optional[str] = None,
-        domain_hint: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        subtitle_text: str | None = None,
+        ocr_text: str | None = None,
+        extra_context: str | None = None,
+        domain_hint: str | None = None,
+    ) -> dict[str, Any]:
         if not self.is_enabled():
             return {"service_unavailable": True, "reason": "UniDrive disabled"}
 
@@ -373,17 +373,17 @@ class UniDriveVLAModel:
 
     def extract_batch(
         self,
-        images: List[Image.Image],
+        images: list[Image.Image],
         *,
-        subtitle_texts: Optional[List[Optional[str]]] = None,
-        ocr_texts: Optional[List[Optional[str]]] = None,
-        extra_contexts: Optional[List[Optional[str]]] = None,
-        domain_hint: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        subtitle_texts: list[str | None] | None = None,
+        ocr_texts: list[str | None] | None = None,
+        extra_contexts: list[str | None] | None = None,
+        domain_hint: str | None = None,
+    ) -> list[dict[str, Any]]:
         subtitle_texts = subtitle_texts or [None] * len(images)
         ocr_texts = ocr_texts or [None] * len(images)
         extra_contexts = extra_contexts or [None] * len(images)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for image, subtitle, ocr, extra in zip(images, subtitle_texts, ocr_texts, extra_contexts):
             results.append(
                 self.analyze_frame(

@@ -1,7 +1,5 @@
 """Unit tests for pipeline/asr_model.py — no GPU or Whisper model required."""
-import pytest
 from unittest.mock import MagicMock, patch
-
 
 # ── _resolve_model_id ─────────────────────────────────────────────────────────
 
@@ -48,15 +46,15 @@ def test_resolve_empty_string_treated_as_auto(monkeypatch):
 # ── ASRModel.is_enabled ───────────────────────────────────────────────────────
 
 def test_is_enabled_when_setting_true(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", True)
     assert ASRModel().is_enabled() is True
 
 
 def test_is_enabled_when_setting_false(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", False)
     assert ASRModel().is_enabled() is False
 
@@ -64,8 +62,8 @@ def test_is_enabled_when_setting_false(monkeypatch):
 # ── ASRModel.transcribe — disabled path ───────────────────────────────────────
 
 def test_transcribe_returns_empty_when_disabled(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", False)
     model = ASRModel()
     result = model.transcribe("/fake/path.wav")
@@ -75,8 +73,8 @@ def test_transcribe_returns_empty_when_disabled(monkeypatch):
 # ── ASRModel.transcribe — enabled, mocked pipeline ───────────────────────────
 
 def test_transcribe_returns_chunks_from_pipe(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
 
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", True)
     monkeypatch.setattr(asr_model.settings, "ASR_MODEL", "openai/whisper-tiny")
@@ -102,8 +100,8 @@ def test_transcribe_returns_chunks_from_pipe(monkeypatch):
 
 
 def test_transcribe_returns_empty_on_pipe_exception(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
 
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", True)
 
@@ -117,8 +115,8 @@ def test_transcribe_returns_empty_on_pipe_exception(monkeypatch):
 
 
 def test_transcribe_passes_language_to_generate_kwargs(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
 
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", True)
     monkeypatch.setattr(asr_model.settings, "ASR_LANGUAGE", "uk")
@@ -136,8 +134,8 @@ def test_transcribe_passes_language_to_generate_kwargs(monkeypatch):
 
 
 def test_transcribe_no_language_when_empty(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
 
     monkeypatch.setattr(asr_model.settings, "ASR_ENABLED", True)
     monkeypatch.setattr(asr_model.settings, "ASR_LANGUAGE", "")
@@ -157,8 +155,8 @@ def test_transcribe_no_language_when_empty(monkeypatch):
 # ── ASRModel.model_id property ────────────────────────────────────────────────
 
 def test_model_id_lazy_resolution(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
 
     monkeypatch.setattr(asr_model.settings, "ASR_MODEL", "openai/whisper-base")
     model = ASRModel()
@@ -168,8 +166,8 @@ def test_model_id_lazy_resolution(monkeypatch):
 
 
 def test_model_id_resolved_only_once(monkeypatch):
-    from selfsuvis.pipeline.vision.asr import ASRModel
     import selfsuvis.pipeline.vision.asr as asr_model
+    from selfsuvis.pipeline.vision.asr import ASRModel
 
     monkeypatch.setattr(asr_model.settings, "ASR_MODEL", "openai/whisper-base")
     model = ASRModel()
@@ -184,8 +182,6 @@ def test_resolve_device_cpu_when_no_torch(monkeypatch):
     """When torch is missing (ImportError), should always return 'cpu'."""
     import selfsuvis.pipeline.vision.asr as asr_model
     monkeypatch.setattr(asr_model.settings, "DEVICE", "auto")
-
-    original_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
 
     with patch("builtins.__import__", side_effect=ImportError):
         result = asr_model._resolve_device()

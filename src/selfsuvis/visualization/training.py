@@ -1,17 +1,19 @@
 """Training curves: SSL fine-tuning loss and distillation metrics."""
 
-
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from selfsuvis.analytics.models import RunSummary
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 
 def plot_training_curves(
     summary: RunSummary,
-    out_path: Optional[str | Path] = None,
+    out_path: str | Path | None = None,
     show: bool = False,
-) -> "matplotlib.figure.Figure":
+) -> "Figure":
     """Bar-per-epoch SSL loss curve + distillation summary table.
 
     Args:

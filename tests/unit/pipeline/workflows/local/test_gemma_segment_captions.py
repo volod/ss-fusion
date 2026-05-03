@@ -5,14 +5,11 @@
 - write_gemma_segment_captions_md (report writing)
 """
 
-import importlib.util
 import json
 import sys
-import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[5]
@@ -41,9 +38,9 @@ def _make_caption_results(n_frames: int, segment_switches: list[int] = None) -> 
     captions = []
     for i in range(n_frames):
         if segment_switches and i in segment_switches:
-            cap = f"completely different scene forest trees sky"
+            cap = "completely different scene forest trees sky"
         else:
-            cap = f"urban road vehicles traffic asphalt"
+            cap = "urban road vehicles traffic asphalt"
         captions.append({"t_sec": float(i), "frame_path": f"/frames/f{i:04d}.jpg", "caption": cap})
     return captions
 
@@ -324,7 +321,9 @@ def test_gemma_extract_frame_structured_returns_parse_error_on_bad_json(tmp_path
 @patch("selfsuvis.pipeline.workflows.local.steps_caption._gemma_extract_frame_structured")
 @patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
 def test_qwen_gemma_fallback_returns_structured_results(mock_settings, mock_extract, tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _step_qwen_captioning_gemma_fallback
+    from selfsuvis.pipeline.workflows.local.steps_caption import (
+        _step_qwen_captioning_gemma_fallback,
+    )
 
     mock_settings.QWEN_MAX_FRAMES = 4
     mock_settings.GEMMA_API_TIMEOUT_SEC = 30.0

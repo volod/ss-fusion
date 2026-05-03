@@ -14,13 +14,12 @@ import pytest
 from PIL import Image
 
 from selfsuvis.pipeline.vision.qwen import (
+    QwenModel,
     _encode_image_base64,
     _health_check_ollama,
     _health_check_vllm,
     _parse_qwen_response,
-    QwenModel,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

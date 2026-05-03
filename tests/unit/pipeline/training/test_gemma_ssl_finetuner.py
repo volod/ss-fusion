@@ -1,6 +1,7 @@
 """Unit tests for GemmaSSLFinetuner in pipeline/ssl_finetune.py."""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 

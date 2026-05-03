@@ -5,10 +5,6 @@ GPU or torch.hub access.  All assertions target the SupCon loss maths, CVAT XML
 parsing, dataset construction, and training-loop plumbing.
 """
 import os
-import tempfile
-import textwrap
-from pathlib import Path
-from typing import Dict, List, Optional
 from xml.etree import ElementTree as ET
 
 import numpy as np
@@ -17,7 +13,6 @@ import torch
 import torch.nn as nn
 
 # ── Module under test ─────────────────────────────────────────────────────────
-
 from selfsuvis.pipeline.training.supervised import (
     AnnotatedFrameDataset,
     CvatAnnotationParser,
@@ -28,10 +23,9 @@ from selfsuvis.pipeline.training.supervised import (
     run_supervised_finetune,
 )
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _write_cvat_xml(path: str, images: List[Dict]) -> None:
+def _write_cvat_xml(path: str, images: list[dict]) -> None:
     """Write a minimal CVAT XML 1.1 file.
 
     images: list of dicts with keys: name, label (optional).
@@ -48,7 +42,7 @@ def _write_cvat_xml(path: str, images: List[Dict]) -> None:
     ET.SubElement(task, "flipped").text = "False"
 
     labels_el = ET.SubElement(task, "labels")
-    seen_labels: List[str] = []
+    seen_labels: list[str] = []
     for img in images:
         lbl = img.get("label")
         if lbl and lbl not in seen_labels:
@@ -288,10 +282,16 @@ class TestCvatAnnotationParser:
         for _ in range(3):
             b = ET.SubElement(img_el, "box")
             b.set("label", "car")
-            b.set("xtl", "0"); b.set("ytl", "0"); b.set("xbr", "10"); b.set("ybr", "10")
+            b.set("xtl", "0")
+            b.set("ytl", "0")
+            b.set("xbr", "10")
+            b.set("ybr", "10")
         b = ET.SubElement(img_el, "box")
         b.set("label", "pedestrian")
-        b.set("xtl", "0"); b.set("ytl", "0"); b.set("xbr", "10"); b.set("ybr", "10")
+        b.set("xtl", "0")
+        b.set("ytl", "0")
+        b.set("xbr", "10")
+        b.set("ybr", "10")
 
         xml_path = str(tmp_path / "majority.xml")
         ET.ElementTree(root).write(xml_path)
@@ -335,7 +335,7 @@ class TestCvatAnnotationParser:
 # ── AnnotatedFrameDataset tests ────────────────────────────────────────────────
 
 class TestAnnotatedFrameDataset:
-    def _setup(self, tmp_path, n_frames: int = 6, labels: Optional[List[str]] = None):
+    def _setup(self, tmp_path, n_frames: int = 6, labels: list[str] | None = None):
         """Create n fake frames + matching CVAT XML → return (frames_dir, parser)."""
         frames_dir = tmp_path / "frames"
         frames_dir.mkdir()

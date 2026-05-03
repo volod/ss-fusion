@@ -14,8 +14,8 @@ Usage::
     smoothed = rts_smooth(steps, process_pos_std, process_vel_std)
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Sequence
 
 import numpy as np
 
@@ -55,7 +55,7 @@ def rts_smooth(
     history: Sequence[FilteredStep],
     process_pos_std: float,
     process_vel_std: float,
-) -> List[SmoothedStep]:
+) -> list[SmoothedStep]:
     """Run the RTS backward pass over forward-filtered frame states.
 
     Args:

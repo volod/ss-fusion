@@ -3,14 +3,13 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-def load_gallery(run_dir: str | Path) -> Optional[np.ndarray]:
+def load_gallery(run_dir: str | Path) -> np.ndarray | None:
     """Return (N, dim) float32 array from gallery.npz, or None if unavailable."""
     path = Path(run_dir) / "edge_models" / "gallery.npz"
     if not path.exists():
@@ -41,7 +40,7 @@ def cosine_similarity_matrix(embeddings: np.ndarray) -> np.ndarray:
 
 def nearest_neighbour_recall(
     embeddings: np.ndarray, k: int = 5
-) -> Tuple[float, np.ndarray]:
+) -> tuple[float, np.ndarray]:
     """Mean cosine similarity to top-k neighbours (excluding self).
 
     Returns (mean_mnn_score, per_frame_scores).

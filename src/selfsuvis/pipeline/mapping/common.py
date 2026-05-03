@@ -2,12 +2,11 @@
 
 import json
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from selfsuvis.pipeline.core import ensure_dir
 
-
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 def ensure_output_parent(path: PathLike) -> Path:

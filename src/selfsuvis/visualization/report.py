@@ -3,10 +3,8 @@
 
 import base64
 import io
-import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from selfsuvis.analytics.models import RunSummary
 
@@ -44,7 +42,7 @@ def _img_tag(b64: str) -> str:
 
 def generate_report(
     summary: RunSummary,
-    out_dir: Optional[str | Path] = None,
+    out_dir: str | Path | None = None,
     report_filename: str = "analysis_report.html",
 ) -> Path:
     """Write a self-contained HTML report into out_dir (defaults to run_dir).
@@ -56,11 +54,9 @@ def generate_report(
     import matplotlib
     matplotlib.use("Agg")
 
-    from selfsuvis.visualization.timeline import plot_timeline
     from selfsuvis.visualization.detections import plot_detections
-    from selfsuvis.visualization.embeddings import (
-        plot_embedding_pca, plot_similarity_matrix
-    )
+    from selfsuvis.visualization.embeddings import plot_embedding_pca, plot_similarity_matrix
+    from selfsuvis.visualization.timeline import plot_timeline
     from selfsuvis.visualization.training import plot_training_curves
 
     out_dir = Path(out_dir) if out_dir else Path(summary.run_dir)

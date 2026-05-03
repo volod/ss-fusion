@@ -6,13 +6,12 @@ import logging
 import math
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from .embeddings import load_gallery, nearest_neighbour_recall
 from .models import (
+    AnalyticsDiagnostics,
     ArtifactInventory,
     ArtifactRecord,
-    AnalyticsDiagnostics,
     DetectionStats,
     EmbeddingStats,
     FrameRecord,
@@ -113,14 +112,14 @@ class LocalRunLoader:
     def _build_diagnostics(
         self,
         *,
-        frames: List[FrameRecord],
+        frames: list[FrameRecord],
         n_frames: int,
         duration_sec: float,
-        detection_stats: Optional[DetectionStats],
-        temporal_stats: Optional[TemporalStats],
-        training_stats: Optional[TrainingStats],
-        tracking_stats: Optional[TrackingStats],
-        map_stats: Optional[MapStats],
+        detection_stats: DetectionStats | None,
+        temporal_stats: TemporalStats | None,
+        training_stats: TrainingStats | None,
+        tracking_stats: TrackingStats | None,
+        map_stats: MapStats | None,
         artifact_inventory: ArtifactInventory,
         run_health: RunHealth,
         has_edge_model: bool,
@@ -235,7 +234,7 @@ class LocalRunLoader:
             artifact_mb_per_min=artifact_mb_per_min,
         )
 
-    def _load_json(self, filename: str) -> Optional[dict]:
+    def _load_json(self, filename: str) -> dict | None:
         path = self.run_dir / filename
         if not path.exists():
             return None
@@ -248,14 +247,14 @@ class LocalRunLoader:
     def _build_frames(
         self,
         *,
-        meta: Optional[dict],
-        yolo: Optional[dict],
-        rssm: Optional[dict],
-        scene_captions: Dict[float, Dict[str, object]],
-        qwen_captions: Dict[float, str],
-        asr_map: Dict[float, str],
-        tracking: Optional[dict],
-    ) -> List[FrameRecord]:
+        meta: dict | None,
+        yolo: dict | None,
+        rssm: dict | None,
+        scene_captions: dict[float, dict[str, object]],
+        qwen_captions: dict[float, str],
+        asr_map: dict[float, str],
+        tracking: dict | None,
+    ) -> list[FrameRecord]:
         if not meta:
             return []
 
@@ -264,7 +263,7 @@ class LocalRunLoader:
         yolo_frames = {f.get("t_sec", -1): f for f in (yolo or {}).get("frames", [])}
         tracking_frames = {f.get("t_sec", -1): f for f in (tracking or {}).get("frames", [])}
 
-        records: List[FrameRecord] = []
+        records: list[FrameRecord] = []
         for i, frame in enumerate(raw_frames):
             t_sec = float(frame.get("t_sec", i * (1.0 / max(meta.get("fps", 2.0), 0.001))))
             yolo_frame = yolo_frames.get(t_sec, {})
@@ -287,7 +286,7 @@ class LocalRunLoader:
             )
         return records
 
-    def _build_detection_stats(self, yolo: Optional[dict]) -> Optional[DetectionStats]:
+    def _build_detection_stats(self, yolo: dict | None) -> DetectionStats | None:
         if not yolo:
             return None
         per_frame = [f.get("n_detections", 0) for f in yolo.get("frames", [])]
@@ -299,7 +298,7 @@ class LocalRunLoader:
             model=yolo.get("model", ""),
         )
 
-    def _build_temporal_stats(self, rssm: Optional[dict]) -> Optional[TemporalStats]:
+    def _build_temporal_stats(self, rssm: dict | None) -> TemporalStats | None:
         if not rssm:
             return None
         scores = list(rssm.get("surprise_scores", []) or [])
@@ -316,7 +315,7 @@ class LocalRunLoader:
             peak_frames=peaks,
         )
 
-    def _build_training_stats(self) -> Optional[TrainingStats]:
+    def _build_training_stats(self) -> TrainingStats | None:
         finetune_md = self.run_dir / "finetune_stats.md"
         distill_md = self.run_dir / "distill_stats.md"
         if not finetune_md.exists() and not distill_md.exists():
@@ -356,7 +355,7 @@ class LocalRunLoader:
                 stats.student_mb = float(match.group(1))
         return stats
 
-    def _build_tracking_stats(self, tracking: Optional[dict]) -> Optional[TrackingStats]:
+    def _build_tracking_stats(self, tracking: dict | None) -> TrackingStats | None:
         if not tracking:
             return None
         return TrackingStats(
@@ -373,7 +372,7 @@ class LocalRunLoader:
             elapsed_sec=float(tracking.get("elapsed_sec", 0.0) or 0.0),
         )
 
-    def _build_embedding_stats(self) -> Optional[EmbeddingStats]:
+    def _build_embedding_stats(self) -> EmbeddingStats | None:
         gallery = load_gallery(self.run_dir)
         if gallery is None or len(gallery) == 0:
             return None
@@ -384,7 +383,7 @@ class LocalRunLoader:
             mean_neighbour_similarity=float(mean_nn),
         )
 
-    def _build_map_stats(self, map_data: Optional[dict]) -> Optional[MapStats]:
+    def _build_map_stats(self, map_data: dict | None) -> MapStats | None:
         if not map_data:
             return None
         points = int(
@@ -408,9 +407,9 @@ class LocalRunLoader:
         )
 
     def _build_artifact_inventory(self) -> ArtifactInventory:
-        files: List[ArtifactRecord] = []
-        by_suffix: Dict[str, int] = {}
-        by_category: Dict[str, int] = {}
+        files: list[ArtifactRecord] = []
+        by_suffix: dict[str, int] = {}
+        by_category: dict[str, int] = {}
         for path in sorted(self.run_dir.rglob("*")):
             if not path.is_file():
                 continue
@@ -431,11 +430,11 @@ class LocalRunLoader:
 
     def _build_run_health(
         self,
-        frames: List[FrameRecord],
+        frames: list[FrameRecord],
         n_frames: int,
-        tracking_stats: Optional[TrackingStats],
-        map_stats: Optional[MapStats],
-        runtime_metrics: Optional[dict],
+        tracking_stats: TrackingStats | None,
+        map_stats: MapStats | None,
+        runtime_metrics: dict | None,
     ) -> RunHealth:
         denom = max(n_frames, 1)
         florence_count = sum(1 for frame in frames if frame.caption.strip())
@@ -443,7 +442,7 @@ class LocalRunLoader:
         qwen_parse_error_count = self._count_qwen_parse_errors()
         asr_count = sum(1 for frame in frames if frame.asr_text.strip())
 
-        warnings: List[str] = []
+        warnings: list[str] = []
         if florence_count == 0 and n_frames:
             warnings.append("Florence captions are empty for all frames")
         if qwen_parse_error_count and qwen_count == 0:
@@ -517,11 +516,11 @@ class LocalRunLoader:
                 return line.split(":", 1)[1].strip()
         return ""
 
-    def _parse_scene_captions(self) -> Dict[float, Dict[str, object]]:
+    def _parse_scene_captions(self) -> dict[float, dict[str, object]]:
         path = self.run_dir / "scene_captions.md"
         if not path.exists():
             return {}
-        mapping: Dict[float, Dict[str, object]] = {}
+        mapping: dict[float, dict[str, object]] = {}
         pattern = re.compile(
             r"^\|\s*`[^`]+`\s*\|\s*([\d.]+)\s*\|[^|]*\|[^|]*\|\s*([\d.]+)\s*\|\s*(.*?)\s*\|$"
         )
@@ -536,11 +535,11 @@ class LocalRunLoader:
             }
         return mapping
 
-    def _parse_qwen_captions(self) -> Dict[float, str]:
+    def _parse_qwen_captions(self) -> dict[float, str]:
         path = self.run_dir / "detailed_captions.md"
         if not path.exists():
             return {}
-        mapping: Dict[float, str] = {}
+        mapping: dict[float, str] = {}
         pattern = re.compile(
             r"^\|\s*`[^`]+`\s*\|\s*([\d.]+)\s*\|\s*\d+\s*\|.*?\|\s*(.*?)\s*\|\s*.*?\|$"
         )
@@ -567,12 +566,12 @@ class LocalRunLoader:
         text = path.read_text()
         return len(re.findall(r"parse_error:\s*True|\*parse error\*", text, re.IGNORECASE))
 
-    def _parse_asr_segments(self, frames_meta: Optional[dict]) -> Dict[float, str]:
+    def _parse_asr_segments(self, frames_meta: dict | None) -> dict[float, str]:
         path = self.run_dir / "asr_subtitles.md"
         if not path.exists() or not frames_meta:
             return {}
 
-        segments: List[tuple[float, float, str]] = []
+        segments: list[tuple[float, float, str]] = []
         pattern = re.compile(r"^\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*(.*?)\s*\|$")
         for line in path.read_text().splitlines():
             match = pattern.match(line.strip())
@@ -580,7 +579,7 @@ class LocalRunLoader:
                 continue
             segments.append((float(match.group(1)), float(match.group(2)), match.group(3).strip()))
 
-        frame_map: Dict[float, str] = {}
+        frame_map: dict[float, str] = {}
         for frame in frames_meta.get("frames", []):
             t_sec = float(frame.get("t_sec", 0.0) or 0.0)
             for start, end, text in segments:
@@ -676,7 +675,7 @@ def _targeted_coverage_score(raw_coverage: float, *, n_frames: int, target_frame
     return _clamp01(raw_coverage / expected_coverage)
 
 
-def _stddev(values: List[float]) -> float:
+def _stddev(values: list[float]) -> float:
     if not values:
         return 0.0
     mean = sum(float(v) for v in values) / len(values)
@@ -684,7 +683,7 @@ def _stddev(values: List[float]) -> float:
     return math.sqrt(var)
 
 
-def _coefficient_of_variation(values: List[int]) -> float:
+def _coefficient_of_variation(values: list[int]) -> float:
     if not values:
         return 0.0
     mean = sum(float(v) for v in values) / len(values)
@@ -693,7 +692,7 @@ def _coefficient_of_variation(values: List[int]) -> float:
     return _stddev([float(v) for v in values]) / mean
 
 
-def _normalised_entropy(counts: Dict[str, int]) -> float:
+def _normalised_entropy(counts: dict[str, int]) -> float:
     total = sum(max(0, int(v)) for v in counts.values())
     n_classes = sum(1 for v in counts.values() if int(v) > 0)
     if total <= 0 or n_classes <= 1:

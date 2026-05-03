@@ -1,15 +1,14 @@
 """Shared subprocess helpers for media pipelines."""
 
 import subprocess
-from typing import List
 
 
-def run_checked(cmd: List[str], *, timeout: int) -> None:
+def run_checked(cmd: list[str], *, timeout: int) -> None:
     subprocess.run(cmd, check=True, timeout=timeout)
 
 
 def run_captured(
-    cmd: List[str],
+    cmd: list[str],
     *,
     timeout: int,
     text: bool = False,

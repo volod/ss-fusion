@@ -1,5 +1,4 @@
 import os
-from typing import List, Tuple
 
 from selfsuvis.pipeline.core import ensure_dir, get_logger, settings
 from selfsuvis.pipeline.media.subprocess_common import run_checked
@@ -13,12 +12,12 @@ def _frame_pattern(out_dir: str) -> str:
     return os.path.join(out_dir, "frame_%010d.jpg")
 
 
-def _frame_paths(out_dir: str, fps: float) -> List[Tuple[str, float]]:
+def _frame_paths(out_dir: str, fps: float) -> list[tuple[str, float]]:
     frames = sorted(fname for fname in os.listdir(out_dir) if fname.startswith("frame_"))
     return [(os.path.join(out_dir, fname), idx / fps) for idx, fname in enumerate(frames)]
 
 
-def extract_frames(video_path: str, video_id: str) -> List[Tuple[str, float]]:
+def extract_frames(video_path: str, video_id: str) -> list[tuple[str, float]]:
     logger = get_logger(__name__)
     out_dir = _frame_dir(video_id)
     ensure_dir(out_dir)

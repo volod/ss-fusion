@@ -11,18 +11,18 @@ Typical usage::
 
 from .loader import LocalRunLoader
 from .models import (
+    AnalyticsDiagnostics,
     ArtifactInventory,
     ArtifactRecord,
-    AnalyticsDiagnostics,
-    FrameRecord,
     DetectionStats,
     EmbeddingStats,
+    FrameRecord,
     MapStats,
+    RunHealth,
+    RunSummary,
     TemporalStats,
     TrackingStats,
     TrainingStats,
-    RunHealth,
-    RunSummary,
 )
 
 __all__ = [

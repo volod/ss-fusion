@@ -10,7 +10,6 @@ Tests cover:
   - generator produces valid PLY files
   - test assets (scene_a/b/c) are present and valid
 """
-import json
 import os
 import tempfile
 from pathlib import Path
@@ -19,8 +18,8 @@ import numpy as np
 import pytest
 
 from selfsuvis.pipeline.mapping.splat_io import (
-    ALL_PROPERTIES,
     _SPLAT_DTYPE,
+    ALL_PROPERTIES,
     is_splat_ply,
     read_splat,
     read_splat_metadata,

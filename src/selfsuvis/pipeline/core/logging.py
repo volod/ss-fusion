@@ -1,7 +1,6 @@
 import logging
 import os
 
-
 _CONFIGURED = False
 
 

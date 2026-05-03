@@ -1,7 +1,7 @@
-from typing import Tuple
 
 import cv2
 import numpy as np
+
 try:
     from skimage.metrics import structural_similarity as ssim
 except (ImportError, ModuleNotFoundError):
@@ -48,7 +48,7 @@ def ssim_diff(a: np.ndarray, b: np.ndarray) -> float:
     return float(1.0 - score)
 
 
-def phase_corr_align(prev_small: np.ndarray, curr_small: np.ndarray) -> Tuple[np.ndarray, float, float, float]:
+def phase_corr_align(prev_small: np.ndarray, curr_small: np.ndarray) -> tuple[np.ndarray, float, float, float]:
     shift, response = cv2.phaseCorrelate(prev_small, curr_small)
     dx, dy = shift
     if response < settings.PHASECORR_MIN_RESPONSE:

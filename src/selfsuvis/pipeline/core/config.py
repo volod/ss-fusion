@@ -1,9 +1,8 @@
-import os
 import json
+import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from dotenv import dotenv_values, load_dotenv
+from dotenv import dotenv_values
 
 from selfsuvis.pipeline.core.logging import get_logger
 
@@ -75,14 +74,14 @@ def _env_float(key: str, default: float) -> float:
         return default
 
 
-def _parse_allowed_paths(val: Optional[str]) -> List[str]:
+def _parse_allowed_paths(val: str | None) -> list[str]:
     """Parse ALLOWED_INDEX_PATHS as comma-separated list. Empty means no restriction."""
     if val is None or not val.strip():
         return []
     return [p.strip() for p in val.split(",") if p.strip()]
 
 
-def _env_json_dict(key: str, default: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def _env_json_dict(key: str, default: dict[str, str] | None = None) -> dict[str, str]:
     """Parse a JSON object from env, returning a safe default on invalid values."""
     fallback = default or {}
     raw = os.getenv(key, "")
@@ -99,7 +98,7 @@ def _env_json_dict(key: str, default: Optional[Dict[str, str]] = None) -> Dict[s
     return parsed
 
 
-def get_dino_model_name(model_name: str) -> Optional[str]:
+def get_dino_model_name(model_name: str) -> str | None:
     """Resolve configured model family to a concrete DINO backbone name."""
     if model_name == "dinov2":
         return "dinov2_vitb14"

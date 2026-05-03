@@ -1,6 +1,5 @@
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
 
 import numpy as np
 
@@ -11,8 +10,8 @@ class PlatformMeasurement:
 
     kind: str
     t_sec: float
-    values: Tuple[float, ...]
-    covariance: Tuple[Tuple[float, ...], ...]
+    values: tuple[float, ...]
+    covariance: tuple[tuple[float, ...], ...]
     source: str = ""
     frame: str = "enu"
     quality: str = "nominal"
@@ -20,7 +19,7 @@ class PlatformMeasurement:
     def covariance_matrix(self) -> np.ndarray:
         return np.array(self.covariance, dtype=np.float64)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "kind": self.kind,
             "t_sec": self.t_sec,

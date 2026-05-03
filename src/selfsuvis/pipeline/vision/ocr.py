@@ -40,7 +40,7 @@ CLI override examples::
 import base64
 import concurrent.futures
 import io
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PIL import Image
 
@@ -88,8 +88,8 @@ class OCRModel:
     """
 
     def __init__(self) -> None:
-        self._model_id: Optional[str] = None
-        self._backend: Optional[str] = None
+        self._model_id: str | None = None
+        self._backend: str | None = None
         self._processor = None
         self._model = None
         self._got_tokenizer = None
@@ -103,8 +103,8 @@ class OCRModel:
         return settings.OCR_ENABLED
 
     def extract_text_batch(
-        self, images: List[Image.Image]
-    ) -> List[Dict[str, Any]]:
+        self, images: list[Image.Image]
+    ) -> list[dict[str, Any]]:
         """Extract text from a list of PIL images.
 
         Returns a list of dicts (one per image):
@@ -118,7 +118,7 @@ class OCRModel:
         concurrency = max(1, int(getattr(settings, "OCR_SIDECAR_CONCURRENCY", 1) or 1))
         if concurrency == 1 or len(images) <= 1:
             return [self._extract_one(img) for img in images]
-        results: List[Optional[Dict[str, Any]]] = [None] * len(images)
+        results: list[dict[str, Any] | None] = [None] * len(images)
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(images))) as pool:
             future_to_idx = {pool.submit(self._extract_one, img): idx for idx, img in enumerate(images)}
             for future in concurrent.futures.as_completed(future_to_idx):
@@ -131,7 +131,7 @@ class OCRModel:
         return [r if r is not None else {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
                 for r in results]
 
-    def extract_text(self, image: Image.Image) -> Dict[str, Any]:
+    def extract_text(self, image: Image.Image) -> dict[str, Any]:
         """Extract text from a single PIL image."""
         if not self.is_enabled():
             return {"ocr_text": None, "ocr_disabled": True}
@@ -145,7 +145,7 @@ class OCRModel:
 
     # ── Backend dispatch ──────────────────────────────────────────────────────
 
-    def _extract_one(self, image: Image.Image) -> Dict[str, Any]:
+    def _extract_one(self, image: Image.Image) -> dict[str, Any]:
         backend = self._get_backend()
         try:
             if backend == "vllm":
@@ -198,7 +198,6 @@ class OCRModel:
     # ── vLLM sidecar ─────────────────────────────────────────────────────────
 
     def _extract_vllm(self, image: Image.Image) -> str:
-        from openai import OpenAI
         # Prefer the dedicated OCR sidecar; fall back to the Qwen/ollama sidecar when
         # the OCR model is a VLM that would OOM if loaded locally alongside the sidecar.
         if settings.OCR_API_URL:
@@ -248,8 +247,8 @@ class OCRModel:
             self._load_got()
         if self._model is None:
             return ""
-        import torch
-        import tempfile, os
+        import os
+        import tempfile
         # GOT-OCR2_0 requires the image saved to a temp file
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             tmp_path = f.name
@@ -267,8 +266,7 @@ class OCRModel:
 
     def _load_got(self) -> None:
         try:
-            import torch
-            from transformers import AutoTokenizer, AutoModel
+            from transformers import AutoModel, AutoTokenizer
             device = _get_device()
             self._got_tokenizer = AutoTokenizer.from_pretrained(
                 self.model_id, trust_remote_code=True
@@ -315,7 +313,6 @@ class OCRModel:
 
     def _load_trocr(self) -> None:
         try:
-            import torch
             from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
             device = _get_device()
@@ -406,6 +403,7 @@ class OCRModel:
     def release(self) -> None:
         """Unload model weights from GPU to free VRAM for subsequent models."""
         import gc
+
         import torch
         if getattr(self, "_model", None) is not None:
             try:
@@ -426,7 +424,7 @@ class OCRModel:
     def _load_vlm_local(self) -> None:
         try:
             import torch
-            from transformers import AutoProcessor, AutoModelForCausalLM
+            from transformers import AutoModelForCausalLM, AutoProcessor
 
             # Phi-3.5-vision's cached modeling code calls get_max_length() but
             # newer transformers renamed it to get_seq_length() on DynamicCache.
@@ -505,7 +503,7 @@ class OCRModel:
 
     def _load_florence_ocr(self) -> None:
         try:
-            from transformers import AutoProcessor, AutoModelForCausalLM
+            from transformers import AutoModelForCausalLM, AutoProcessor
             device = _get_device()
             self._processor = AutoProcessor.from_pretrained(
                 self.model_id, trust_remote_code=True

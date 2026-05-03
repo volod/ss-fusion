@@ -1,6 +1,5 @@
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -14,12 +13,12 @@ class PlatformStateFilter:
     process_pos_std_m: float
     process_vel_std_mps: float
     init_vel_std_mps: float
-    x: Optional[np.ndarray] = None
-    P: Optional[np.ndarray] = None
-    t_sec: Optional[float] = None
+    x: np.ndarray | None = None
+    P: np.ndarray | None = None
+    t_sec: float | None = None
     current_accel_enu: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float64))
-    innovation_norms: List[float] = field(default_factory=list)
-    measurement_counts: Dict[str, int] = field(default_factory=dict)
+    innovation_norms: list[float] = field(default_factory=list)
+    measurement_counts: dict[str, int] = field(default_factory=dict)
 
     def is_initialized(self) -> bool:
         return self.x is not None and self.P is not None and self.t_sec is not None
@@ -93,7 +92,7 @@ class PlatformStateFilter:
         S = H @ self.P @ H.T + R
         K = self.P @ H.T @ np.linalg.pinv(S)
         self.x = self.x + (K @ y)
-        I = np.eye(self.P.shape[0], dtype=np.float64)
-        self.P = (I - K @ H) @ self.P
+        identity = np.eye(self.P.shape[0], dtype=np.float64)
+        self.P = (identity - K @ H) @ self.P
         self.innovation_norms.append(float(np.linalg.norm(y)))
         self.measurement_counts[kind] = self.measurement_counts.get(kind, 0) + 1

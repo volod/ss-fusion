@@ -1,8 +1,6 @@
 """Unit tests for pipeline.supervised_finetune._normalize_labels."""
 import logging
 
-import pytest
-
 from selfsuvis.pipeline.training.supervised import _normalize_labels
 
 

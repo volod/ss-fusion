@@ -1,5 +1,4 @@
 import os
-
 from argparse import Namespace
 
 from selfsuvis.pipeline.workflows.local_env import apply_local_env

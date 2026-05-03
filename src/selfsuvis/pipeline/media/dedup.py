@@ -1,5 +1,4 @@
-from collections import deque, defaultdict
-from typing import Deque, Dict, List
+from collections import defaultdict, deque
 
 import numpy as np
 
@@ -8,8 +7,8 @@ class PhashLRU:
     def __init__(self, max_size: int, hamming_max: int):
         self.max_size = max_size
         self.hamming_max = hamming_max
-        self.queue: Deque[int] = deque()
-        self.buckets: Dict[int, List[int]] = defaultdict(list)
+        self.queue: deque[int] = deque()
+        self.buckets: dict[int, list[int]] = defaultdict(list)
 
     def _bucket_key(self, h: int) -> int:
         return (h >> 48) & 0xFFFF

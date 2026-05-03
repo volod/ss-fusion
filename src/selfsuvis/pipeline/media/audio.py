@@ -15,7 +15,6 @@ Usage::
 
 import os
 import subprocess
-from typing import Dict, List, Optional
 
 from selfsuvis.pipeline.core import ensure_dir, get_logger, settings
 from selfsuvis.pipeline.media.fs_common import output_path_with_suffix
@@ -31,7 +30,7 @@ _DEFAULT_WINDOW_SEC = 3.0
 # ── Audio extraction ──────────────────────────────────────────────────────────
 
 
-def extract_audio(video_path: str, output_dir: str) -> Optional[str]:
+def extract_audio(video_path: str, output_dir: str) -> str | None:
     """Extract the audio track from *video_path* into *output_dir* as a 16 kHz mono WAV.
 
     Returns the path to the WAV file on success, or ``None`` if the video has
@@ -106,10 +105,10 @@ def _has_audio_stream(video_path: str) -> bool:
 
 
 def map_subtitles_to_frames(
-    segments: List[Dict],
-    frame_timestamps: List[float],
+    segments: list[dict],
+    frame_timestamps: list[float],
     window_sec: float = _DEFAULT_WINDOW_SEC,
-) -> Dict[float, str]:
+) -> dict[float, str]:
     """Map Whisper transcript segments to video frame timestamps.
 
     Parameters
@@ -136,7 +135,7 @@ def map_subtitles_to_frames(
     if not normalised:
         return {}
 
-    result: Dict[float, str] = {}
+    result: dict[float, str] = {}
     for t_sec in frame_timestamps:
         lo = t_sec - window_sec
         hi = t_sec + window_sec
@@ -154,7 +153,7 @@ def map_subtitles_to_frames(
     return result
 
 
-def _normalise_segments(raw: List[Dict]) -> List[Dict]:
+def _normalise_segments(raw: list[dict]) -> list[dict]:
     """Normalise various ASR segment formats to ``{text, start, end}``."""
     out = []
     for seg in raw:

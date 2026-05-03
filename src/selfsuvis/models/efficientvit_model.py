@@ -22,7 +22,6 @@ For distillation (Stage 1→2 — ViT-S/14 teacher → EfficientViT-B1 student):
 
 
 import logging
-from typing import List
 
 import numpy as np
 from PIL import Image
@@ -102,7 +101,7 @@ class EfficientViTEmbedder:
         """Return the embedding dimensionality (384 for EfficientViT-B1)."""
         return self._dim
 
-    def _preprocess(self, images: List[Image.Image]):
+    def _preprocess(self, images: list[Image.Image]):
         """Preprocess PIL images → (B, 3, H, W) float tensor."""
         import torch
         import torchvision.transforms.functional as TF
@@ -120,7 +119,7 @@ class EfficientViTEmbedder:
             batch = batch.half()
         return batch
 
-    def encode_images(self, images: List[Image.Image]) -> np.ndarray:
+    def encode_images(self, images: list[Image.Image]) -> np.ndarray:
         """Embed a list of PIL images.
 
         Returns:

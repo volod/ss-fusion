@@ -2,7 +2,7 @@ import hashlib
 import os
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from selfsuvis.pipeline.core.config import settings
 
@@ -30,7 +30,7 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def to_utc_datetime(value: Any) -> Optional[datetime]:
+def to_utc_datetime(value: Any) -> datetime | None:
     """Normalise epoch/datetime values to timezone-aware UTC datetimes."""
     if value is None:
         return None
@@ -43,7 +43,7 @@ def to_utc_datetime(value: Any) -> Optional[datetime]:
     raise TypeError(f"Unsupported datetime value: {type(value)!r}")
 
 
-def datetime_to_ts(value: Any) -> Optional[float]:
+def datetime_to_ts(value: Any) -> float | None:
     """Return Unix timestamp seconds for datetime-like values."""
     dt = to_utc_datetime(value)
     return dt.timestamp() if dt is not None else None
@@ -68,7 +68,7 @@ def file_sha256(path: str, chunk_size: int = 1024 * 1024) -> str:
     return h.hexdigest()
 
 
-def resolve_allowed_path(user_path: str, must_be_file: bool = False, must_be_dir: bool = False) -> Optional[str]:
+def resolve_allowed_path(user_path: str, must_be_file: bool = False, must_be_dir: bool = False) -> str | None:
     """
     Resolve user-supplied path against allowed base directories.
     Returns the resolved absolute path if allowed, else None.
@@ -98,7 +98,7 @@ def resolve_allowed_path(user_path: str, must_be_file: bool = False, must_be_dir
     return None
 
 
-def resolve_allowed_paths_for_walk(user_dir: str) -> Optional[str]:
+def resolve_allowed_paths_for_walk(user_dir: str) -> str | None:
     """Resolve directory for os.walk. Returns None if not allowed."""
     return resolve_allowed_path(user_dir, must_be_dir=True)
 

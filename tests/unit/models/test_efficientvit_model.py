@@ -4,6 +4,7 @@ All tests mock torch/timm to avoid model downloads.
 """
 
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
 from PIL import Image
@@ -33,13 +34,13 @@ def test_efficientvit_embedder_missing_timm_raises():
 
 def test_efficientvit_embedder_cuda_oom_on_load_raises_helpful_message():
     """OOM during model load raises RuntimeError with VRAM hint."""
-    import sys
     timm_mock = MagicMock()
     timm_mock.create_model.side_effect = RuntimeError("CUDA out of memory")
 
     with patch.dict("sys.modules", {"timm": timm_mock}):
         # Re-import so the mock is used at init time
         import importlib
+
         import selfsuvis.models.efficientvit_model as mod
         importlib.reload(mod)
 
@@ -49,8 +50,8 @@ def test_efficientvit_embedder_cuda_oom_on_load_raises_helpful_message():
 
 def test_efficientvit_embedder_oom_on_encode_raises_helpful_message():
     """OOM during encode_images raises RuntimeError with VRAM hint."""
+
     import torch
-    import sys
 
     # Build a mock timm model
     fake_model = MagicMock()
@@ -66,6 +67,7 @@ def test_efficientvit_embedder_oom_on_encode_raises_helpful_message():
 
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
+
         import selfsuvis.models.efficientvit_model as mod
         importlib.reload(mod)
 
@@ -80,8 +82,8 @@ def test_efficientvit_embedder_oom_on_encode_raises_helpful_message():
 
 def test_efficientvit_embedder_encode_empty():
     """encode_images([]) returns shape (0, dim) without errors."""
+
     import torch
-    import sys
 
     fake_model = MagicMock()
     fake_model.return_value = torch.zeros(1, 384)
@@ -94,6 +96,7 @@ def test_efficientvit_embedder_encode_empty():
 
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
+
         import selfsuvis.models.efficientvit_model as mod
         importlib.reload(mod)
 
@@ -104,8 +107,8 @@ def test_efficientvit_embedder_encode_empty():
 
 def test_efficientvit_embedder_encode_normalises():
     """encode_images returns L2-normalised vectors."""
+
     import torch
-    import sys
 
     def _fake_forward(batch):
         # Return unnormalised embeddings (non-unit norms)
@@ -123,6 +126,7 @@ def test_efficientvit_embedder_encode_normalises():
 
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
+
         import selfsuvis.models.efficientvit_model as mod
         importlib.reload(mod)
 
@@ -141,8 +145,8 @@ def test_efficientvit_embedder_encode_normalises():
 
 def test_efficientvit_embedder_image_dim():
     """image_dim() returns the inferred embedding dimension."""
+
     import torch
-    import sys
 
     fake_model = MagicMock()
     fake_model.return_value = torch.zeros(1, 256)
@@ -155,6 +159,7 @@ def test_efficientvit_embedder_image_dim():
 
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
+
         import selfsuvis.models.efficientvit_model as mod
         importlib.reload(mod)
 

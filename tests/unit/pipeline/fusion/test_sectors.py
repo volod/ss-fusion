@@ -4,7 +4,10 @@ import unittest
 class TestSectors(unittest.TestCase):
 
     def test_nearby_positions_share_overlapping_sector_ids(self):
-        from selfsuvis.pipeline.fusion.sectors import sectorize_global_positions, unique_sector_sequence
+        from selfsuvis.pipeline.fusion.sectors import (
+            sectorize_global_positions,
+            unique_sector_sequence,
+        )
 
         origin = {"lat": 50.4501, "lon": 30.5234, "alt": 100.0}
         traj_a = [

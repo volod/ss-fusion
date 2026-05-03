@@ -18,19 +18,20 @@ view_npz(path_str, output_dir)
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 try:
-    import matplotlib
     import sys
+
+    import matplotlib
     matplotlib.use("TkAgg" if sys.platform != "linux" else "Agg")
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 — registers 3D projection
     import matplotlib.widgets as mwidgets
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 — registers 3D projection
     _HAS_MPL = True
 except Exception:
     _HAS_MPL = False
@@ -50,7 +51,9 @@ def build_viewer_figure(title: str, points: np.ndarray, colours: np.ndarray):
             points[:, 0], points[:, 1], points[:, 2],
             c=colours.clip(0, 1), s=4, linewidths=0,
         )
-    ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
     ax.tick_params(colors="white")
     for spine in ax.spines.values():
         spine.set_color("#444")
@@ -64,7 +67,7 @@ def build_viewer_figure(title: str, points: np.ndarray, colours: np.ndarray):
     return fig
 
 
-def open_3d_viewers(viewer_data: List[Dict[str, Any]]) -> None:
+def open_3d_viewers(viewer_data: list[dict[str, Any]]) -> None:
     """Open one matplotlib figure per entry; block until all windows are closed."""
     if not _HAS_MPL:
         logger.warning("matplotlib unavailable — skipping 3D viewers")
@@ -88,7 +91,7 @@ def open_3d_viewers(viewer_data: List[Dict[str, Any]]) -> None:
     logger.info("All 3D viewers closed.")
 
 
-def collect_npz_files(path_str: str, output_dir: Path) -> List[Path]:
+def collect_npz_files(path_str: str, output_dir: Path) -> list[Path]:
     """Resolve sparse_map.npz files from *path_str*.
 
     - Empty string → scan *output_dir* recursively for all sparse_map.npz
@@ -133,7 +136,7 @@ def view_npz(path_str: str, output_dir: Path) -> None:
     if not npz_files:
         return
 
-    viewer_data: List[Dict[str, Any]] = []
+    viewer_data: list[dict[str, Any]] = []
     for npz_path in npz_files:
         try:
             data    = np.load(str(npz_path))

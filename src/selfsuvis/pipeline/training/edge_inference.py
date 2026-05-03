@@ -25,11 +25,8 @@ Usage (on robot):
     labels = clf.classify(frame_pil)   # [(label, score), ...]
 """
 
-import glob
 import logging
 import os
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from PIL import Image
@@ -43,7 +40,7 @@ _IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 # ── Provider selection ─────────────────────────────────────────────────────────
 
-def _select_providers(device: str) -> List[str]:
+def _select_providers(device: str) -> list[str]:
     """Select ONNX Runtime execution providers for *device*, logging gaps.
 
     Preference order for ``device="cuda"``:
@@ -76,7 +73,7 @@ def _select_providers(device: str) -> List[str]:
         return ["CPUExecutionProvider"]
 
     if device == "cuda":
-        selected: List[str] = []
+        selected: list[str] = []
 
         # ── TensorRT EP ────────────────────────────────────────────────────────
         # Highest throughput on NVIDIA GPUs. Included in onnxruntime-gpu but
@@ -288,7 +285,7 @@ class EdgeClassifier:
         vec = _l2_normalise(vec)
         return vec[0]  # (D,)
 
-    def classify(self, image_pil: Image.Image) -> List[Tuple[str, float]]:
+    def classify(self, image_pil: Image.Image) -> list[tuple[str, float]]:
         """Classify a PIL image against the gallery.
 
         Args:
@@ -398,8 +395,9 @@ def export_efficientvit_onnx(
         RuntimeError: If the ONNX export fails.
     """
     try:
-        import torch
         import warnings
+
+        import torch
     except ImportError as exc:
         raise ImportError("torch is required for export_efficientvit_onnx") from exc
 
@@ -440,9 +438,9 @@ def export_efficientvit_onnx(
 # ── Gallery builder ───────────────────────────────────────────────────────────
 
 def build_gallery(
-    labels_map: Dict[str, List[str]],
+    labels_map: dict[str, list[str]],
     output_path: str,
-    onnx_path: Optional[str] = None,
+    onnx_path: str | None = None,
     backbone=None,
     image_size: int = 224,
 ) -> None:
@@ -508,9 +506,9 @@ def build_gallery(
         raise ValueError("Either onnx_path or backbone must be provided.")
 
     # Embed all frames
-    all_embeddings: List[np.ndarray] = []
-    all_labels: List[str] = []
-    skipped: List[str] = []
+    all_embeddings: list[np.ndarray] = []
+    all_labels: list[str] = []
+    skipped: list[str] = []
 
     total_frames = sum(len(v) for v in labels_map.values())
     logger.info(
