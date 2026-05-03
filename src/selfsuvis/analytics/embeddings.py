@@ -1,12 +1,13 @@
 """Embedding-space analysis from edge_models/gallery.npz."""
 
 
-import logging
 from pathlib import Path
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def load_gallery(run_dir: str | Path) -> np.ndarray | None:

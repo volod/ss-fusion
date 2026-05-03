@@ -22,7 +22,6 @@ Input schema (RF-DETR tracking_results):
 Output: ObjectFusionResult with per-frame smoothed track states.
 """
 
-import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -30,6 +29,7 @@ from typing import Any
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from selfsuvis.pipeline.core.logging import get_logger
 from selfsuvis.pipeline.fusion.filters.object_filter import (
     ObjectFilterHistory,
     ObjectKalmanFilter,
@@ -41,7 +41,7 @@ from selfsuvis.pipeline.fusion.filters.rts_smoother import (
 )
 from selfsuvis.pipeline.fusion.semantic_priors import SemanticPrior
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Track lifecycle thresholds
 _CONFIRM_HITS = 3        # frames needed to become confirmed

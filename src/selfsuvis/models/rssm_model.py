@@ -36,12 +36,13 @@ Graceful degradation:
   surprise estimate (no gradient computation required).
 """
 
-import logging
 from typing import Any
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Default RSSM hyperparameters — kept small for CPU-friendly operation.
 _DEFAULT_HIDDEN_DIM = 256

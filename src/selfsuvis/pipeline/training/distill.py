@@ -178,6 +178,34 @@ def koleo_loss(s: Tensor) -> Tensor:
     return -torch.log(nn_dist).mean()
 
 
+def _module_forward_dtype(module: torch.nn.Module) -> torch.dtype:
+    """Infer a safe floating dtype for dummy forwards against *module*."""
+    for param in module.parameters():
+        if torch.is_floating_point(param):
+            return param.dtype
+    for buffer in module.buffers():
+        if torch.is_floating_point(buffer):
+            return buffer.dtype
+    return torch.float32
+
+
+def _module_dummy_input(
+    module: torch.nn.Module,
+    *,
+    image_size: int,
+    device: str,
+) -> Tensor:
+    """Create a dummy BCHW image tensor matching *module*'s expected float dtype."""
+    return torch.zeros(
+        1,
+        3,
+        image_size,
+        image_size,
+        device=device,
+        dtype=_module_forward_dtype(module),
+    )
+
+
 # ── Recall@1 metric ───────────────────────────────────────────────────────────
 
 @torch.no_grad()
@@ -196,6 +224,20 @@ def recall_at_1(teacher_embs: Tensor, student_embs: Tensor) -> float:
     s_nn = s_sim.argmax(dim=-1)
 
     return (t_nn == s_nn).float().mean().item()
+
+
+def _should_update_best_checkpoint(
+    *,
+    best_recall: float,
+    best_loss: float,
+    candidate_recall: float,
+    candidate_loss: float,
+) -> bool:
+    """Prefer better retrieval structure; use loss only as a tiebreaker."""
+    return (
+        candidate_recall > best_recall + 1e-6
+        or (abs(candidate_recall - best_recall) <= 1e-6 and candidate_loss < best_loss)
+    )
 
 
 # ── Distiller ─────────────────────────────────────────────────────────────────
@@ -219,14 +261,23 @@ class KnowledgeDistiller:
 
         # Infer teacher output dimension
         with torch.no_grad():
-            _dummy = torch.zeros(1, 3, 224, 224, device=self.device)
+            _dummy = _module_dummy_input(
+                self.teacher,
+                image_size=config.image_size,
+                device=self.device,
+            )
             self._t_dim: int = int(self.teacher(_dummy).shape[-1])
         logger.info("Teacher: %s  dim=%d (frozen)", type(teacher).__name__, self._t_dim)
 
         # Student backbone (pretrained, smaller)
         self.student = self._load_student()
         with torch.no_grad():
-            self._s_dim: int = int(self.student(_dummy).shape[-1])
+            _student_dummy = _module_dummy_input(
+                self.student,
+                image_size=config.image_size,
+                device=self.device,
+            )
+            self._s_dim: int = int(self.student(_student_dummy).shape[-1])
         logger.info("Student: %s  dim=%d (trainable)", config.student_model, self._s_dim)
 
         # Projection head (used only during training, then discarded)
@@ -352,7 +403,7 @@ class KnowledgeDistiller:
         )
 
         best_loss = float("inf")
-        best_recall = 0.0
+        best_recall = float("-inf")
         best_path = checkpoint_path(checkpoint_dir, "student_best.pt")
         loss_history: list[float] = []
         recall_history: list[float] = []
@@ -480,24 +531,29 @@ class KnowledgeDistiller:
             # Save student backbone only (no projection head)
             epoch_path = epoch_checkpoint_path(checkpoint_dir, "student", epoch)
             save_backbone_checkpoint(self.student, epoch_path)
-            if epoch_loss < best_loss:
+            if _should_update_best_checkpoint(
+                best_recall=best_recall,
+                best_loss=best_loss,
+                candidate_recall=r1,
+                candidate_loss=epoch_loss,
+            ):
                 best_loss = epoch_loss
                 best_recall = r1
                 save_backbone_checkpoint(self.student, best_path)
-                logger.info("  ↳ best checkpoint saved (loss=%.4f  R@1=%.3f)", best_loss, r1)
+                logger.info("  ↳ best checkpoint saved (R@1=%.3f  loss=%.4f)", r1, best_loss)
 
         elapsed = time.time() - t0
         compression_ratio = self._teacher_params / max(self._student_params, 1)
         logger.info(
             "Distillation complete: %.1fs | best_loss=%.4f | best_R@1=%.3f | "
             "compression=%.1f× | student=%s (dim=%d, %dM params)",
-            elapsed, best_loss, best_recall, compression_ratio,
+            elapsed, best_loss, max(best_recall, 0.0), compression_ratio,
             cfg.student_model, self._s_dim, self._student_params // 1_000_000,
         )
         return {
             "best_path":        best_path,
             "best_loss":        best_loss,
-            "best_recall":      best_recall,
+            "best_recall":      max(best_recall, 0.0),
             "loss_history":     loss_history,
             "loss_components":  loss_components,
             "recall_history":   recall_history,
@@ -682,13 +738,22 @@ def run_distillation_efficientvit(
 
     # Rebuild projection head for the actual student dim (may differ from default)
     with _torch.no_grad():
-        _dummy = _torch.zeros(
-            1, 3, config.image_size, config.image_size, device=config.device
+        _student_dummy = _module_dummy_input(
+            distiller.student,
+            image_size=config.image_size,
+            device=config.device,
         )
-        _s_dim = int(distiller.student(_dummy).shape[-1])
-        _t_dim = int(distiller.teacher(_dummy).shape[-1])
-    distiller.proj = nn.Linear(_s_dim, _t_dim, bias=False).to(config.device)
-    nn.init.orthogonal_(distiller.proj.weight)
+        _teacher_dummy = _module_dummy_input(
+            distiller.teacher,
+            image_size=config.image_size,
+            device=config.device,
+        )
+        _s_dim = int(distiller.student(_student_dummy).shape[-1])
+        _t_dim = int(distiller.teacher(_teacher_dummy).shape[-1])
+    distiller._s_dim = _s_dim
+    distiller._t_dim = _t_dim
+    distiller._proj = nn.Linear(_s_dim, _t_dim, bias=False).to(config.device)
+    nn.init.orthogonal_(distiller._proj.weight)
 
     try:
         stats = distiller.distill(frame_paths, checkpoint_dir)

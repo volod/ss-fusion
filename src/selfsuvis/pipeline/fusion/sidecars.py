@@ -1,39 +1,15 @@
-
-import json
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any
 
-
-def _load_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    if not path.is_file():
-        return rows
-    with path.open(encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                payload = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(payload, dict):
-                rows.append(payload)
-    rows.sort(key=lambda row: float(row.get("t", row.get("timestamp", 0.0)) or 0.0))
-    return rows
-
-
-def _sidecar_path(video_path: str, suffix: str) -> Path:
-    return Path(video_path).with_suffix(suffix)
+from selfsuvis.pipeline.core.sidecars import load_video_jsonl_sidecar
 
 
 def load_imu_sidecar(video_path: str) -> list[dict[str, Any]]:
-    return _load_jsonl(_sidecar_path(video_path, ".imu.jsonl"))
+    return load_video_jsonl_sidecar(video_path, ".imu.jsonl")
 
 
 def load_baro_sidecar(video_path: str) -> list[dict[str, Any]]:
-    return _load_jsonl(_sidecar_path(video_path, ".baro.jsonl"))
+    return load_video_jsonl_sidecar(video_path, ".baro.jsonl")
 
 
 def pressure_hpa_to_altitude_m(pressure_hpa: float) -> float:

@@ -158,6 +158,14 @@ class TestRunDistillationEfficientViTConfig(unittest.TestCase):
         self.assertEqual(captured_cfg["cfg"].lambda_rkd_a, 0.0)
         self.assertEqual(captured_cfg["cfg"].student_model, "efficientvit_b1")
 
+    def test_module_dummy_input_matches_half_precision_weights(self):
+        from selfsuvis.pipeline.training.distill import _module_dummy_input
+
+        model = nn.Conv2d(3, 4, kernel_size=1).half()
+        dummy = _module_dummy_input(model, image_size=32, device="cpu")
+
+        self.assertEqual(dummy.dtype, torch.float16)
+
 
 # ── export_efficientvit_onnx ──────────────────────────────────────────────────
 

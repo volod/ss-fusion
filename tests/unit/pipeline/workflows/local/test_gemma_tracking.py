@@ -447,6 +447,30 @@ def test_scene_is_actionable_requires_detector_aligned_targets():
     ) is True
     assert tracking._scene_is_actionable(
         {
+            "scene_type": "aerial",
+            "tracking_priority": ["vehicle"],
+            "dominant_objects": [],
+            "areas_of_interest": ["road corridor"],
+            "motion_present": True,
+        }
+    ) is True
+    assert tracking._scene_is_actionable(
+        {
+            "scene_type": "aerial",
+            "tracking_priority": ["vehicle"],
+            "dominant_objects": [
+                {
+                    "category": "vehicle",
+                    "rough_bbox": [0.2, 0.2, 0.8, 0.8],
+                    "spatial_hint": "scene-context fallback fallback-bbox",
+                }
+            ],
+            "areas_of_interest": ["road corridor"],
+            "motion_present": True,
+        }
+    ) is False
+    assert tracking._scene_is_actionable(
+        {
             "scene_type": "urban_street|rural_terrain|indoor|aerial|waterway|construction|industrial|other",
             "tracking_priority": ["vehicle"],
             "dominant_objects": [

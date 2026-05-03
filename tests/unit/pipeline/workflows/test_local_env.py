@@ -72,3 +72,30 @@ def test_apply_local_env_preserves_existing_pytorch_allocator_overrides(monkeypa
 
     assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "max_split_size_mb:64"
     assert os.environ["PYTORCH_ALLOC_CONF"] == "max_split_size_mb:64"
+
+
+def test_apply_local_env_preserves_scenetok_env_when_cli_omits_flag(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCENETOK_ENABLED", "true")
+
+    args = _make_args(output_dir=str(tmp_path), scenetok=None)
+    apply_local_env(args)
+
+    assert os.environ["SCENETOK_ENABLED"] == "true"
+
+
+def test_apply_local_env_overrides_scenetok_env_when_cli_explicit(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCENETOK_ENABLED", "true")
+
+    args = _make_args(output_dir=str(tmp_path), scenetok=False)
+    apply_local_env(args)
+
+    assert os.environ["SCENETOK_ENABLED"] == "false"
+
+
+def test_apply_local_env_sets_scenetok_arg_from_env_when_unspecified(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCENETOK_ENABLED", "true")
+
+    args = _make_args(output_dir=str(tmp_path), scenetok=None)
+    apply_local_env(args)
+
+    assert args.scenetok is True

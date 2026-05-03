@@ -32,7 +32,6 @@ Usage (standalone):
         --output-dir data/checkpoints/supervised
 """
 import glob
-import logging
 import os
 import random
 from dataclasses import dataclass
@@ -47,6 +46,8 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+from selfsuvis.pipeline.core.logging import get_logger
+
 from .common import (
     checkpoint_path,
     ensure_output_dir,
@@ -54,7 +55,7 @@ from .common import (
     save_backbone_checkpoint,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # VisDrone-2019-inspired default label vocabulary (alphabetical = index order)
 VISDRONE_LABELS: list[str] = [

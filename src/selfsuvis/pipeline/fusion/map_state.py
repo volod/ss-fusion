@@ -17,7 +17,6 @@ Returns a MapFusionResult containing the smoothed per-frame states alongside
 the alignment diagnostics.
 """
 
-import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -25,6 +24,7 @@ from typing import Any
 import numpy as np
 
 from selfsuvis.pipeline.core import settings
+from selfsuvis.pipeline.core.logging import get_logger
 from selfsuvis.pipeline.fusion.filters.platform import PlatformStateFilter
 from selfsuvis.pipeline.fusion.filters.rts_smoother import FilteredStep, rts_smooth
 from selfsuvis.pipeline.fusion.measurements import PlatformMeasurement
@@ -41,7 +41,7 @@ from selfsuvis.pipeline.fusion.summaries import (
 from selfsuvis.pipeline.fusion.visual_pose import align_sfm_to_enu
 from selfsuvis.pipeline.mapping.gps_registration import gps_to_enu
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

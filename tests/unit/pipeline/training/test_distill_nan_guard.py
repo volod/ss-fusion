@@ -113,3 +113,26 @@ def test_zero_teacher_embedding_is_handled():
 
     # Zero vectors normalise to zero — not NaN
     assert torch.isfinite(t_emb).all(), "Zero teacher should produce finite (zero) embedding"
+
+
+def test_best_checkpoint_prefers_recall_over_loss():
+    from selfsuvis.pipeline.training.distill import _should_update_best_checkpoint
+
+    assert _should_update_best_checkpoint(
+        best_recall=0.40,
+        best_loss=1.0,
+        candidate_recall=0.55,
+        candidate_loss=1.8,
+    ) is True
+    assert _should_update_best_checkpoint(
+        best_recall=0.55,
+        best_loss=1.0,
+        candidate_recall=0.55,
+        candidate_loss=0.8,
+    ) is True
+    assert _should_update_best_checkpoint(
+        best_recall=0.55,
+        best_loss=0.8,
+        candidate_recall=0.50,
+        candidate_loss=0.1,
+    ) is False

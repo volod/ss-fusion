@@ -17,14 +17,15 @@ Requirements:
 """
 
 import hashlib
-import logging
 from collections import OrderedDict
 
 import numpy as np
 import torch
 from PIL import Image
 
-_log = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+_log = get_logger(__name__)
 
 # Neutral prompt prepended to images so the model sees a well-formed input.
 _IMAGE_PROMPT = "Describe this image:"

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[5]
 if str(ROOT) not in sys.path:
@@ -82,6 +82,67 @@ def test_analyze_caption_sequence_no_change():
     assert all(r["segment_id"] == 0 for r in enriched)
     assert enriched[0]["is_new_segment"] is True
     assert all(not r["is_new_segment"] for r in enriched[1:])
+
+
+def test_select_segment_boundary_pairs_prefers_strongest_boundaries():
+    from selfsuvis.pipeline.workflows.local.steps_caption import _select_segment_boundary_pairs
+
+    enriched = [
+        {"t_sec": 0.0, "is_new_segment": True, "similarity": None, "segment_id": 0},
+        {"t_sec": 1.0, "is_new_segment": True, "similarity": 0.40, "segment_id": 1},
+        {"t_sec": 2.0, "is_new_segment": True, "similarity": 0.05, "segment_id": 2},
+        {"t_sec": 3.0, "is_new_segment": True, "similarity": 0.30, "segment_id": 3},
+    ]
+
+    selected = _select_segment_boundary_pairs(enriched, max_boundaries=2)
+
+    assert len(selected) == 2
+    # strongest boundaries are indices 2 (0.95 delta) and 3 (0.70 delta)
+    assert selected[0][1]["t_sec"] == 2.0
+    assert selected[1][1]["t_sec"] == 3.0
+
+
+def test_select_ocr_candidate_frames_prefers_text_like_images(tmp_path):
+    from selfsuvis.pipeline.workflows.local.steps_caption import _select_ocr_candidate_frames
+
+    text_img = tmp_path / "text_like.jpg"
+    scene_img = tmp_path / "scene_like.jpg"
+
+    img = Image.new("L", (160, 96), 245)
+    draw = ImageDraw.Draw(img)
+    for y in range(18, 78, 12):
+        draw.rectangle((20, y, 140, y + 4), fill=20)
+    img.convert("RGB").save(text_img)
+
+    Image.new("RGB", (160, 96), (120, 160, 210)).save(scene_img)
+
+    frame_list = [(str(scene_img), 0.0), (str(text_img), 1.0)]
+    caption_results = [
+        {
+            "frame_path": str(scene_img),
+            "t_sec": 0.0,
+            "caption": "aerial view of open terrain and road",
+            "caption_confidence": 0.3,
+        },
+        {
+            "frame_path": str(text_img),
+            "t_sec": 1.0,
+            "caption": "road sign with visible text and lane markings",
+            "caption_confidence": 0.3,
+        },
+    ]
+
+    selected, skipped, ranking = _select_ocr_candidate_frames(
+        frame_list=frame_list,
+        caption_results=caption_results,
+        ocr_model_id="ocr-test",
+        threshold=0.55,
+        max_ocr=1,
+    )
+
+    assert selected == [(str(text_img), 1.0)]
+    assert str(scene_img) in skipped
+    assert ranking[0]["frame_path"] == str(text_img)
 
 
 # ── Tests for write_gemma_segment_captions_md ─────────────────────────────────

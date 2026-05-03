@@ -1,45 +1,21 @@
-import json
 import os
-from pathlib import Path
 
-from dotenv import dotenv_values
-
+from selfsuvis.pipeline.core.env import (
+    env_float,
+    env_int,
+    env_json_dict,
+    env_str,
+    load_layered_env,
+)
 from selfsuvis.pipeline.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-def _load_settings_env() -> None:
-    """Load packaged env defaults, then let project-root .env override them.
-
-    Priority (highest wins): shell/CLI env vars > .env > packaged dev.env.
-
-    Using dotenv_values + manual merge (instead of load_dotenv with override=True)
-    ensures that variables already in the environment — set by the shell, Docker,
-    or apply_local_env before this module is imported — are never clobbered by the
-    .env file.  This lets ``apply_local_env`` force-set CLI flags (e.g. ASR_ENABLED)
-    that take precedence even when .env contains a conflicting value.
-    """
-    env_name = os.getenv("APP_ENV", "dev")
-    package_root = Path(__file__).resolve().parents[2]
-    repo_root = Path(__file__).resolve().parents[4]
-    env_file = package_root / "env" / f"{env_name}.env"
-    root_env = repo_root / ".env"
-
-    dev_values: dict = dotenv_values(env_file) if env_file.exists() else {}
-    root_values: dict = dotenv_values(root_env) if root_env.exists() else {}
-
-    # .env overrides dev.env defaults; neither overrides existing env vars.
-    merged = {**dev_values, **root_values}
-    for key, value in merged.items():
-        if key not in os.environ:
-            os.environ[key] = value if value is not None else ""
-
-
-_load_settings_env()
+load_layered_env(anchor_file=__file__)
 
 
 def _env(key: str, default: str) -> str:
-    return os.getenv(key, default)
+    return env_str(key, default)
 
 
 def mask_secret(value: str, visible_suffix: int = 4) -> str:
@@ -59,19 +35,11 @@ def mask_secret(value: str, visible_suffix: int = 4) -> str:
 
 
 def _env_int(key: str, default: int) -> int:
-    val = os.getenv(key, str(default))
-    try:
-        return int(val)
-    except ValueError:
-        return default
+    return env_int(key, default)
 
 
 def _env_float(key: str, default: float) -> float:
-    val = os.getenv(key, str(default))
-    try:
-        return float(val)
-    except ValueError:
-        return default
+    return env_float(key, default)
 
 
 def _parse_allowed_paths(val: str | None) -> list[str]:
@@ -83,19 +51,7 @@ def _parse_allowed_paths(val: str | None) -> list[str]:
 
 def _env_json_dict(key: str, default: dict[str, str] | None = None) -> dict[str, str]:
     """Parse a JSON object from env, returning a safe default on invalid values."""
-    fallback = default or {}
-    raw = os.getenv(key, "")
-    if not raw:
-        return dict(fallback)
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        logger.warning("%s contains invalid JSON; using default value", key)
-        return dict(fallback)
-    if not isinstance(parsed, dict):
-        logger.warning("%s must be a JSON object; using default value", key)
-        return dict(fallback)
-    return parsed
+    return env_json_dict(key, default=default, on_error=logger.warning)
 
 
 def get_dino_model_name(model_name: str) -> str | None:
@@ -469,6 +425,9 @@ class Settings:
     # the prescreen ineffective — this ensures OCR never processes more than N
     # frames regardless of scene type.  0 = no cap.
     OCR_MAX_FRAMES = _env_int("OCR_MAX_FRAMES", 30)
+    # Multi-frame Gemma diffs are expensive and become redundant on short clips
+    # with frame-to-frame caption churn. Keep only the strongest segment changes.
+    GEMMA_SEGMENT_DIFF_MAX_BOUNDARIES = _env_int("GEMMA_SEGMENT_DIFF_MAX_BOUNDARIES", 16)
 
     # ── Depth estimation ──────────────────────────────────────────────────────
     # Stores 5-bucket depth percentiles in frame_facts_json["depth"].

@@ -125,7 +125,7 @@ def test_extract_frame_facts_sends_gemma_model(gemma_settings, small_image):
     fake_client.chat.completions.create.return_value = fake_response
 
     with patch("openai.OpenAI", return_value=fake_client):
-        model.extract_frame_facts(small_image)
+        result = model.extract_frame_facts(small_image)
 
     # Verify model name sent is the Gemma model
     call_kwargs = fake_client.chat.completions.create.call_args[1]
@@ -147,7 +147,7 @@ def test_extract_frame_facts_uses_qwen_model_in_legacy_mode(qwen_only_settings, 
     fake_client.chat.completions.create.return_value = fake_response
 
     with patch("openai.OpenAI", return_value=fake_client):
-        result = model.extract_frame_facts(small_image)
+        model.extract_frame_facts(small_image)
 
     call_kwargs = fake_client.chat.completions.create.call_args[1]
     assert call_kwargs["model"] == "Qwen/Qwen2.5-VL-7B-Instruct"

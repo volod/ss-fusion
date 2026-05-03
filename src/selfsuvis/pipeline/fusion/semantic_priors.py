@@ -14,12 +14,13 @@ Usage::
     # Then pass prior.process_noise_scale / prior.gps_noise_scale into the filter.
 """
 
-import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # ── Scene-type → process noise scale ─────────────────────────────────────────
 # Higher value = more dynamic scene (starts/stops) → inflate Q.

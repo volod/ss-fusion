@@ -13,15 +13,15 @@ Reference:
     between two point patterns." IEEE T-PAMI, 13(4), 376-380.
 """
 
-import logging
 from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 
+from selfsuvis.pipeline.core.logging import get_logger
 from selfsuvis.pipeline.fusion.measurements import PlatformMeasurement
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Minimum aligned frames needed for a reliable Sim(3) estimate
 _MIN_ALIGNED_FRAMES = 6

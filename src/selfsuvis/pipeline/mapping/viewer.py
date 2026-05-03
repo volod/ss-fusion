@@ -16,13 +16,14 @@ view_npz(path_str, output_dir)
     Load NPZ file(s) and open interactive viewer.
 """
 import json
-import logging
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import sys

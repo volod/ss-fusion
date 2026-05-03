@@ -1,5 +1,4 @@
 
-import logging
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -8,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from selfsuvis.pipeline.core import settings
+from selfsuvis.pipeline.core.logging import get_logger
 from selfsuvis.pipeline.fusion.filters import PlatformStateFilter
 from selfsuvis.pipeline.fusion.measurements import PlatformMeasurement
 from selfsuvis.pipeline.fusion.sidecars import (
@@ -22,7 +22,7 @@ from selfsuvis.pipeline.fusion.state import (
 )
 from selfsuvis.pipeline.mapping.gps_registration import gps_to_enu
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _measurement_covariance(diag: Sequence[float]) -> tuple[tuple[float, ...], ...]:

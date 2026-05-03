@@ -23,7 +23,6 @@ Usage (standalone):
     python scripts/finetune_dino.py --frames-dir data/frames --output-dir data/checkpoints
 """
 import glob
-import logging
 import math
 import os
 import random
@@ -39,6 +38,8 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+from selfsuvis.pipeline.core.logging import get_logger
+
 from .common import (
     checkpoint_path,
     ensure_output_dir,
@@ -46,7 +47,7 @@ from .common import (
     save_backbone_checkpoint,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

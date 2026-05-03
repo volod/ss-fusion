@@ -25,13 +25,14 @@ Usage (on robot):
     labels = clf.classify(frame_pil)   # [(label, score), ...]
 """
 
-import logging
 import os
 
 import numpy as np
 from PIL import Image
 
-logger = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # ImageNet normalisation constants
 _IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)

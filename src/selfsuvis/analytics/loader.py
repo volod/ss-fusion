@@ -2,10 +2,11 @@
 
 
 import json
-import logging
 import math
 import re
 from pathlib import Path
+
+from selfsuvis.pipeline.core.logging import get_logger
 
 from .embeddings import load_gallery, nearest_neighbour_recall
 from .models import (
@@ -23,7 +24,7 @@ from .models import (
     TrainingStats,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LocalRunLoader:

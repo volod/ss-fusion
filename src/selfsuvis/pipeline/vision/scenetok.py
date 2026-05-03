@@ -18,6 +18,7 @@ to get per-frame segmentation masks from SCENETOK_MODE=masks.
 
 import base64
 import gc
+import importlib
 import io
 from pathlib import Path
 from typing import Any
@@ -102,8 +103,8 @@ class SceneTokModel:
 
     def _scenetok_package_available(self) -> bool:
         try:
-            import importlib
-            return importlib.util.find_spec("scenetok") is not None
+            importlib.import_module("scenetok")
+            return True
         except Exception:
             return False
 

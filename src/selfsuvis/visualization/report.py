@@ -3,12 +3,12 @@
 
 import base64
 import io
-import logging
 from pathlib import Path
 
 from selfsuvis.analytics.models import RunSummary
+from selfsuvis.pipeline.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _CSS = """
 body{font-family:sans-serif;margin:0;padding:20px;background:#f8f9fa;color:#222}

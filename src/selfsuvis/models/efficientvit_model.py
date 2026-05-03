@@ -20,13 +20,12 @@ For distillation (Stage 1→2 — ViT-S/14 teacher → EfficientViT-B1 student):
     stats = run_distillation_efficientvit(teacher_backbone, frame_paths, ckpt_dir, cfg)
 """
 
-
-import logging
-
 import numpy as np
 from PIL import Image
 
-logger = logging.getLogger(__name__)
+from selfsuvis.pipeline.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 _EFFICIENTVIT_INPUT_SIZE = 224
 _EFFICIENTVIT_MEAN = (0.485, 0.456, 0.406)
