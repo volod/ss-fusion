@@ -92,10 +92,20 @@ def test_validate_settings_invalid_motion_range(monkeypatch):
 def test_validate_settings_no_api_key_logs_warning(monkeypatch, caplog):
     """validate_settings logs a warning when API_KEY is not set."""
     import logging
+    monkeypatch.setattr(config.settings, "API_AUTH_REQUIRED", False)
     monkeypatch.setattr(config.settings, "API_KEY", "")
     with caplog.at_level(logging.WARNING, logger="selfsuvis.pipeline.config"):
         config.validate_settings()
     assert any("API_KEY" in r.message for r in caplog.records)
+
+
+def test_validate_settings_requires_api_key_when_auth_required(monkeypatch):
+    """Production-style auth must fail closed when API_KEY is missing."""
+    monkeypatch.setattr(config.settings, "API_AUTH_REQUIRED", True)
+    monkeypatch.setattr(config.settings, "API_KEY", "")
+    with pytest.raises(ValueError) as exc_info:
+        config.validate_settings()
+    assert "API_KEY" in str(exc_info.value)
 
 
 def test_validate_settings_no_allowed_paths_logs_warning(monkeypatch, caplog):

@@ -64,6 +64,7 @@ def get_dino_model_name(model_name: str) -> str | None:
 
 
 class Settings:
+    APP_ENV = _env("APP_ENV", "dev").strip().lower()
     DATA_DIR = _env("DATA_DIR", "./data")
     FRAMES_DIR = _env("FRAMES_DIR", os.path.join(DATA_DIR, "frames"))
     TILES_DIR = _env("TILES_DIR", os.path.join(DATA_DIR, "tiles"))
@@ -580,7 +581,8 @@ class Settings:
     # CVAT annotation service (http://localhost:8091 when running via make cvat-up)
     CVAT_URL = _env("CVAT_URL", "http://localhost:8091")
     # HMAC-SHA256 secret for verifying CVAT webhook payloads (X-Hook-Secret header).
-    # If empty, signature verification is skipped (dev mode only).
+    # Must match the secret configured in CVAT's webhook settings.
+    # When empty, /webhook/cvat rejects all requests (fail-closed).
     CVAT_WEBHOOK_SECRET = _env("CVAT_WEBHOOK_SECRET", "")
     # JSON dict mapping CVAT label names to canonical vocabulary.
     # Example: '{"automobile":"car","person":"pedestrian"}'
@@ -674,6 +676,10 @@ class Settings:
 
     # API auth and rate limiting
     API_KEY = _env("API_KEY", "")
+    API_AUTH_REQUIRED = _env(
+        "API_AUTH_REQUIRED",
+        "true" if APP_ENV == "prod" else "false",
+    ).lower() == "true"
     RATE_LIMIT_PER_MIN = _env_int("RATE_LIMIT_PER_MIN", 120)
     RATE_LIMIT_BURST = _env_int("RATE_LIMIT_BURST", 60)
     TRUST_PROXY_HEADERS = _env("TRUST_PROXY_HEADERS", "false").lower() == "true"
@@ -711,10 +717,18 @@ def validate_settings() -> None:
         raise ValueError("MAX_DIR_FILES/MAX_DIR_BYTES/MAX_DIR_DEPTH must be >= 0")
     if settings.HF_TOKEN:
         logger.info("HF_TOKEN configured: %s", mask_secret(settings.HF_TOKEN))
+    if settings.API_AUTH_REQUIRED and not settings.API_KEY:
+        raise ValueError("API_KEY must be set when API_AUTH_REQUIRED is true")
     if not settings.API_KEY:
         logger.warning(
             "API_KEY is not set; the API is unauthenticated and open to any caller. "
-            "Set the API_KEY environment variable for production use."
+            "Set the API_KEY environment variable or enable API_AUTH_REQUIRED."
+        )
+    if not settings.CVAT_WEBHOOK_SECRET:
+        logger.warning(
+            "CVAT_WEBHOOK_SECRET is not set; POST /webhook/cvat will reject all requests "
+            "(fail-closed). Set CVAT_WEBHOOK_SECRET to the secret configured in CVAT's "
+            "webhook settings to enable annotation webhook delivery."
         )
     if not settings.ALLOWED_INDEX_PATHS:
         logger.warning(
