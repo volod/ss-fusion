@@ -655,6 +655,10 @@ class Settings:
     # Intra-vs-inter cosine gap above this value triggers an overfitting warning (not a gate).
     SUP_OVERFITTING_SHIFT_THRESHOLD = _env_float("SUP_OVERFITTING_SHIFT_THRESHOLD", 0.9)
 
+    # Drone audio detection dataset and training
+    DRONE_AUDIO_DATA_DIR = _env("DRONE_AUDIO_DATA_DIR", os.path.join(DATA_DIR, "drone-audio-data"))
+    DRONE_AUDIO_EPOCHS = _env_int("DRONE_AUDIO_EPOCHS", 10)
+
     # Edge model hydration (scripts/export_onnx.py, scripts/build_gallery.py, pipeline/edge_inference.py)
     EDGE_MODELS_DIR = _env("EDGE_MODELS_DIR", os.path.join(DATA_DIR, "models"))
     EDGE_GALLERY_DIR = _env("EDGE_GALLERY_DIR", os.path.join(DATA_DIR, "gallery"))
