@@ -240,7 +240,7 @@ class DINOEmbedder:
 
                 _req.urlretrieve(url, dst, reporthook=_hook)
                 bar.close()
-                self.logger.info("  ✓ saved %s", dst)
+                self.logger.info("  [ok] saved %s", dst)
             except Exception:
                 _orig_download(url, dst, *args, **kwargs)
 

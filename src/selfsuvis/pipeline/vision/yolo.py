@@ -45,7 +45,7 @@ from selfsuvis.pipeline.core import get_logger, resolve_device, settings
 
 logger = get_logger(__name__)
 
-# ── Priority taxonomy ─────────────────────────────────────────────────────────
+# -- Priority taxonomy ---------------------------------------------------------
 
 _HUMAN_LABELS = frozenset({"person", "pedestrian", "rider", "child"})
 
@@ -209,7 +209,7 @@ def sort_detections_by_priority(detections: list[dict[str, Any]]) -> list[dict[s
     )
 
 
-# ── Model resolution ──────────────────────────────────────────────────────────
+# -- Model resolution ----------------------------------------------------------
 
 _YOLO_AUTO_TIERS = [
     ("yolo11n.pt", 6),
@@ -242,7 +242,7 @@ def _resolve_yolo_model() -> str:
         return "yolo11l.pt"
 
 
-# ── Detector class ────────────────────────────────────────────────────────────
+# -- Detector class ------------------------------------------------------------
 
 
 class YOLODetector:
@@ -370,10 +370,17 @@ class YOLODetector:
             self._load_failed = True
             return None
         try:
+            # Ensure ultralytics downloads to cache, not CWD.
+            try:
+                from ultralytics.utils import SETTINGS as _UL_SETTINGS
+
+                _cache = str(Path.home() / ".cache" / "ultralytics")
+                if _UL_SETTINGS.get("weights_dir") != _cache:
+                    _UL_SETTINGS.update({"weights_dir": _cache})
+            except Exception:
+                pass
             device = _get_device()
             logger.info("Loading YOLO model: %s on %s", self.model_id, device)
-            # Prefer the canonical cache location so the file is never pulled
-            # from (or downloaded to) the current working directory.
             model_file = self.model_id if self.model_id.endswith(".pt") else f"{self.model_id}.pt"
             cached = Path.home() / ".cache" / "ultralytics" / model_file
             model_arg = str(cached) if cached.exists() else model_file

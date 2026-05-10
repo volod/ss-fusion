@@ -76,7 +76,7 @@ _DEFAULT_CLASSES = [
 ]
 
 
-# ── IQ file discovery ─────────────────────────────────────────────────────────
+# -- IQ file discovery ---------------------------------------------------------
 
 
 def _find_iq_sidecar(video_path: str) -> tuple[str | None, str]:
@@ -146,7 +146,7 @@ def _load_audio_proxy(wav_path: str) -> tuple[np.ndarray | None, float]:
         return None, 16000.0
 
 
-# ── Signal feature extraction ─────────────────────────────────────────────────
+# -- Signal feature extraction -------------------------------------------------
 
 
 def _extract_features(
@@ -242,7 +242,7 @@ def _torchsig_spectrogram(samples: np.ndarray, nperseg: int) -> np.ndarray | Non
         return None
 
 
-# ── Modulation classifier (optional) ─────────────────────────────────────────
+# -- Modulation classifier (optional) -----------------------------------------
 
 
 def _load_classifier(checkpoint_path: str):
@@ -296,7 +296,7 @@ def _classify_segment(
         return "unknown", 0.0
 
 
-# ── Main analyzer class ───────────────────────────────────────────────────────
+# -- Main analyzer class -------------------------------------------------------
 
 
 class RFSignalAnalyzer:
@@ -314,7 +314,7 @@ class RFSignalAnalyzer:
     def is_enabled(self) -> bool:
         return settings.RF_ENABLED
 
-    # ── public API ────────────────────────────────────────────────────────────
+    # -- public API ------------------------------------------------------------
 
     def analyze_video(
         self,
@@ -370,7 +370,7 @@ class RFSignalAnalyzer:
         logger.info("RF: analysis complete — %d/%d frames have signal metrics", good, len(results))
         return results
 
-    # ── internals ─────────────────────────────────────────────────────────────
+    # -- internals -------------------------------------------------------------
 
     def _load_signal(
         self,

@@ -97,7 +97,7 @@ class ObjectKalmanFilter:
         ).astype(np.float64)
         self.t_sec = t_sec
 
-    # ── Public interface ──────────────────────────────────────────────────────
+    # -- Public interface ------------------------------------------------------
 
     def predict(self, t_sec: float) -> None:
         """Advance state to t_sec with constant-velocity model."""

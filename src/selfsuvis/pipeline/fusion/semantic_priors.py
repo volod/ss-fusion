@@ -22,7 +22,7 @@ from selfsuvis.pipeline.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# ── Scene-type → process noise scale ─────────────────────────────────────────
+# -- Scene-type → process noise scale -----------------------------------------
 # Higher value = more dynamic scene (starts/stops) → inflate Q.
 _SCENE_PROCESS_NOISE: dict[str, float] = {
     "highway": 0.60,  # mostly constant velocity, low noise
@@ -42,7 +42,7 @@ _SCENE_PROCESS_NOISE: dict[str, float] = {
     "unknown": 1.00,
 }
 
-# ── Object category → maximum plausible speed (m/s) ──────────────────────────
+# -- Object category → maximum plausible speed (m/s) --------------------------
 # Used as a hard-clamp on the velocity state post-update.
 _OBJECT_SPEED_PRIORS: dict[str, float] = {
     "person": 3.5,
@@ -63,7 +63,7 @@ _OBJECT_SPEED_PRIORS: dict[str, float] = {
     "animal": 15.0,
 }
 
-# ── GPS multipath inflation factors ──────────────────────────────────────────
+# -- GPS multipath inflation factors ------------------------------------------
 # When objects suggesting "urban canyon" are prominent, GPS is less reliable.
 _URBAN_CANYON_OBJECTS = frozenset({"building", "skyscraper", "wall", "overpass", "tunnel"})
 _GPS_MULTIPATH_SCALE = 2.5  # inflate GPS noise by this factor in urban canyons
@@ -107,7 +107,7 @@ def build_semantic_prior(
     dominant_labels: list[str] = []
     urban_canyon_detected = False
 
-    # ── Parse Gemma analysis ──────────────────────────────────────────────────
+    # -- Parse Gemma analysis --------------------------------------------------
     if gemma_analysis:
         raw_scene = gemma_analysis.get("scene_type") or gemma_analysis.get("top_category") or ""
         scene_type = _normalise_scene_type(str(raw_scene))
@@ -128,7 +128,7 @@ def build_semantic_prior(
         if all_labels_lower & _URBAN_CANYON_OBJECTS:
             urban_canyon_detected = True
 
-    # ── Parse Qwen structured captions for scene type refinement ─────────────
+    # -- Parse Qwen structured captions for scene type refinement -------------
     if qwen_captions and scene_type == "unknown":
         road_surfaces = []
         for cap in qwen_captions:
@@ -144,13 +144,13 @@ def build_semantic_prior(
             most_common = Counter(road_surfaces).most_common(1)[0][0]
             scene_type = _normalise_scene_type(most_common)
 
-    # ── Process noise scale ───────────────────────────────────────────────────
+    # -- Process noise scale ---------------------------------------------------
     proc_scale = _SCENE_PROCESS_NOISE.get(scene_type, 1.0)
 
-    # ── GPS noise scale ───────────────────────────────────────────────────────
+    # -- GPS noise scale -------------------------------------------------------
     gps_scale = _GPS_MULTIPATH_SCALE if urban_canyon_detected else 1.0
 
-    # ── Temporal noise from RSSM surprise ────────────────────────────────────
+    # -- Temporal noise from RSSM surprise ------------------------------------
     # High temporal surprise → scene is changing → inflate process noise.
     # surprise ∈ [0, 1], linear scale: 0 → 1.0×, 0.5 → 1.5×, 1.0 → 3.0×
     temporal_scale = 1.0
@@ -161,7 +161,7 @@ def build_semantic_prior(
     # Combined process noise scale
     combined_proc = proc_scale * temporal_scale
 
-    # ── Object speed priors ───────────────────────────────────────────────────
+    # -- Object speed priors ---------------------------------------------------
     obj_priors: dict[str, float] = dict(_OBJECT_SPEED_PRIORS)
     # Label-specific priors from Gemma dominant objects
     for lbl in dominant_labels:

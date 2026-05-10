@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 _DEFAULT_WINDOW_SEC = 3.0
 
 
-# ── Audio extraction ──────────────────────────────────────────────────────────
+# -- Audio extraction ----------------------------------------------------------
 
 
 def extract_audio(video_path: str, output_dir: str) -> str | None:
@@ -112,7 +112,7 @@ def _has_audio_stream(video_path: str) -> bool:
         return True  # assume audio is present if probe fails
 
 
-# ── Subtitle ↔ frame mapping ──────────────────────────────────────────────────
+# -- Subtitle ↔ frame mapping --------------------------------------------------
 
 
 def map_subtitles_to_frames(

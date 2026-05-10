@@ -224,7 +224,7 @@ class FlorenceModel:
         self.device = self._resolve_device()
         logger.info("Loading Florence-2-large on %s …", self.device)
 
-        # ── transformers 5.x compatibility patches ─────────────────────────────
+        # -- transformers 5.x compatibility patches -----------------------------
         # Florence-2 uses trust_remote_code whose cached Python files were written
         # for transformers 4.x.  Two attributes were removed/renamed in 5.x and
         # must be shimmed before AutoProcessor/AutoModelForCausalLM are called.
@@ -341,7 +341,7 @@ class FlorenceModel:
             torch.cuda.synchronize()
             torch.cuda.empty_cache()
 
-    # ── public API ────────────────────────────────────────────────────────────
+    # -- public API ------------------------------------------------------------
 
     def caption_batch(
         self,
@@ -385,7 +385,7 @@ class FlorenceModel:
     def runtime_mode(self) -> str:
         return str(getattr(self, "_generation_mode", "scored"))
 
-    # ── internals ─────────────────────────────────────────────────────────────
+    # -- internals -------------------------------------------------------------
 
     def _resolve_device(self) -> str:
         return resolve_device()
@@ -542,7 +542,7 @@ def _resolve_local_model_source(model_id: str) -> str | Path:
     return model_id
 
 
-# ── confidence computation ────────────────────────────────────────────────────
+# -- confidence computation ----------------------------------------------------
 
 
 def _compute_confidences(

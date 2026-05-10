@@ -257,9 +257,9 @@ class UniDriveVLAModel:
             return self._model, self._processor
         except Exception as exc:
             self._load_failed = True
-            logger.info(
+            logger.warning(
                 "UniDrive local model unavailable for in-process use (%s). "
-                "Set UNIDRIVE_API_URL for a sidecar or cache HF weights with scripts/prepare_models.py --unidrive --unidrive-backend vllm",
+                "Set UNIDRIVE_API_URL for a sidecar, or use --unidrive-api-url with an Ollama/vLLM endpoint.",
                 exc,
             )
             return None, None

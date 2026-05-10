@@ -180,7 +180,7 @@ def collate_multimodal_pairs(
     return batch
 
 
-# ── Augmentation pipeline ─────────────────────────────────────────────────────
+# -- Augmentation pipeline -----------------------------------------------------
 
 
 def build_augment_transform(image_size: int = 224) -> transforms.Compose:
@@ -220,7 +220,7 @@ def build_eval_transform(image_size: int = 224) -> transforms.Compose:
     )
 
 
-# ── Datasets ──────────────────────────────────────────────────────────────────
+# -- Datasets ------------------------------------------------------------------
 
 
 def _collect_frame_paths(frames_dir: str) -> list[str]:
@@ -521,7 +521,7 @@ def multimodal_batch_collate(
     return v1, v2, meta
 
 
-# ── Loss ──────────────────────────────────────────────────────────────────────
+# -- Loss ----------------------------------------------------------------------
 
 
 class NTXentLoss(nn.Module):
@@ -702,7 +702,7 @@ class MultimodalConsistencyLoss(nn.Module):
         return total, components
 
 
-# ── Model wrapper ─────────────────────────────────────────────────────────────
+# -- Model wrapper -------------------------------------------------------------
 
 
 class ProjectionHead(nn.Module):
@@ -826,7 +826,7 @@ class DINOFineTuner:
         logger.info("Loaded fine-tuned backbone from %s", checkpoint_path)
 
 
-# ── Training config ───────────────────────────────────────────────────────────
+# -- Training config -----------------------------------------------------------
 
 
 @dataclass
@@ -853,7 +853,7 @@ class FinetuneConfig:
     geometry_consistency_weight: float = 0.15
 
 
-# ── Main training loop ────────────────────────────────────────────────────────
+# -- Main training loop --------------------------------------------------------
 
 
 def run_finetune(cfg: FinetuneConfig) -> str:
@@ -952,9 +952,9 @@ def run_finetune(cfg: FinetuneConfig) -> str:
     return best_path
 
 
-# ── Config from environment ───────────────────────────────────────────────────
+# -- Config from environment ---------------------------------------------------
 
-# ── SkipStep sentinel ─────────────────────────────────────────────────────────
+# -- SkipStep sentinel ---------------------------------------------------------
 
 
 class SkipStep(RuntimeError):
@@ -966,7 +966,7 @@ class SkipStep(RuntimeError):
     """
 
 
-# ── GemmaSSLFinetuner ─────────────────────────────────────────────────────────
+# -- GemmaSSLFinetuner ---------------------------------------------------------
 
 
 class GemmaSSLFinetuner:

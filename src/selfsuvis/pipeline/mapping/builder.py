@@ -615,7 +615,7 @@ def build_sparse_map(
     np.savez(str(npz_path), points=points3d, colours=colours)
     ply_path = export_ply(points3d, colours, map_dir / "sparse_map.ply")
 
-    # ── 3D Gaussian Splatting ─────────────────────────────────────────────────
+    # -- 3D Gaussian Splatting -------------------------------------------------
     splat_ply = None
     viewer_html = None
     gsplat_method = "skipped"

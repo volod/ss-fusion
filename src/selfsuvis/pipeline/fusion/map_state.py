@@ -118,7 +118,7 @@ def run_map_state_fusion(
     if not frame_times_sec:
         return MapFusionResult(enabled=True, status="skipped", reason="no frame timestamps")
 
-    # ── 1. Build GPS measurements ────────────────────────────────────────────
+    # -- 1. Build GPS measurements --------------------------------------------
     noise_scale = prior.process_noise_scale if prior else 1.0
     gps_scale = prior.gps_noise_scale if prior else 1.0
     proc_pos_std = float(settings.STATE_FUSION_PROCESS_POS_STD_M) * noise_scale
@@ -136,7 +136,7 @@ def run_map_state_fusion(
     imu_measurements = _build_imu_measurements(video_path)
     baro_measurements = _build_baro_measurements(video_path, origin_lla)
 
-    # ── 2. Visual pose constraints (SfM → ENU alignment) ────────────────────
+    # -- 2. Visual pose constraints (SfM → ENU alignment) --------------------
     sfm_alignment_info: dict[str, Any] | None = None
     sfm_measurements: list[PlatformMeasurement] = []
     if sfm_frame_positions:
@@ -167,7 +167,7 @@ def run_map_state_fusion(
                 sfm_alignment_info.get("rmse_m", float("nan")),
             )
 
-    # ── 3. Merge all measurements and build event timeline ───────────────────
+    # -- 3. Merge all measurements and build event timeline -------------------
     all_measurements = (
         list(gps_measurements) + list(imu_measurements) + list(baro_measurements) + sfm_measurements
     )
@@ -200,7 +200,7 @@ def run_map_state_fusion(
         )
     events.sort(key=lambda e: (e.t_sec, e.priority))
 
-    # ── 4. Forward Kalman pass ───────────────────────────────────────────────
+    # -- 4. Forward Kalman pass -----------------------------------------------
     flt = PlatformStateFilter(
         process_pos_std_m=proc_pos_std,
         process_vel_std_mps=proc_vel_std,
@@ -252,7 +252,7 @@ def run_map_state_fusion(
             sfm_alignment=sfm_alignment_info,
         )
 
-    # ── 5. RTS backward smoother ─────────────────────────────────────────────
+    # -- 5. RTS backward smoother ---------------------------------------------
     if enable_smoother and len(filtered_history) >= 2:
         rts_result = rts_smooth(filtered_history, proc_pos_std, proc_vel_std)
     else:
@@ -319,7 +319,7 @@ def run_map_state_fusion(
     )
 
 
-# ── Private helpers (extend summaries.py helpers with noise scaling) ─────────
+# -- Private helpers (extend summaries.py helpers with noise scaling) ---------
 
 
 def _build_gps_measurements_scaled(

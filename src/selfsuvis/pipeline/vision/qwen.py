@@ -31,7 +31,7 @@ _EFFECTIVE_QWEN_TIMEOUT_SEC = max(
     90,
 )
 
-# ── Module-level constants ────────────────────────────────────────────────────
+# -- Module-level constants ----------------------------------------------------
 
 _VEHICLE_LABELS: frozenset = frozenset(
     {
@@ -85,7 +85,7 @@ def _request_kwargs_for_backend(api_url: str) -> dict[str, Any]:
     return kwargs
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 
 def _build_user_content(
@@ -216,7 +216,7 @@ def _parse_qwen_response(raw_text: str) -> dict[str, Any]:
     return normalised
 
 
-# ── Main class ────────────────────────────────────────────────────────────────
+# -- Main class ----------------------------------------------------------------
 
 
 class QwenModel:
@@ -242,7 +242,7 @@ class QwenModel:
         self._healthy: bool | None = None  # cached health state
         self._client = None
 
-    # ── Public interface ──────────────────────────────────────────────────────
+    # -- Public interface ------------------------------------------------------
 
     def is_enabled(self) -> bool:
         """Return True when GEMMA_API_URL or QWEN_API_URL is configured (non-empty)."""
@@ -558,7 +558,7 @@ class QwenModel:
             logger.warning("Gemma extraction failed: %s", exc, exc_info=True)
             return {"service_unavailable": True}
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    # -- Private helpers -------------------------------------------------------
 
     def _check_health(self) -> None:
         """Check sidecar health and cache the result in self._healthy.

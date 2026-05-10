@@ -24,7 +24,7 @@ from typing import Any
 
 import numpy as np
 
-# ── property names ────────────────────────────────────────────────────────────
+# -- property names ------------------------------------------------------------
 
 _PROPS_XYZ = ["x", "y", "z"]
 _PROPS_NORMALS = ["nx", "ny", "nz"]
@@ -39,12 +39,12 @@ ALL_PROPERTIES: list = (
 )  # 59 total
 
 
-# ── dtype ─────────────────────────────────────────────────────────────────────
+# -- dtype ---------------------------------------------------------------------
 
 _SPLAT_DTYPE = np.dtype([(p, "f4") for p in ALL_PROPERTIES])
 
 
-# ── write ─────────────────────────────────────────────────────────────────────
+# -- write ---------------------------------------------------------------------
 
 
 def write_splat(path: str, data: np.ndarray) -> None:
@@ -102,7 +102,7 @@ def write_splat_from_arrays(
     write_splat(path, data)
 
 
-# ── read ──────────────────────────────────────────────────────────────────────
+# -- read ----------------------------------------------------------------------
 
 
 def read_splat(path: str) -> np.ndarray:
@@ -152,7 +152,7 @@ def is_splat_ply(path: str) -> bool:
         return False
 
 
-# ── companion metadata ────────────────────────────────────────────────────────
+# -- companion metadata --------------------------------------------------------
 
 
 def _meta_path(splat_path: str) -> str:
@@ -192,7 +192,7 @@ def read_splat_metadata(splat_path: str) -> dict[str, Any] | None:
         return json.load(f)
 
 
-# ── SE(3) transform helpers ───────────────────────────────────────────────────
+# -- SE(3) transform helpers ---------------------------------------------------
 
 
 def _rot_matrix_to_quat_wxyz(R: np.ndarray) -> np.ndarray:
@@ -253,7 +253,7 @@ def _quat_multiply_wxyz(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     ).astype(np.float32)
 
 
-# ── transform / merge ─────────────────────────────────────────────────────────
+# -- transform / merge ---------------------------------------------------------
 
 
 def apply_transform_to_splat(
@@ -294,7 +294,7 @@ def apply_transform_to_splat(
 
     data = read_splat(path_in)
 
-    # ── 1. rotate + translate positions ──────────────────────────────────────
+    # -- 1. rotate + translate positions --------------------------------------
     pos = np.column_stack(
         [
             data["x"].astype(np.float64),
@@ -307,7 +307,7 @@ def apply_transform_to_splat(
     data["y"] = pos_t[:, 1].astype(np.float32)
     data["z"] = pos_t[:, 2].astype(np.float32)
 
-    # ── 2. compose alignment rotation into stored Gaussian quaternions ────────
+    # -- 2. compose alignment rotation into stored Gaussian quaternions --------
     q_align = _rot_matrix_to_quat_wxyz(R)  # (4,) WXYZ
     quats = np.column_stack(
         [

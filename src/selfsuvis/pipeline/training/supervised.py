@@ -69,7 +69,7 @@ VISDRONE_LABELS: list[str] = [
 ]
 
 
-# ── Label taxonomy normalization ──────────────────────────────────────────────
+# -- Label taxonomy normalization ----------------------------------------------
 
 
 def _normalize_labels(
@@ -119,7 +119,7 @@ def _normalize_labels(
     return [(fp, lbl) for fp, lbl in seen.items()]
 
 
-# ── CVAT XML parser ────────────────────────────────────────────────────────────
+# -- CVAT XML parser ------------------------------------------------------------
 
 
 class CvatAnnotationParser:
@@ -205,7 +205,7 @@ class CvatAnnotationParser:
         return {name: i for i, name in enumerate(self.label_names)}
 
 
-# ── Dataset ────────────────────────────────────────────────────────────────────
+# -- Dataset --------------------------------------------------------------------
 
 
 def _scan_frames(frames_dir: str) -> dict[str, str]:
@@ -386,7 +386,7 @@ class AnnotatedFrameDataset(Dataset):
         return self.transform(img), label_idx
 
 
-# ── Eval gate ──────────────────────────────────────────────────────────────────
+# -- Eval gate ------------------------------------------------------------------
 
 
 def _stratified_split(
@@ -563,7 +563,7 @@ def _eval_distribution_shift(
     return gap
 
 
-# ── Loss ───────────────────────────────────────────────────────────────────────
+# -- Loss -----------------------------------------------------------------------
 
 
 class SupConLoss(nn.Module):
@@ -627,7 +627,7 @@ class SupConLoss(nn.Module):
         return loss_per_anchor[valid].mean()
 
 
-# ── Model ──────────────────────────────────────────────────────────────────────
+# -- Model ----------------------------------------------------------------------
 
 
 class SupervisedFineTuner:
@@ -726,7 +726,7 @@ class SupervisedFineTuner:
         logger.info("Checkpoint saved: %s", saved_path)
 
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+# -- Config ---------------------------------------------------------------------
 
 
 @dataclass
@@ -756,7 +756,7 @@ class SupervisedFinetuneConfig:
     mission_id: str | None = None  # when using from_db(), filter by mission
 
 
-# ── Training loop ──────────────────────────────────────────────────────────────
+# -- Training loop --------------------------------------------------------------
 
 
 def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
@@ -954,7 +954,7 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
     }
 
 
-# ── Augmentation (shared with ssl_finetune) ────────────────────────────────────
+# -- Augmentation (shared with ssl_finetune) ------------------------------------
 
 
 def _build_augment_transform(image_size: int = 224) -> transforms.Compose:
@@ -981,7 +981,7 @@ def _build_augment_transform(image_size: int = 224) -> transforms.Compose:
     )
 
 
-# ── Config from environment ────────────────────────────────────────────────────
+# -- Config from environment ----------------------------------------------------
 
 
 def config_from_settings(

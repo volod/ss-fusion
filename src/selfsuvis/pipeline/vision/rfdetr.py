@@ -39,7 +39,7 @@ logging.getLogger("rfdetr").setLevel(logging.ERROR)
 logging.getLogger("rfdetr.main").setLevel(logging.ERROR)
 logging.getLogger("rf-detr").setLevel(logging.ERROR)
 
-# ── Priority taxonomy (mirrors pipeline/vision/yolo.py) ───────────────────────
+# -- Priority taxonomy (mirrors pipeline/vision/yolo.py) -----------------------
 
 _HUMAN_LABELS = frozenset({"person", "pedestrian", "rider", "child", "people"})
 
@@ -287,7 +287,7 @@ def _classify_priority(label: str) -> int:
     return PRIORITY_OTHER
 
 
-# ── IoU helper ─────────────────────────────────────────────────────────────────
+# -- IoU helper -----------------------------------------------------------------
 
 
 def _iou_norm(a: list[float], b: list[float]) -> float:
@@ -348,7 +348,7 @@ def _track_match_score(track: dict[str, Any], det: dict[str, Any]) -> float:
     return 0.0
 
 
-# ── Main tracker class ─────────────────────────────────────────────────────────
+# -- Main tracker class ---------------------------------------------------------
 
 
 class RFDETRTracker:
@@ -380,7 +380,7 @@ class RFDETRTracker:
         self._model_variant: str | None = None
         self._reset_tracking_state()
 
-    # ── Public interface ──────────────────────────────────────────────────────
+    # -- Public interface ------------------------------------------------------
 
     def is_enabled(self) -> bool:
         return settings.RFDETR_ENABLED
@@ -488,7 +488,7 @@ class RFDETRTracker:
         except Exception:
             pass
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # -- Internal helpers ------------------------------------------------------
 
     def _reset_tracking_state(self) -> None:
         """Active tracks: {track_id: {"bbox_norm": list, "label": str, "miss": int}}."""
@@ -687,7 +687,7 @@ class RFDETRTracker:
         return detections
 
 
-# ── Label matching helper ──────────────────────────────────────────────────────
+# -- Label matching helper ------------------------------------------------------
 
 
 def _label_matches_any(label: str, target_labels: list[str]) -> bool:

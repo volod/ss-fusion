@@ -39,7 +39,7 @@ _IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 _IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
-# ── Provider selection ─────────────────────────────────────────────────────────
+# -- Provider selection ---------------------------------------------------------
 
 
 def _select_providers(device: str) -> list[str]:
@@ -77,7 +77,7 @@ def _select_providers(device: str) -> list[str]:
     if device == "cuda":
         selected: list[str] = []
 
-        # ── TensorRT EP ────────────────────────────────────────────────────────
+        # -- TensorRT EP --------------------------------------------------------
         # Highest throughput on NVIDIA GPUs. Included in onnxruntime-gpu but
         # also requires libnvinfer.so.* (TensorRT) to be present at runtime.
         if "TensorrtExecutionProvider" in available:
@@ -94,7 +94,7 @@ def _select_providers(device: str) -> list[str]:
                 "Falling through to CUDAExecutionProvider."
             )
 
-        # ── CUDA EP ────────────────────────────────────────────────────────────
+        # -- CUDA EP ------------------------------------------------------------
         if "CUDAExecutionProvider" in available:
             selected.append("CUDAExecutionProvider")
         else:
@@ -115,7 +115,7 @@ def _select_providers(device: str) -> list[str]:
     return ["CPUExecutionProvider"]
 
 
-# ── Preprocessing ─────────────────────────────────────────────────────────────
+# -- Preprocessing -------------------------------------------------------------
 
 
 def _preprocess_image(image_pil: Image.Image, image_size: int = 224) -> np.ndarray:
@@ -166,7 +166,7 @@ def _l2_normalise(vec: np.ndarray) -> np.ndarray:
     return vec / norm
 
 
-# ── EdgeClassifier ────────────────────────────────────────────────────────────
+# -- EdgeClassifier ------------------------------------------------------------
 
 
 class EdgeClassifier:
@@ -272,7 +272,7 @@ class EdgeClassifier:
             self._gallery_embeddings = np.zeros((0, 1), dtype=np.float32)
             self._gallery_labels = np.array([], dtype=object)
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # -- Public API ------------------------------------------------------------
 
     def embed(self, image_pil: Image.Image) -> np.ndarray:
         """Embed a PIL image using the ONNX backbone.
@@ -310,7 +310,7 @@ class EdgeClassifier:
 
         return [(str(self._gallery_labels[i]), float(scores[i])) for i in top_idx]
 
-    # ── Alternative constructor (for testing / dev without ONNX) ─────────────
+    # -- Alternative constructor (for testing / dev without ONNX) -------------
 
     @classmethod
     def from_torch(
@@ -381,7 +381,7 @@ class EdgeClassifier:
         return instance
 
 
-# ── EfficientViT ONNX export ─────────────────────────────────────────────────
+# -- EfficientViT ONNX export -------------------------------------------------
 
 
 def export_efficientvit_onnx(
@@ -442,7 +442,7 @@ def export_efficientvit_onnx(
     return output_path
 
 
-# ── Gallery builder ───────────────────────────────────────────────────────────
+# -- Gallery builder -----------------------------------------------------------
 
 
 def build_gallery(

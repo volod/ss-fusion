@@ -132,7 +132,7 @@ def detect_changes(
     return changes
 
 
-# ── Phase 4: Semantic diff ────────────────────────────────────────────────────
+# -- Phase 4: Semantic diff ----------------------------------------------------
 
 
 def compute_semantic_diff(

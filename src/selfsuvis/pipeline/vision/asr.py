@@ -104,7 +104,7 @@ class ASRModel:
         self._pipe: Any | None = None
         self._model_id: str | None = None
 
-    # ── Public interface ──────────────────────────────────────────────────────
+    # -- Public interface ------------------------------------------------------
 
     def is_enabled(self) -> bool:
         """Return True when ``ASR_ENABLED=true`` in the environment."""
@@ -160,7 +160,7 @@ class ASRModel:
             self._model_id = _resolve_model_id()
         return self._model_id
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    # -- Private helpers -------------------------------------------------------
 
     def _get_pipe(self):
         """Lazily initialise and return the HuggingFace ASR pipeline."""

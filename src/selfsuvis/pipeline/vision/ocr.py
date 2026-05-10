@@ -97,7 +97,7 @@ class OCRModel:
         # Permanent load-failure flag — prevents retrying a failed load on every frame
         self._load_failed: bool = False
 
-    # ── Public interface ──────────────────────────────────────────────────────
+    # -- Public interface ------------------------------------------------------
 
     def is_enabled(self) -> bool:
         return settings.OCR_ENABLED
@@ -147,7 +147,7 @@ class OCRModel:
             self._model_id = _resolve_model_id()
         return self._model_id
 
-    # ── Backend dispatch ──────────────────────────────────────────────────────
+    # -- Backend dispatch ------------------------------------------------------
 
     def _extract_one(self, image: Image.Image) -> dict[str, Any]:
         backend = self._get_backend()
@@ -206,7 +206,7 @@ class OCRModel:
         logger.info("OCR backend: %s (model=%s)", self._backend, self.model_id)
         return self._backend
 
-    # ── vLLM sidecar ─────────────────────────────────────────────────────────
+    # -- vLLM sidecar ---------------------------------------------------------
 
     def _extract_vllm(self, image: Image.Image) -> str:
         # Prefer the dedicated OCR sidecar; fall back to the Qwen/ollama sidecar when
@@ -258,7 +258,7 @@ class OCRModel:
         )
         return self._client
 
-    # ── GOT-OCR2_0 ───────────────────────────────────────────────────────────
+    # -- GOT-OCR2_0 -----------------------------------------------------------
 
     def _extract_got(self, image: Image.Image) -> str:
         if self._model is None and not self._load_failed:
@@ -309,7 +309,7 @@ class OCRModel:
             self._model = None
             self._load_failed = True
 
-    # ── TrOCR ────────────────────────────────────────────────────────────────
+    # -- TrOCR ----------------------------------------------------------------
 
     def _extract_trocr(self, image: Image.Image) -> str:
         if self._model is None and not self._load_failed:
@@ -352,7 +352,7 @@ class OCRModel:
             self._model = None
             self._load_failed = True
 
-    # ── VLM local (Phi-3.5-vision, Qwen2.5-VL, DeepSeek-OCR-2, LLaVA) ───────
+    # -- VLM local (Phi-3.5-vision, Qwen2.5-VL, DeepSeek-OCR-2, LLaVA) -------
 
     def _extract_vlm_local(self, image: Image.Image) -> str:
         if self._load_failed:
@@ -502,7 +502,7 @@ class OCRModel:
             self._model = None
             self._load_failed = True
 
-    # ── Florence-2 OCR (reuse existing model instance externally) ────────────
+    # -- Florence-2 OCR (reuse existing model instance externally) ------------
 
     def _extract_florence(self, image: Image.Image) -> str:
         # Use Florence-2 in <OCR> task mode. We call it directly rather than
@@ -556,7 +556,7 @@ class OCRModel:
             self._load_failed = True
 
 
-# ── Shared helpers ────────────────────────────────────────────────────────────
+# -- Shared helpers ------------------------------------------------------------
 
 
 def _encode_b64(image: Image.Image) -> str:

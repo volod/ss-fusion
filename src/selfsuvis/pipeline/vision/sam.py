@@ -37,7 +37,7 @@ from selfsuvis.pipeline.core import get_logger, resolve_device, settings
 
 logger = get_logger(__name__)
 
-# ── Backend resolution ────────────────────────────────────────────────────────
+# -- Backend resolution --------------------------------------------------------
 
 _BACKEND_SAM3 = "sam3"
 _BACKEND_SAM2 = "sam2"
@@ -100,7 +100,7 @@ def _get_device() -> str:
     return resolve_device()
 
 
-# ── Main predictor class ──────────────────────────────────────────────────────
+# -- Main predictor class ------------------------------------------------------
 
 
 class SAMPredictor:
@@ -304,7 +304,7 @@ class SAMPredictor:
         except Exception:
             pass
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # -- Internal helpers ------------------------------------------------------
 
     def _get_predictor(self):
         if self._predictor is not None:

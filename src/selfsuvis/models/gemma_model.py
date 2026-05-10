@@ -146,7 +146,7 @@ class GemmaEmbedder:
             self._is_multimodal,
         )
 
-    # ── Public interface (matches OpenCLIPEmbedder) ───────────────────────────
+    # -- Public interface (matches OpenCLIPEmbedder) ---------------------------
 
     def encode_images(self, images: list[Image.Image], batch_size: int = 4) -> np.ndarray:
         """Return L2-normalised image embeddings, shape ``(N, dim)``."""
@@ -194,7 +194,7 @@ class GemmaEmbedder:
     def text_dim(self) -> int:
         return self._dim
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # -- Internal helpers ------------------------------------------------------
 
     def _input_device(self) -> torch.device:
         """Device where the model's embedding layer lives.

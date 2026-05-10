@@ -40,7 +40,7 @@ from selfsuvis.pipeline.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# ── Training hyper-parameters ─────────────────────────────────────────────────
+# -- Training hyper-parameters -------------------------------------------------
 _MIN_FRAMES = 3  # Minimum frames to attempt gsplat
 _TRAIN_STEPS = 3000  # Iterations for small scenes (4–100 frames)
 _LR_MEANS = 1.6e-4
@@ -125,7 +125,7 @@ def _check_gsplat() -> tuple[bool, str]:
         return False, "gsplat not installed (pip install gsplat)"
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# -- Public API ----------------------------------------------------------------
 
 
 def build_gaussian_splat(
@@ -186,7 +186,7 @@ def build_gaussian_splat(
         return _skip(str(exc))
 
 
-# ── Core training ─────────────────────────────────────────────────────────────
+# -- Core training -------------------------------------------------------------
 
 
 def _train(
@@ -311,7 +311,7 @@ def _train(
     }
 
 
-# ── Data loading ──────────────────────────────────────────────────────────────
+# -- Data loading --------------------------------------------------------------
 
 
 def _load_data(
@@ -404,7 +404,7 @@ def _get_intrinsics(
     return fx, fy, W / 2.0, H / 2.0
 
 
-# ── Gaussian initialisation ───────────────────────────────────────────────────
+# -- Gaussian initialisation ---------------------------------------------------
 
 
 def _init_gaussians(
@@ -502,7 +502,7 @@ def _load_pycolmap_recon(colmap_dir: Path):
         return None
 
 
-# ── Pose-free camera estimation ───────────────────────────────────────────────
+# -- Pose-free camera estimation -----------------------------------------------
 
 
 def _make_free_poses(
@@ -555,7 +555,7 @@ def _make_free_poses(
     return result
 
 
-# ── PLY export ────────────────────────────────────────────────────────────────
+# -- PLY export ----------------------------------------------------------------
 
 
 def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
@@ -646,7 +646,7 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
     logger.info("  PLY written via plyfile fallback → %s", path)
 
 
-# ── HTML viewer ───────────────────────────────────────────────────────────────
+# -- HTML viewer ---------------------------------------------------------------
 
 
 def _write_viewer_html(html_path: Path, ply_filename: str) -> None:
@@ -697,7 +697,7 @@ viewer
     showLoadingUI: false,
   }})
   .then(() => {{
-    document.getElementById('status').textContent = 'Loaded ✓';
+    document.getElementById('status').textContent = 'Loaded [ok]';
     viewer.start();
   }})
   .catch(e => {{

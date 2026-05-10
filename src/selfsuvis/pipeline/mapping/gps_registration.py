@@ -45,7 +45,7 @@ _WGS84_A = 6_378_137.0
 _WGS84_E2 = 6.69437999014e-3
 
 
-# ── WGS-84 ↔ ECEF ──────────────────────────────────────────────────────────
+# -- WGS-84 ↔ ECEF ----------------------------------------------------------
 
 
 def _geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_m: float) -> np.ndarray:
@@ -102,7 +102,7 @@ def gps_to_enu(
     return float(enu[0]), float(enu[1]), float(enu[2])
 
 
-# ── Pose composition ─────────────────────────────────────────────────────────
+# -- Pose composition ---------------------------------------------------------
 
 
 def _compose_global_pose(
@@ -133,7 +133,7 @@ def _compose_global_pose(
     }
 
 
-# ── Main registration function ────────────────────────────────────────────────
+# -- Main registration function ------------------------------------------------
 
 
 def register_mission_gps(
@@ -241,7 +241,7 @@ def _parse_json_field(value: Any) -> dict | None:
     return None
 
 
-# ── SE(3) registration transform ─────────────────────────────────────────────
+# -- SE(3) registration transform ---------------------------------------------
 
 
 def build_registration_transform(

@@ -19,7 +19,7 @@ from selfsuvis.pipeline.core import get_logger
 logger = get_logger(__name__)
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# -- Config --------------------------------------------------------------------
 
 
 @dataclass
@@ -46,7 +46,7 @@ class DroneDetectorConfig:
     grid_size: int = 10
 
 
-# ── YOLO label parser ─────────────────────────────────────────────────────────
+# -- YOLO label parser ---------------------------------------------------------
 
 
 def parse_yolo_label(txt_path: str) -> list[tuple[int, float, float, float, float]]:
@@ -71,7 +71,7 @@ def parse_yolo_label(txt_path: str) -> list[tuple[int, float, float, float, floa
     return results
 
 
-# ── Dataset ───────────────────────────────────────────────────────────────────
+# -- Dataset -------------------------------------------------------------------
 
 
 class _DroneDetectionDataset:
@@ -192,7 +192,7 @@ class _DroneDetectionDataset:
         return tensor, target
 
 
-# ── Mosaic augmentation ───────────────────────────────────────────────────────
+# -- Mosaic augmentation -------------------------------------------------------
 
 
 def build_mosaic(
@@ -219,7 +219,7 @@ def build_mosaic(
     return np.concatenate(rows, axis=0)
 
 
-# ── CIoU loss ─────────────────────────────────────────────────────────────────
+# -- CIoU loss -----------------------------------------------------------------
 
 
 def ciou_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -258,7 +258,7 @@ def ciou_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     return 1 - iou + rho2 / c2 + alpha * v
 
 
-# ── Model architecture ────────────────────────────────────────────────────────
+# -- Model architecture --------------------------------------------------------
 
 
 class _SPP:
@@ -328,7 +328,7 @@ class DroneStudentDetector:
         return sum(p.numel() for p in self.net.parameters())
 
 
-# ── Training ──────────────────────────────────────────────────────────────────
+# -- Training ------------------------------------------------------------------
 
 
 def run_drone_detection_training(
@@ -346,7 +346,7 @@ def run_drone_detection_training(
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    # ── Try to load from HuggingFace if pos_dataset_path not given ───────────
+    # -- Try to load from HuggingFace if pos_dataset_path not given -----------
     hf_downloaded: str | None = None
     if not pos_dataset_path or not os.path.isdir(pos_dataset_path):
         logger.info("Attempting to load seraphim-drone-detection-dataset from HuggingFace …")
@@ -404,7 +404,7 @@ def run_drone_detection_training(
     detector = DroneStudentDetector(grid_size=config.grid_size)
     model = detector.net.to(device)
 
-    # ── Optional teacher for distillation ────────────────────────────────────
+    # -- Optional teacher for distillation ------------------------------------
     teacher = None
     if config.distill_from_teacher and config.teacher_path:
         try:
@@ -454,7 +454,7 @@ def run_drone_detection_training(
 
             loss = l_obj + l_cls + 5.0 * l_box
 
-            # ── Feature-level distillation (if teacher present) ───────────────
+            # -- Feature-level distillation (if teacher present) ---------------
             if teacher is not None:
                 with torch.no_grad():
                     t_out = teacher(imgs)
@@ -534,7 +534,7 @@ def _load_teacher(teacher_path: str, device: str) -> nn.Module:
     return det.net.to(device).eval()
 
 
-# ── ONNX export ───────────────────────────────────────────────────────────────
+# -- ONNX export ---------------------------------------------------------------
 
 
 def export_drone_detector_onnx(
@@ -612,7 +612,7 @@ def export_drone_detector_onnx(
     return output_path
 
 
-# ── RKNN export ───────────────────────────────────────────────────────────────
+# -- RKNN export ---------------------------------------------------------------
 
 
 def export_drone_detector_rknn(
@@ -688,7 +688,7 @@ def export_drone_detector_rknn(
     return output_path
 
 
-# ── Cortex-A76 benchmark ──────────────────────────────────────────────────────
+# -- Cortex-A76 benchmark ------------------------------------------------------
 
 
 class CortexA76Tester:

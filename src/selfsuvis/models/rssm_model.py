@@ -92,7 +92,7 @@ class RSSMEmbedder:
                 logger.debug("torch not available — RSSM will use EMA fallback")
         return self._torch_available  # type: ignore[return-value]
 
-    # ── public API ────────────────────────────────────────────────────────────
+    # -- public API ------------------------------------------------------------
 
     def encode_sequence(
         self,
@@ -132,7 +132,7 @@ class RSSMEmbedder:
 
         return self._encode_with_ema(clip_embeddings)
 
-    # ── torch RSSM path ───────────────────────────────────────────────────────
+    # -- torch RSSM path -------------------------------------------------------
 
     def _encode_with_rssm(
         self,
@@ -149,7 +149,7 @@ class RSSMEmbedder:
         emb_t = torch.from_numpy(embeddings.astype(np.float32)).to(dev)  # (N, D)
         N = emb_t.shape[0]
 
-        # ── Model layers ──────────────────────────────────────────────────────
+        # -- Model layers ------------------------------------------------------
         encoder = nn.Linear(clip_dim, 2 * self.latent_dim).to(dev)
         recurrent = nn.GRUCell(self.latent_dim, self.hidden_dim).to(dev)
         dynamics = nn.Linear(self.hidden_dim, self.latent_dim).to(dev)
@@ -167,7 +167,7 @@ class RSSMEmbedder:
         )
         opt = Adam(params, lr=self.lr)
 
-        # ── Online training on mission sequence ───────────────────────────────
+        # -- Online training on mission sequence -------------------------------
         final_loss = float("nan")
         for _ in range(self.train_steps):
             h = torch.zeros(1, self.hidden_dim, device=dev)
@@ -211,7 +211,7 @@ class RSSMEmbedder:
             opt.step()
             final_loss = float(total_loss.item())
 
-        # ── Inference: collect surprise scores and states ─────────────────────
+        # -- Inference: collect surprise scores and states ---------------------
         surprise_scores = np.zeros(N, dtype=np.float32)
         recurrent_states = np.zeros((N, self.hidden_dim), dtype=np.float32)
         latents = np.zeros((N, self.latent_dim), dtype=np.float32)
@@ -255,7 +255,7 @@ class RSSMEmbedder:
             "latent_dim": self.latent_dim,
         }
 
-    # ── EMA fallback ──────────────────────────────────────────────────────────
+    # -- EMA fallback ----------------------------------------------------------
 
     def _encode_with_ema(self, embeddings: np.ndarray) -> dict[str, Any]:
         """Exponential moving average baseline — no gradient computation required."""

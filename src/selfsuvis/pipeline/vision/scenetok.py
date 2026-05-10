@@ -91,7 +91,7 @@ class SceneTokModel:
         self._device = resolve_device()
         self._load_failed = False
 
-    # ── availability ──────────────────────────────────────────────────────────
+    # -- availability ----------------------------------------------------------
 
     def is_enabled(self) -> bool:
         if not getattr(settings, "SCENETOK_ENABLED", False):
@@ -109,7 +109,7 @@ class SceneTokModel:
         except Exception:
             return False
 
-    # ── sidecar mode ──────────────────────────────────────────────────────────
+    # -- sidecar mode ----------------------------------------------------------
 
     def _sidecar_healthy(self) -> bool:
         api_url = str(getattr(settings, "SCENETOK_API_URL", "") or "")
@@ -160,7 +160,7 @@ class SceneTokModel:
             logger.warning("SceneTok sidecar call failed: %s", exc)
             return {"service_unavailable": True, "reason": str(exc)}
 
-    # ── local torch mode ──────────────────────────────────────────────────────
+    # -- local torch mode ------------------------------------------------------
 
     def _load_local(self):
         if self._encoder is not None:
@@ -257,7 +257,7 @@ class SceneTokModel:
             logger.warning("SceneTok local inference failed: %s", exc, exc_info=True)
             return {"service_unavailable": True, "reason": str(exc)}
 
-    # ── public API ────────────────────────────────────────────────────────────
+    # -- public API ------------------------------------------------------------
 
     def encode_decode(
         self,

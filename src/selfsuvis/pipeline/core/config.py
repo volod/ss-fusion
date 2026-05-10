@@ -133,7 +133,7 @@ class Settings:
 
     SAM_MODEL_TYPE = _env("SAM_MODEL_TYPE", "vit_h")
     SAM_CHECKPOINT = _env("SAM_CHECKPOINT", "")
-    # ── YOLO11 detection (ultralytics) ────────────────────────────────────────
+    # -- YOLO11 detection (ultralytics) ----------------------------------------
     # Enabled separately from the HF DetectionModel (DETECTION_ENABLED).
     # Default model: yolo11l.pt (~48 MB, 25.3 M params, 53.4 COCO mAP50-95).
     # Available tiers: yolo11n (6 MB) · yolo11s (18 MB) · yolo11m (38 MB)
@@ -141,7 +141,7 @@ class Settings:
     YOLO_ENABLED = _env("YOLO_ENABLED", "true").lower() == "true"
     YOLO_MODEL = _env("YOLO_MODEL", "yolo11l")
     YOLO_CONFIDENCE = _env_float("YOLO_CONFIDENCE", 0.25)
-    # ── YOLO Semantic Scene Graph (SSG) ──────────────────────────────────────
+    # -- YOLO Semantic Scene Graph (SSG) --------------------------------------
     # Builds an observation-centric 3D semantic environment graph from YOLO
     # detections anchored to frame poses (ENU in production, SfM/PCA in local mode).
     YOLO_SSG_ENABLED = _env("YOLO_SSG_ENABLED", "true").lower() == "true"
@@ -150,12 +150,12 @@ class Settings:
     YOLO_SSG_NEAR_EDGE_RADIUS_METERS = _env_float("YOLO_SSG_NEAR_EDGE_RADIUS_METERS", 20.0)
     YOLO_SSG_CLUSTER_RADIUS_PCA = _env_float("YOLO_SSG_CLUSTER_RADIUS_PCA", 0.85)
     YOLO_SSG_NEAR_EDGE_RADIUS_PCA = _env_float("YOLO_SSG_NEAR_EDGE_RADIUS_PCA", 1.5)
-    # ── SAM2 / SAM3 segmentation ──────────────────────────────────────────────
+    # -- SAM2 / SAM3 segmentation ----------------------------------------------
     # When enabled, each YOLO bounding box is refined with a SAM mask.
     # SAM_MODEL: "auto" (tries sam3 → sam2 → segment-anything) | "sam2" | "sam3" | "sam1"
     SAM_ENABLED = _env("SAM_ENABLED", "true").lower() == "true"
     SAM_MODEL = _env("SAM_MODEL", "auto")
-    # ── RF-DETR directed tracking (step P3) ──────────────────────────────────
+    # -- RF-DETR directed tracking (step P3) ----------------------------------
     # Gemma 4 directed tracking: Gemma understands the scene → directs SAM to
     # segment named objects → RF-DETR tracks them across frames.
     # Requires GEMMA_API_URL to be set; silently skipped otherwise.
@@ -362,7 +362,7 @@ class Settings:
     UNIDRIVE_TIMEOUT_SEC = _env_int("UNIDRIVE_TIMEOUT_SEC", 60)
     UNIDRIVE_MAX_FRAMES = _env_int("UNIDRIVE_MAX_FRAMES", 24)
 
-    # ── SceneTok streaming encoder + segmentation decoder (Step 14) ──────────
+    # -- SceneTok streaming encoder + segmentation decoder (Step 14) ----------
     # SceneTok (arxiv 2602.18882) compresses multi-view frames into permutation-
     # invariant latent tokens and decodes them to novel views or segmentation masks.
     #
@@ -381,7 +381,7 @@ class Settings:
     SCENETOK_TIMEOUT_SEC = _env_int("SCENETOK_TIMEOUT_SEC", 300)
     SCENETOK_MAX_FRAMES = _env_int("SCENETOK_MAX_FRAMES", 32)
 
-    # ── ASR (Whisper) — audio-to-subtitle transcription ──────────────────────
+    # -- ASR (Whisper) — audio-to-subtitle transcription ----------------------
     # Extracted subtitles are stored in frames.subtitle_text and injected into
     # the Qwen2.5-VL prompt as audio context for richer scene description.
     #
@@ -399,7 +399,7 @@ class Settings:
     # Defaults to a subdirectory of DATA_DIR to co-locate with video data.
     ASR_AUDIO_DIR = _env("ASR_AUDIO_DIR", os.path.join(DATA_DIR, "audio"))
 
-    # ── OCR — visible text extraction from frame images ───────────────────────
+    # -- OCR — visible text extraction from frame images -----------------------
     # OCR results are stored in frame_facts_json["ocr_text"] and the dedicated
     # frames.ocr_text column, and injected into the Qwen prompt as visual context.
     #
@@ -438,7 +438,7 @@ class Settings:
     # with frame-to-frame caption churn. Keep only the strongest segment changes.
     GEMMA_SEGMENT_DIFF_MAX_BOUNDARIES = _env_int("GEMMA_SEGMENT_DIFF_MAX_BOUNDARIES", 16)
 
-    # ── Depth estimation ──────────────────────────────────────────────────────
+    # -- Depth estimation ------------------------------------------------------
     # Stores 5-bucket depth percentiles in frame_facts_json["depth"].
     # DEPTH_MODEL: "auto" or HuggingFace model ID.
     DEPTH_ENABLED = _env("DEPTH_ENABLED", "false").lower() == "true"
@@ -450,7 +450,7 @@ class Settings:
     DEPTH_BATCH_SIZE = _env_int("DEPTH_BATCH_SIZE", 8)
     DEPTH_IMAGE_MAX_SIDE = _env_int("DEPTH_IMAGE_MAX_SIDE", 768)
 
-    # ── Object detection ──────────────────────────────────────────────────────
+    # -- Object detection ------------------------------------------------------
     # Stores normalised bounding boxes in frame_facts_json["detections"].
     # DETECTION_MODEL: "auto" or HuggingFace model ID.
     # DETECTION_LABELS: comma-separated candidate labels for open-vocabulary
@@ -461,7 +461,7 @@ class Settings:
     DETECTION_LABELS = _env("DETECTION_LABELS", "")
     DETECTION_BATCH_SIZE = _env_int("DETECTION_BATCH_SIZE", 8)
 
-    # ── Image segmentation ───────────────────────────────────────────────────
+    # -- Image segmentation ---------------------------------------------------
     # Optional automatic segmentation summaries stored in
     # frame_facts_json["segments"].
     # SEGMENTATION_MODEL: backend selector ("auto" | "sam3" | "sam2" | "sam1")
@@ -475,7 +475,7 @@ class Settings:
     SEGMENTATION_MAX_MASKS = _env_int("SEGMENTATION_MAX_MASKS", 16)
     SEGMENTATION_MIN_AREA_NORM = _env_float("SEGMENTATION_MIN_AREA_NORM", 0.002)
 
-    # ── World model ───────────────────────────────────────────────────────────
+    # -- World model -----------------------------------------------------------
     # Produces video clip embeddings for temporal scene understanding.
     # Target: arxiv.org/abs/2603.19312v1 — set WORLD_MODEL to its HF ID when released.
     # WORLD_MODEL: "auto" or HuggingFace model ID.
@@ -487,7 +487,7 @@ class Settings:
     WORLD_MODEL_CLIP_FRAMES = _env_int("WORLD_MODEL_CLIP_FRAMES", 8)
     WORLD_MODEL_STORE_EMBED = _env("WORLD_MODEL_STORE_EMBED", "false").lower() == "true"
 
-    # ── DreamerV3 RSSM temporal surprise scoring ──────────────────────────────
+    # -- DreamerV3 RSSM temporal surprise scoring ------------------------------
     # Lightweight Recurrent State Space Model inspired by:
     #   Romero et al., "Dream to Fly", ICRA 2026 (rpg.ifi.uzh.ch/docs/ICRA26_Romero.pdf)
     # Operates on pre-computed CLIP embedding sequences — no GPU required.
@@ -510,7 +510,7 @@ class Settings:
     DREAMER_TRAIN_STEPS = _env_int("DREAMER_TRAIN_STEPS", 20)
     DREAMER_STORE_TEMPORAL = _env("DREAMER_STORE_TEMPORAL", "false").lower() == "true"
 
-    # ── RF signal analysis (TorchSig) ─────────────────────────────────────────
+    # -- RF signal analysis (TorchSig) -----------------------------------------
     # Analyzes IQ recordings captured alongside mission video.
     # Stores per-frame signal metrics in frame_facts_json["rf_signal"].
     #
@@ -534,14 +534,14 @@ class Settings:
     RF_CLASSIFIER_CHECKPOINT = _env("RF_CLASSIFIER_CHECKPOINT", "")
     RF_CLASSIFIER_CLASSES = _env("RF_CLASSIFIER_CLASSES", "")
 
-    # ── Sensor fusion ─────────────────────────────────────────────────────────────
+    # -- Sensor fusion -------------------------------------------------------------
     # Enable the multi-modal sensor fusion step (fuses THERMAL, LIDAR, GAS,
     # ACOUSTIC readings with visual detections into a unified frame_facts_json entry).
     # SENSOR_FUSION_MAX_LAG_MS: max timestamp skew for cross-sensor alignment.
     SENSOR_FUSION_ENABLED = _env("SENSOR_FUSION_ENABLED", "true").lower() == "true"
     SENSOR_FUSION_MAX_LAG_MS = _env_int("SENSOR_FUSION_MAX_LAG_MS", 100)
 
-    # ── Probabilistic platform-state fusion ────────────────────────────────────
+    # -- Probabilistic platform-state fusion ------------------------------------
     # First probabilistic fusion slice: platform-state estimation on frame times.
     # Uses GPS extracted from the video plus optional .imu.jsonl / .baro.jsonl
     # sidecars located next to the source video.
@@ -564,24 +564,24 @@ class Settings:
     # Map-state RTS smoother
     MAP_FUSION_SMOOTH = _env("MAP_FUSION_SMOOTH", "true").lower() == "true"
 
-    # ── Thermal (FLIR / LWIR cameras) ────────────────────────────────────────────
+    # -- Thermal (FLIR / LWIR cameras) --------------------------------------------
     # When enabled the pipeline will attempt to load a YOLO-nano fine-tuned on the
     # FLIR ADAS thermal dataset (auto-downloaded from HuggingFace on first run).
     # THERMAL_MODEL: HuggingFace model ID or local path to a YOLO .pt checkpoint.
     THERMAL_ENABLED = _env("THERMAL_ENABLED", "true").lower() == "true"
     THERMAL_MODEL = _env("THERMAL_MODEL", "")
 
-    # ── LiDAR (3-D point-cloud fusion) ───────────────────────────────────────────
+    # -- LiDAR (3-D point-cloud fusion) -------------------------------------------
     # Fuses LiDAR point-cloud data (if available alongside the video) into depth
     # estimates per detected object.  Expects a matching .pcd / .bin sidecar file.
     LIDAR_ENABLED = _env("LIDAR_ENABLED", "true").lower() == "true"
 
-    # ── Gas / chemical sensors ────────────────────────────────────────────────────
+    # -- Gas / chemical sensors ----------------------------------------------------
     # Reads gas sensor readings from a CSV sidecar file and annotates frames with
     # hazard levels (CO₂, CH₄, VOC, etc.).
     GAS_ENABLED = _env("GAS_ENABLED", "true").lower() == "true"
 
-    # ── Acoustic sensors ──────────────────────────────────────────────────────────
+    # -- Acoustic sensors ----------------------------------------------------------
     # Runs audio event detection on the video audio track (or a separate WAV
     # sidecar).  Annotates frames with detected events (gunshot, siren, alarm…).
     ACOUSTIC_ENABLED = _env("ACOUSTIC_ENABLED", "true").lower() == "true"

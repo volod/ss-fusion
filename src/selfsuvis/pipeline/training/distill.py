@@ -56,7 +56,7 @@ from .common import (
 logger = get_logger(__name__)
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# -- Config --------------------------------------------------------------------
 
 
 @dataclass
@@ -66,14 +66,14 @@ class DistillConfig:
     student_model: str = "dinov2_vits14"  # ViT-S/14 — 22M params, 384-dim
     epochs: int = 5
     batch_size: int = 16
-    lr: float = 1e-4
+    lr: float = 3e-4
     weight_decay: float = 1e-4
     grad_clip: float = 1.0
     image_size: int = 224
     device: str = "cuda"
     num_workers: int = 0
     # RKD-DA loss weights (Park et al. 2019 defaults)
-    lambda_rkd_d: float = 25.0  # pairwise distance preservation
+    lambda_rkd_d: float = 50.0  # pairwise distance preservation
     lambda_rkd_a: float = 50.0  # triplet angle preservation
     lambda_kd: float = 1.0  # cosine anchor (student proj ≈ teacher)
     lambda_koleo: float = 0.1  # KoLeo spread regulariser
@@ -85,7 +85,7 @@ class DistillConfig:
     stage: int = 1
 
 
-# ── Dataset ───────────────────────────────────────────────────────────────────
+# -- Dataset -------------------------------------------------------------------
 
 
 class _FrameDataset(Dataset):
@@ -110,7 +110,7 @@ class _FrameDataset(Dataset):
         return self.transform(img)
 
 
-# ── RKD loss functions ────────────────────────────────────────────────────────
+# -- RKD loss functions --------------------------------------------------------
 
 
 def _pairwise_dist(x: Tensor) -> Tensor:
@@ -210,7 +210,7 @@ def _module_dummy_input(
     )
 
 
-# ── Recall@1 metric ───────────────────────────────────────────────────────────
+# -- Recall@1 metric -----------------------------------------------------------
 
 
 @torch.no_grad()
@@ -244,7 +244,7 @@ def _should_update_best_checkpoint(
     )
 
 
-# ── Distiller ─────────────────────────────────────────────────────────────────
+# -- Distiller -----------------------------------------------------------------
 
 
 class KnowledgeDistiller:
@@ -300,7 +300,7 @@ class KnowledgeDistiller:
             self._student_params // 1_000_000,
         )
 
-    # ── Private helpers ───────────────────────────────────────────────────────
+    # -- Private helpers -------------------------------------------------------
 
     def _load_student(self) -> torch.nn.Module:
         if self.config.student_model.startswith("efficientvit_"):
@@ -362,7 +362,7 @@ class KnowledgeDistiller:
         self.student.train()
         return torch.cat(t_embs, dim=0), torch.cat(s_embs, dim=0)
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # -- Public API ------------------------------------------------------------
 
     def distill(
         self,
@@ -458,7 +458,7 @@ class KnowledgeDistiller:
                 t_emb = self._forward_teacher(batch)  # (B, t_dim)
                 s_proj, s_raw = self._forward_student(batch)  # (B, t_dim), (B, s_dim)
 
-                # ── Loss components ───────────────────────────────────────────
+                # -- Loss components -------------------------------------------
                 l_rkd_d = rkd_distance_loss(t_emb, s_proj)
                 l_rkd_a = rkd_angle_loss(t_emb, s_proj)
                 l_cosine = (1.0 - (s_proj * t_emb).sum(dim=-1)).mean()
@@ -471,7 +471,7 @@ class KnowledgeDistiller:
                     + cfg.lambda_koleo * l_koleo
                 )
 
-                # ── Caption anchor loss ───────────────────────────────────────
+                # -- Caption anchor loss ---------------------------------------
                 l_caption = torch.tensor(0.0, device=self.device)
                 if _cap_anchors is not None and cfg.lambda_caption_anchor > 0:
                     # Align caption anchors to this batch by dataset index
@@ -600,7 +600,7 @@ class KnowledgeDistiller:
         return self.student
 
 
-# ── Top-level entry point ─────────────────────────────────────────────────────
+# -- Top-level entry point -----------------------------------------------------
 
 
 class GemmaVisionTeacher(torch.nn.Module):
@@ -717,7 +717,7 @@ def run_distillation_efficientvit(
             }
         )
 
-    # ── Load EfficientViT-B1 student via timm ─────────────────────────────────
+    # -- Load EfficientViT-B1 student via timm ---------------------------------
     try:
         import timm  # noqa: PLC0415
     except ImportError as exc:

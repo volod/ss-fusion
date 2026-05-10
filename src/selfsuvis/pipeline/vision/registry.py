@@ -22,7 +22,7 @@ from selfsuvis.pipeline.core import get_logger
 logger = get_logger(__name__)
 
 
-# ── Resource detection ────────────────────────────────────────────────────────
+# -- Resource detection --------------------------------------------------------
 
 
 def _env_float_override(key: str) -> float | None:
@@ -124,7 +124,7 @@ def detect_resources() -> dict[str, float]:
     return {"vram_gb": vram, "free_vram_gb": free_vram, "ram_gb": ram}
 
 
-# ── Model entry ───────────────────────────────────────────────────────────────
+# -- Model entry ---------------------------------------------------------------
 
 
 @dataclass
@@ -140,11 +140,11 @@ class ModelEntry:
     extra: dict = field(default_factory=dict)
 
 
-# ── Top-10 catalogs per task ──────────────────────────────────────────────────
+# -- Top-10 catalogs per task --------------------------------------------------
 # Each list is ordered small → large. ``auto_select`` picks the largest that fits.
 
 CATALOGS: dict[str, list[ModelEntry]] = {
-    # ── Automatic Speech Recognition ─────────────────────────────────────────
+    # -- Automatic Speech Recognition -----------------------------------------
     # Note: current ASR models top out around 1.55B params. No 3B+ ASR models
     # exist as of 2026-Q1; Whisper family dominates.
     "asr": [
@@ -206,7 +206,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "SeamlessM4T-v2-large — speech-to-speech/text, 100+ languages",
         ),
     ],
-    # ── OCR / Document Understanding ─────────────────────────────────────────
+    # -- OCR / Document Understanding -----------------------------------------
     "ocr": [
         ModelEntry(
             "microsoft/trocr-base-printed",
@@ -270,7 +270,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "LLaVA-1.5-13B — strong VLM with OCR capabilities",
         ),
     ],
-    # ── Depth Estimation ─────────────────────────────────────────────────────
+    # -- Depth Estimation -----------------------------------------------------
     "depth": [
         ModelEntry(
             "depth-anything/Depth-Anything-V2-Small-hf",
@@ -329,7 +329,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "Apple DepthPro — metric depth + focal estimation, sharp edges",
         ),
     ],
-    # ── Object Detection ─────────────────────────────────────────────────────
+    # -- Object Detection -----------------------------------------------------
     "detection": [
         ModelEntry(
             "facebook/detr-resnet-50",
@@ -387,7 +387,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "Deformable-DETR — sparse attention, fast convergence",
         ),
     ],
-    # ── Image Segmentation ───────────────────────────────────────────────────
+    # -- Image Segmentation ---------------------------------------------------
     "segmentation": [
         ModelEntry(
             "facebook/sam2-hiera-tiny",
@@ -437,7 +437,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "Mask2Former-Large — state-of-art panoptic segmentation",
         ),
     ],
-    # ── Visual Question Answering / Vision-Language Models ───────────────────
+    # -- Visual Question Answering / Vision-Language Models -------------------
     "vqa": [
         ModelEntry(
             "microsoft/Florence-2-base",
@@ -488,7 +488,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "Qwen2.5-VL-72B — top open-source VLM, needs 2×A100",
         ),
     ],
-    # ── Zero-shot Classification (CLIP / SigLIP) ─────────────────────────────
+    # -- Zero-shot Classification (CLIP / SigLIP) -----------------------------
     "zero_shot_classification": [
         ModelEntry(
             "openai/clip-vit-base-patch32",
@@ -551,7 +551,7 @@ CATALOGS: dict[str, list[ModelEntry]] = {
             "CLIP ViT-g/14 on LAION-2B — largest available CLIP variant",
         ),
     ],
-    # ── Video Understanding / World Models ───────────────────────────────────
+    # -- Video Understanding / World Models -----------------------------------
     # Self-supervised and supervised video representation models. These produce
     # temporal embeddings suitable for scene understanding, anomaly detection,
     # and change detection in mission video.
@@ -653,7 +653,7 @@ _TASK_RUNTIME_FALLBACKS: dict[str, dict[str, str]] = {
 }
 
 
-# ── Auto-selection ────────────────────────────────────────────────────────────
+# -- Auto-selection ------------------------------------------------------------
 
 
 def normalize_model_id(task: str, model_id: str) -> str:

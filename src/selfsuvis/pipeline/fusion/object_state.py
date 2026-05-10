@@ -187,7 +187,7 @@ def run_object_state_fusion(
     next_id = 1
     per_frame_raw: list[list[dict[str, Any]]] = []  # for RTS
 
-    # ── Forward pass ─────────────────────────────────────────────────────────
+    # -- Forward pass ---------------------------------------------------------
     for frame_result in tracking_results:
         t_sec = float(frame_result.get("t_sec", 0.0))
         dets = [d for d in frame_result.get("detections", []) if len(d.get("bbox_norm", [])) == 4]
@@ -261,7 +261,7 @@ def run_object_state_fusion(
                 )
         per_frame_raw.append(frame_snapshot)
 
-    # ── RTS backward smoother per confirmed track ──────────────────────────
+    # -- RTS backward smoother per confirmed track --------------------------
     # Collect complete forward history for each confirmed track
     confirmed_filter_history: dict[int, list[ObjectFilterHistory]] = {}
     for trk in active_tracks.values():
@@ -275,7 +275,7 @@ def run_object_state_fusion(
         rts_result = rts_smooth(steps, _OBJ_PROC_POS_STD, _OBJ_PROC_VEL_STD)
         smoothed_by_track[tid] = {s.t_sec: s.x for s in rts_result}
 
-    # ── Assemble output ────────────────────────────────────────────────────
+    # -- Assemble output ----------------------------------------------------
     per_frame_out: list[list[ObjectStateSample]] = []
     for frame_idx, frame_snapshot in enumerate(per_frame_raw):
         frame_out: list[ObjectStateSample] = []
@@ -334,7 +334,7 @@ def run_object_state_fusion(
     )
 
 
-# ── Clip-level summary helper ─────────────────────────────────────────────────
+# -- Clip-level summary helper -------------------------------------------------
 
 
 def summarize_object_frame_dicts(
