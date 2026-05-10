@@ -1,4 +1,3 @@
-
 import cv2
 import numpy as np
 
@@ -48,7 +47,9 @@ def ssim_diff(a: np.ndarray, b: np.ndarray) -> float:
     return float(1.0 - score)
 
 
-def phase_corr_align(prev_small: np.ndarray, curr_small: np.ndarray) -> tuple[np.ndarray, float, float, float]:
+def phase_corr_align(
+    prev_small: np.ndarray, curr_small: np.ndarray
+) -> tuple[np.ndarray, float, float, float]:
     shift, response = cv2.phaseCorrelate(prev_small, curr_small)
     dx, dy = shift
     if response < settings.PHASECORR_MIN_RESPONSE:
@@ -56,7 +57,13 @@ def phase_corr_align(prev_small: np.ndarray, curr_small: np.ndarray) -> tuple[np
     if abs(dx) > settings.STAB_MAX_SHIFT or abs(dy) > settings.STAB_MAX_SHIFT:
         return curr_small, dx, dy, response
     M = np.array([[1, 0, -dx], [0, 1, -dy]], dtype=np.float32)
-    aligned = cv2.warpAffine(curr_small, M, (curr_small.shape[1], curr_small.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    aligned = cv2.warpAffine(
+        curr_small,
+        M,
+        (curr_small.shape[1], curr_small.shape[0]),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REFLECT,
+    )
     return aligned, dx, dy, response
 
 

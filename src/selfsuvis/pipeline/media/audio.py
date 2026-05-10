@@ -49,13 +49,19 @@ def extract_audio(video_path: str, output_dir: str) -> str | None:
         return None
 
     cmd = [
-        "ffmpeg", "-y",
-        "-loglevel", "error",
-        "-i", video_path,
-        "-vn",                          # drop video
-        "-acodec", "pcm_s16le",         # uncompressed 16-bit PCM
-        "-ar", "16000",                 # 16 kHz
-        "-ac", "1",                     # mono
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        video_path,
+        "-vn",  # drop video
+        "-acodec",
+        "pcm_s16le",  # uncompressed 16-bit PCM
+        "-ar",
+        "16000",  # 16 kHz
+        "-ac",
+        "1",  # mono
         wav_path,
     ]
     try:
@@ -87,10 +93,15 @@ def _has_audio_stream(video_path: str) -> bool:
     try:
         result = run_captured(
             [
-                "ffprobe", "-v", "error",
-                "-select_streams", "a:0",
-                "-show_entries", "stream=codec_type",
-                "-of", "default=nw=1",
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "default=nw=1",
                 video_path,
             ],
             timeout=30,
@@ -169,11 +180,13 @@ def _normalise_segments(raw: list[dict]) -> list[dict]:
             continue
         # faster-whisper / direct format: {"start": float, "end": float, "text": ...}
         if "start" in seg and "end" in seg:
-            out.append({
-                "text": text,
-                "start": float(seg["start"]),
-                "end": float(seg["end"]),
-            })
+            out.append(
+                {
+                    "text": text,
+                    "start": float(seg["start"]),
+                    "end": float(seg["end"]),
+                }
+            )
             continue
         # Fallback: no timing info — skip segment
         logger.debug("audio_extractor: unrecognised segment format; skipping: %r", seg)

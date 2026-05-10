@@ -17,6 +17,7 @@ Companion metadata (splat_meta.json next to the PLY):
   {origin_lat, origin_lon, origin_alt}  — GPS ENU origin used during Phase 1
                                            registration; required for ICP fusion.
 """
+
 import json
 import os
 from typing import Any
@@ -25,17 +26,16 @@ import numpy as np
 
 # ── property names ────────────────────────────────────────────────────────────
 
-_PROPS_XYZ    = ["x", "y", "z"]
+_PROPS_XYZ = ["x", "y", "z"]
 _PROPS_NORMALS = ["nx", "ny", "nz"]
-_PROPS_DC     = ["f_dc_0", "f_dc_1", "f_dc_2"]
-_PROPS_REST   = [f"f_rest_{i}" for i in range(45)]
-_PROPS_OPAC   = ["opacity"]
-_PROPS_SCALE  = ["scale_0", "scale_1", "scale_2"]
-_PROPS_ROT    = ["rot_0", "rot_1", "rot_2", "rot_3"]
+_PROPS_DC = ["f_dc_0", "f_dc_1", "f_dc_2"]
+_PROPS_REST = [f"f_rest_{i}" for i in range(45)]
+_PROPS_OPAC = ["opacity"]
+_PROPS_SCALE = ["scale_0", "scale_1", "scale_2"]
+_PROPS_ROT = ["rot_0", "rot_1", "rot_2", "rot_3"]
 
 ALL_PROPERTIES: list = (
-    _PROPS_XYZ + _PROPS_NORMALS + _PROPS_DC + _PROPS_REST
-    + _PROPS_OPAC + _PROPS_SCALE + _PROPS_ROT
+    _PROPS_XYZ + _PROPS_NORMALS + _PROPS_DC + _PROPS_REST + _PROPS_OPAC + _PROPS_SCALE + _PROPS_ROT
 )  # 59 total
 
 
@@ -45,6 +45,7 @@ _SPLAT_DTYPE = np.dtype([(p, "f4") for p in ALL_PROPERTIES])
 
 
 # ── write ─────────────────────────────────────────────────────────────────────
+
 
 def write_splat(path: str, data: np.ndarray) -> None:
     """Write a 3DGS PLY file from a structured numpy array.
@@ -73,12 +74,12 @@ def write_splat(path: str, data: np.ndarray) -> None:
 
 def write_splat_from_arrays(
     path: str,
-    positions: np.ndarray,               # (N, 3) float32
-    opacities: np.ndarray,               # (N,)   float32  logit-encoded
-    scales: np.ndarray,                  # (N, 3) float32  log-encoded
-    rotations: np.ndarray,               # (N, 4) float32  WXYZ quaternion
+    positions: np.ndarray,  # (N, 3) float32
+    opacities: np.ndarray,  # (N,)   float32  logit-encoded
+    scales: np.ndarray,  # (N, 3) float32  log-encoded
+    rotations: np.ndarray,  # (N, 4) float32  WXYZ quaternion
     sh_dc: np.ndarray | None = None,  # (N, 3) float32; zeros if None
-    sh_rest: np.ndarray | None = None,# (N,45) float32; zeros if None
+    sh_rest: np.ndarray | None = None,  # (N,45) float32; zeros if None
 ) -> None:
     """Convenience wrapper: build structured array from component arrays then write."""
     n = len(positions)
@@ -93,12 +94,16 @@ def write_splat_from_arrays(
     data["opacity"] = opacities
     data["scale_0"], data["scale_1"], data["scale_2"] = scales[:, 0], scales[:, 1], scales[:, 2]
     data["rot_0"], data["rot_1"], data["rot_2"], data["rot_3"] = (
-        rotations[:, 0], rotations[:, 1], rotations[:, 2], rotations[:, 3]
+        rotations[:, 0],
+        rotations[:, 1],
+        rotations[:, 2],
+        rotations[:, 3],
     )
     write_splat(path, data)
 
 
 # ── read ──────────────────────────────────────────────────────────────────────
+
 
 def read_splat(path: str) -> np.ndarray:
     """Read a 3DGS PLY file and return a structured numpy array.
@@ -127,6 +132,7 @@ def splat_positions(path: str) -> np.ndarray:
 def splat_count(path: str) -> int:
     """Return the number of Gaussians in a PLY file without loading all data."""
     from plyfile import PlyData  # type: ignore
+
     ply = PlyData.read(path)
     return len(ply["vertex"].data)
 
@@ -138,6 +144,7 @@ def is_splat_ply(path: str) -> bool:
     """
     try:
         from plyfile import PlyData  # type: ignore
+
         ply = PlyData.read(path)
         names = {p.name for p in ply["vertex"].properties}
         return bool(names & {"f_dc_0", "opacity", "scale_0"})
@@ -146,6 +153,7 @@ def is_splat_ply(path: str) -> bool:
 
 
 # ── companion metadata ────────────────────────────────────────────────────────
+
 
 def _meta_path(splat_path: str) -> str:
     base, _ = os.path.splitext(splat_path)
@@ -185,6 +193,7 @@ def read_splat_metadata(splat_path: str) -> dict[str, Any] | None:
 
 
 # ── SE(3) transform helpers ───────────────────────────────────────────────────
+
 
 def _rot_matrix_to_quat_wxyz(R: np.ndarray) -> np.ndarray:
     """Convert a 3×3 rotation matrix to a WXYZ unit quaternion.
@@ -233,15 +242,19 @@ def _quat_multiply_wxyz(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     x2 = q2[:, 1]
     y2 = q2[:, 2]
     z2 = q2[:, 3]
-    return np.stack([
-        w1*w2 - x1*x2 - y1*y2 - z1*z2,
-        w1*x2 + x1*w2 + y1*z2 - z1*y2,
-        w1*y2 - x1*z2 + y1*w2 + z1*x2,
-        w1*z2 + x1*y2 - y1*x2 + z1*w2,
-    ], axis=1).astype(np.float32)
+    return np.stack(
+        [
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        ],
+        axis=1,
+    ).astype(np.float32)
 
 
 # ── transform / merge ─────────────────────────────────────────────────────────
+
 
 def apply_transform_to_splat(
     path_in: str,
@@ -282,21 +295,28 @@ def apply_transform_to_splat(
     data = read_splat(path_in)
 
     # ── 1. rotate + translate positions ──────────────────────────────────────
-    pos = np.column_stack([
-        data["x"].astype(np.float64),
-        data["y"].astype(np.float64),
-        data["z"].astype(np.float64),
-    ])                                       # (N, 3)
-    pos_t = (R @ pos.T).T + t               # (N, 3)
+    pos = np.column_stack(
+        [
+            data["x"].astype(np.float64),
+            data["y"].astype(np.float64),
+            data["z"].astype(np.float64),
+        ]
+    )  # (N, 3)
+    pos_t = (R @ pos.T).T + t  # (N, 3)
     data["x"] = pos_t[:, 0].astype(np.float32)
     data["y"] = pos_t[:, 1].astype(np.float32)
     data["z"] = pos_t[:, 2].astype(np.float32)
 
     # ── 2. compose alignment rotation into stored Gaussian quaternions ────────
-    q_align = _rot_matrix_to_quat_wxyz(R)   # (4,) WXYZ
-    quats = np.column_stack([
-        data["rot_0"], data["rot_1"], data["rot_2"], data["rot_3"],
-    ]).astype(np.float32)                   # (N, 4) WXYZ
+    q_align = _rot_matrix_to_quat_wxyz(R)  # (4,) WXYZ
+    quats = np.column_stack(
+        [
+            data["rot_0"],
+            data["rot_1"],
+            data["rot_2"],
+            data["rot_3"],
+        ]
+    ).astype(np.float32)  # (N, 4) WXYZ
     quats_new = _quat_multiply_wxyz(q_align, quats)
     # Normalise (float32 accumulation can drift slightly)
     norms = np.linalg.norm(quats_new, axis=1, keepdims=True)

@@ -3,6 +3,7 @@
 Requires a working cv2 installation. Skipped automatically when cv2 is not
 importable (e.g. NumPy 2.x / OpenCV binary incompatibility in the test venv).
 """
+
 import os
 from pathlib import Path
 

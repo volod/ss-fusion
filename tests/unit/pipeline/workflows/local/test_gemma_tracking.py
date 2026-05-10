@@ -71,8 +71,7 @@ def _load_steps_module():
 
         def track_sequence(self, frame_items, target_labels=None):
             return [
-                {"frame_path": fp, "t_sec": t_sec, "detections": []}
-                for fp, t_sec in frame_items
+                {"frame_path": fp, "t_sec": t_sec, "detections": []} for fp, t_sec in frame_items
             ]
 
         def release(self) -> None:
@@ -104,7 +103,9 @@ def _load_steps_module():
     sys.modules["selfsuvis.pipeline.workflows.local"] = local_pkg
 
     common_mod = types.ModuleType("selfsuvis.pipeline.workflows.local._common")
-    common_mod._log = types.SimpleNamespace(info=lambda *a, **k: None, debug=lambda *a, **k: None, warning=lambda *a, **k: None)
+    common_mod._log = types.SimpleNamespace(
+        info=lambda *a, **k: None, debug=lambda *a, **k: None, warning=lambda *a, **k: None
+    )
     common_mod._open_frame_image = lambda frame_path: Image.open(frame_path).convert("RGB")
     sys.modules["selfsuvis.pipeline.workflows.local._common"] = common_mod
 
@@ -193,7 +194,7 @@ def test_sam_directed_by_gemma_path_b_is_pure_fallback_not_supplement():
             results = []
             for idx, _box in enumerate(boxes):
                 mask = np.zeros((20, 20), dtype=bool)
-                mask[2 + idx:8 + idx, 2:8] = True
+                mask[2 + idx : 8 + idx, 2:8] = True
                 results.append({"mask": mask, "score": 0.9 - idx * 0.1})
             return results
 
@@ -213,15 +214,15 @@ def test_sam_directed_by_gemma_path_b_is_pure_fallback_not_supplement():
     ]
     try:
         results = tracking._sam_directed_by_gemma(
-                image,
-                gemma_objects=[
-                    # small bbox → Path A; large bbox → skipped by Path A (near-fallback)
-                    {"category": "vehicle", "rough_bbox": [0.1, 0.1, 0.4, 0.4]},
-                    {"category": "person", "rough_bbox": [0.05, 0.05, 0.95, 0.95]},
-                ],
-                sam_predictor=FakePredictor(),
-                clip_model=FakeClip(),
-            )
+            image,
+            gemma_objects=[
+                # small bbox → Path A; large bbox → skipped by Path A (near-fallback)
+                {"category": "vehicle", "rough_bbox": [0.1, 0.1, 0.4, 0.4]},
+                {"category": "person", "rough_bbox": [0.05, 0.05, 0.95, 0.95]},
+            ],
+            sam_predictor=FakePredictor(),
+            clip_model=FakeClip(),
+        )
     finally:
         tracking._get_sam_auto_masks = original
 
@@ -254,7 +255,9 @@ def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeyp
         "motion_present": True,
         "tracking_priority": ["vehicle"],
     }
-    monkeypatch.setattr(tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene)
+    monkeypatch.setattr(
+        tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene
+    )
 
     class FakeTracker:
         def __init__(self) -> None:
@@ -346,10 +349,14 @@ def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeyp
     assert payload["tracking_priority"] == ["vehicle"]
     assert payload["sam_enabled"] is True
     assert payload["frames"][0]["sam_masks"][0]["source"] == "gemma_bbox"
-    assert "SAM directed segmentation produced **2 masks**." in summary_path.read_text(encoding="utf-8")
+    assert "SAM directed segmentation produced **2 masks**." in summary_path.read_text(
+        encoding="utf-8"
+    )
 
 
-def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pass_is_empty(monkeypatch, tmp_path):
+def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pass_is_empty(
+    monkeypatch, tmp_path
+):
     tracking = _load_steps_module()
 
     frame_a = tmp_path / "frame_a.jpg"
@@ -363,7 +370,9 @@ def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pa
         "motion_present": False,
         "tracking_priority": ["vehicle"],
     }
-    monkeypatch.setattr(tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene)
+    monkeypatch.setattr(
+        tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene
+    )
 
     class FakeTracker:
         def __init__(self) -> None:
@@ -377,18 +386,22 @@ def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pa
             self.calls.append(target_labels)
             if target_labels:
                 return [{"frame_path": str(frame_a), "t_sec": 0.0, "detections": []}]
-            return [{
-                "frame_path": str(frame_a),
-                "t_sec": 0.0,
-                "detections": [{
-                    "label": "truck",
-                    "confidence": 0.9,
-                    "bbox_norm": [0.1, 0.1, 0.4, 0.4],
-                    "track_id": 1,
-                    "priority": 2,
-                    "priority_label": "vehicle",
-                }],
-            }]
+            return [
+                {
+                    "frame_path": str(frame_a),
+                    "t_sec": 0.0,
+                    "detections": [
+                        {
+                            "label": "truck",
+                            "confidence": 0.9,
+                            "bbox_norm": [0.1, 0.1, 0.4, 0.4],
+                            "track_id": 1,
+                            "priority": 2,
+                            "priority_label": "vehicle",
+                        }
+                    ],
+                }
+            ]
 
         def release(self) -> None:
             pass
@@ -426,58 +439,73 @@ def test_normalise_tracking_targets_drops_scene_nouns():
 def test_scene_is_actionable_requires_detector_aligned_targets():
     tracking = _load_steps_module()
 
-    assert tracking._scene_is_actionable(
-        {
-            "scene_type": "urban_street",
-            "tracking_priority": ["intersection", "roadway"],
-            "dominant_objects": [],
-        }
-    ) is False
-    assert tracking._scene_is_actionable(
-        {
-            "scene_type": "urban_street",
-            "tracking_priority": ["vehicle", "roadway"],
-            "dominant_objects": [
-                {
-                    "category": "vehicle",
-                    "rough_bbox": [0.1, 0.1, 0.9, 0.9],
-                }
-            ],
-        }
-    ) is True
-    assert tracking._scene_is_actionable(
-        {
-            "scene_type": "aerial",
-            "tracking_priority": ["vehicle"],
-            "dominant_objects": [],
-            "areas_of_interest": ["road corridor"],
-            "motion_present": True,
-        }
-    ) is True
-    assert tracking._scene_is_actionable(
-        {
-            "scene_type": "aerial",
-            "tracking_priority": ["vehicle"],
-            "dominant_objects": [
-                {
-                    "category": "vehicle",
-                    "rough_bbox": [0.2, 0.2, 0.8, 0.8],
-                    "spatial_hint": "scene-context fallback fallback-bbox",
-                }
-            ],
-            "areas_of_interest": ["road corridor"],
-            "motion_present": True,
-        }
-    ) is False
-    assert tracking._scene_is_actionable(
-        {
-            "scene_type": "urban_street|rural_terrain|indoor|aerial|waterway|construction|industrial|other",
-            "tracking_priority": ["vehicle"],
-            "dominant_objects": [
-                {
-                    "category": "vehicle",
-                    "rough_bbox": [0.1, 0.1, 0.9, 0.9],
-                }
-            ],
-        }
-    ) is False
+    assert (
+        tracking._scene_is_actionable(
+            {
+                "scene_type": "urban_street",
+                "tracking_priority": ["intersection", "roadway"],
+                "dominant_objects": [],
+            }
+        )
+        is False
+    )
+    assert (
+        tracking._scene_is_actionable(
+            {
+                "scene_type": "urban_street",
+                "tracking_priority": ["vehicle", "roadway"],
+                "dominant_objects": [
+                    {
+                        "category": "vehicle",
+                        "rough_bbox": [0.1, 0.1, 0.9, 0.9],
+                    }
+                ],
+            }
+        )
+        is True
+    )
+    assert (
+        tracking._scene_is_actionable(
+            {
+                "scene_type": "aerial",
+                "tracking_priority": ["vehicle"],
+                "dominant_objects": [],
+                "areas_of_interest": ["road corridor"],
+                "motion_present": True,
+            }
+        )
+        is True
+    )
+    assert (
+        tracking._scene_is_actionable(
+            {
+                "scene_type": "aerial",
+                "tracking_priority": ["vehicle"],
+                "dominant_objects": [
+                    {
+                        "category": "vehicle",
+                        "rough_bbox": [0.2, 0.2, 0.8, 0.8],
+                        "spatial_hint": "scene-context fallback fallback-bbox",
+                    }
+                ],
+                "areas_of_interest": ["road corridor"],
+                "motion_present": True,
+            }
+        )
+        is False
+    )
+    assert (
+        tracking._scene_is_actionable(
+            {
+                "scene_type": "urban_street|rural_terrain|indoor|aerial|waterway|construction|industrial|other",
+                "tracking_priority": ["vehicle"],
+                "dominant_objects": [
+                    {
+                        "category": "vehicle",
+                        "rough_bbox": [0.1, 0.1, 0.9, 0.9],
+                    }
+                ],
+            }
+        )
+        is False
+    )

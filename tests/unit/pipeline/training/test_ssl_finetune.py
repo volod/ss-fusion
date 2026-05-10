@@ -11,6 +11,7 @@ Tests cover:
   - run_finetune: E2E smoke test with tiny synthetic data and mocked backbone
   - config_from_settings: env var wiring
 """
+
 import os
 import random
 import tempfile
@@ -25,6 +26,7 @@ from PIL import Image
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_rgb_jpg(path: str, size: int = 64) -> None:
     """Write a small solid-colour JPEG to path (creates parent dirs)."""
@@ -50,10 +52,11 @@ def _frames_dir_with_videos(tmp: str, videos: dict) -> str:
 # NTXentLoss
 # ---------------------------------------------------------------------------
 
-class TestNTXentLoss(unittest.TestCase):
 
+class TestNTXentLoss(unittest.TestCase):
     def _loss(self, B: int = 4, D: int = 8):
         from selfsuvis.pipeline.training.ssl import NTXentLoss
+
         loss_fn = NTXentLoss(temperature=0.07)
         z1 = torch.randn(B, D)
         z1 = torch.nn.functional.normalize(z1, dim=-1)
@@ -76,6 +79,7 @@ class TestNTXentLoss(unittest.TestCase):
     def test_identical_embeddings_gives_lower_loss(self):
         """Identical z1==z2 should give lower loss than random pairs."""
         from selfsuvis.pipeline.training.ssl import NTXentLoss
+
         loss_fn = NTXentLoss(temperature=0.07)
         z = torch.nn.functional.normalize(torch.randn(8, 16), dim=-1)
         loss_identical = loss_fn(z, z).item()
@@ -85,6 +89,7 @@ class TestNTXentLoss(unittest.TestCase):
 
     def test_gradient_flows(self):
         from selfsuvis.pipeline.training.ssl import NTXentLoss
+
         loss_fn = NTXentLoss()
         raw = torch.randn(4, 8, requires_grad=True)
         z1 = torch.nn.functional.normalize(raw, dim=-1)
@@ -96,6 +101,7 @@ class TestNTXentLoss(unittest.TestCase):
     def test_temperature_scaling(self):
         """Higher temperature → softer distribution → lower loss magnitude on average."""
         from selfsuvis.pipeline.training.ssl import NTXentLoss
+
         z = torch.nn.functional.normalize(torch.randn(8, 16), dim=-1)
         z2 = torch.nn.functional.normalize(torch.randn(8, 16), dim=-1)
         loss_hot = NTXentLoss(temperature=1.0)(z, z2).item()
@@ -107,6 +113,7 @@ class TestNTXentLoss(unittest.TestCase):
     def test_batch_size_1_raises(self):
         """Batch of 1 makes no valid negatives — cross_entropy will still run but result may be degenerate."""
         from selfsuvis.pipeline.training.ssl import NTXentLoss
+
         loss_fn = NTXentLoss()
         z = torch.nn.functional.normalize(torch.randn(1, 8), dim=-1)
         # Should not crash (even if numerically degenerate)
@@ -118,10 +125,11 @@ class TestNTXentLoss(unittest.TestCase):
 # ProjectionHead
 # ---------------------------------------------------------------------------
 
-class TestProjectionHead(unittest.TestCase):
 
+class TestProjectionHead(unittest.TestCase):
     def test_output_shape(self):
         from selfsuvis.pipeline.training.ssl import ProjectionHead
+
         head = ProjectionHead(in_dim=768, hidden_dim=256, out_dim=64)
         x = torch.randn(4, 768)
         out = head(x)
@@ -129,6 +137,7 @@ class TestProjectionHead(unittest.TestCase):
 
     def test_output_is_l2_normalised(self):
         from selfsuvis.pipeline.training.ssl import ProjectionHead
+
         head = ProjectionHead(in_dim=64, out_dim=32)
         x = torch.randn(8, 64)
         out = head(x)
@@ -140,10 +149,11 @@ class TestProjectionHead(unittest.TestCase):
 # build_augment_transform
 # ---------------------------------------------------------------------------
 
-class TestAugmentTransform(unittest.TestCase):
 
+class TestAugmentTransform(unittest.TestCase):
     def test_output_tensor_shape(self):
         from selfsuvis.pipeline.training.ssl import build_augment_transform
+
         t = build_augment_transform(image_size=224)
         img = Image.new("RGB", (512, 384))
         out = t(img)
@@ -152,6 +162,7 @@ class TestAugmentTransform(unittest.TestCase):
     def test_two_views_differ(self):
         """Stochastic augmentation → two calls on same image should rarely be identical."""
         from selfsuvis.pipeline.training.ssl import build_augment_transform
+
         t = build_augment_transform()
         img = Image.new("RGB", (256, 256), color=(128, 64, 32))
         # Run 5 times; at least one pair should differ
@@ -164,19 +175,21 @@ class TestAugmentTransform(unittest.TestCase):
 # AugmentPairDataset
 # ---------------------------------------------------------------------------
 
-class TestAugmentPairDataset(unittest.TestCase):
 
+class TestAugmentPairDataset(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
 
     def test_discovers_frames(self):
         from selfsuvis.pipeline.training.ssl import AugmentPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"vid1": 4, "vid2": 3})
         ds = AugmentPairDataset(fdir, build_augment_transform(32))
         self.assertEqual(len(ds), 7)
 
     def test_item_is_two_tensors(self):
         from selfsuvis.pipeline.training.ssl import AugmentPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"vid1": 2})
         ds = AugmentPairDataset(fdir, build_augment_transform(32))
         v1, v2 = ds[0]
@@ -185,6 +198,7 @@ class TestAugmentPairDataset(unittest.TestCase):
 
     def test_empty_dir_raises(self):
         from selfsuvis.pipeline.training.ssl import AugmentPairDataset, build_augment_transform
+
         empty = os.path.join(self.tmp, "empty")
         os.makedirs(empty)
         with self.assertRaises(ValueError):
@@ -192,6 +206,7 @@ class TestAugmentPairDataset(unittest.TestCase):
 
     def test_finds_jpg_and_png(self):
         from selfsuvis.pipeline.training.ssl import AugmentPairDataset, build_augment_transform
+
         fdir = os.path.join(self.tmp, "mixed")
         _make_rgb_jpg(os.path.join(fdir, "a.jpg"))
         # write a PNG
@@ -205,13 +220,14 @@ class TestAugmentPairDataset(unittest.TestCase):
 # TemporalPairDataset
 # ---------------------------------------------------------------------------
 
-class TestTemporalPairDataset(unittest.TestCase):
 
+class TestTemporalPairDataset(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
 
     def test_pairs_from_two_videos(self):
         from selfsuvis.pipeline.training.ssl import TemporalPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"vid1": 5, "vid2": 4})
         ds = TemporalPairDataset(fdir, build_augment_transform(32), max_gap=1)
         # vid1: 5 frames → 4 pairs (frames 0..3 each pair with next)
@@ -220,18 +236,21 @@ class TestTemporalPairDataset(unittest.TestCase):
 
     def test_single_frame_dir_skipped(self):
         from selfsuvis.pipeline.training.ssl import TemporalPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"solo": 1, "multi": 3})
         ds = TemporalPairDataset(fdir, build_augment_transform(32), max_gap=1)
         self.assertEqual(len(ds), 2)  # multi: 3 frames → 2 pairs; solo skipped
 
     def test_all_single_frame_raises(self):
         from selfsuvis.pipeline.training.ssl import TemporalPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"a": 1, "b": 1})
         with self.assertRaises(ValueError):
             TemporalPairDataset(fdir, build_augment_transform(32))
 
     def test_item_shape(self):
         from selfsuvis.pipeline.training.ssl import TemporalPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"vid": 3})
         ds = TemporalPairDataset(fdir, build_augment_transform(32))
         v1, v2 = ds[0]
@@ -241,6 +260,7 @@ class TestTemporalPairDataset(unittest.TestCase):
     def test_max_gap_respected(self):
         """With max_gap=1 every pair must be adjacent (gap exactly 1)."""
         from selfsuvis.pipeline.training.ssl import TemporalPairDataset, build_augment_transform
+
         fdir = _frames_dir_with_videos(self.tmp, {"vid": 6})
         ds = TemporalPairDataset(fdir, build_augment_transform(32), max_gap=1)
         # All pairs should be (frame[i], frame[i+1]) — filenames differ by 1
@@ -251,6 +271,7 @@ class TestTemporalPairDataset(unittest.TestCase):
 
     def test_empty_dir_raises(self):
         from selfsuvis.pipeline.training.ssl import TemporalPairDataset, build_augment_transform
+
         empty = os.path.join(self.tmp, "empty")
         os.makedirs(empty)
         with self.assertRaises(ValueError):
@@ -258,9 +279,9 @@ class TestTemporalPairDataset(unittest.TestCase):
 
 
 class TestMultimodalPairSchema(unittest.TestCase):
-
     def test_pair_serialization_is_json_friendly(self):
         from selfsuvis.pipeline.training.ssl import CrossModalPair
+
         pair = CrossModalPair(
             anchor_frame_path="/tmp/a.jpg",
             positive_frame_path="/tmp/b.jpg",
@@ -281,21 +302,24 @@ class TestMultimodalPairSchema(unittest.TestCase):
             TemporalVisualPair,
             collate_multimodal_pairs,
         )
-        batch = collate_multimodal_pairs([
-            TemporalVisualPair(
-                anchor_frame_path="a.jpg",
-                positive_frame_path="b.jpg",
-                time_delta_sec=0.2,
-                track_id=7,
-            ),
-            GeometryPair(
-                anchor_frame_path="c.jpg",
-                positive_frame_path="d.jpg",
-                time_delta_sec=1.0,
-                pose_overlap_score=0.8,
-                modality_payload={"geometry_similarity_target": 0.8},
-            ),
-        ])
+
+        batch = collate_multimodal_pairs(
+            [
+                TemporalVisualPair(
+                    anchor_frame_path="a.jpg",
+                    positive_frame_path="b.jpg",
+                    time_delta_sec=0.2,
+                    track_id=7,
+                ),
+                GeometryPair(
+                    anchor_frame_path="c.jpg",
+                    positive_frame_path="d.jpg",
+                    time_delta_sec=1.0,
+                    pose_overlap_score=0.8,
+                    modality_payload={"geometry_similarity_target": 0.8},
+                ),
+            ]
+        )
         self.assertEqual(batch["pair_types"], ["temporal_visual", "geometry"])
         self.assertEqual(batch["track_id"], [7, None])
         self.assertEqual(batch["depth_similarity_target"], [None, None])
@@ -305,9 +329,9 @@ class TestMultimodalPairSchema(unittest.TestCase):
 
 
 class TestMultimodalConsistencyLoss(unittest.TestCase):
-
     def test_auxiliary_losses_are_reported_when_targets_exist(self):
         from selfsuvis.pipeline.training.ssl import MultimodalConsistencyLoss, NTXentLoss
+
         z1 = torch.nn.functional.normalize(torch.randn(4, 8), dim=-1)
         z2 = torch.nn.functional.normalize(torch.randn(4, 8), dim=-1)
         batch_meta = {
@@ -334,8 +358,10 @@ class TestMultimodalConsistencyLoss(unittest.TestCase):
 # DINOFineTuner — freeze strategy (mocked backbone)
 # ---------------------------------------------------------------------------
 
+
 class _FakeBlock(nn.Module):
     """Minimal stand-in for a ViT transformer block."""
+
     def __init__(self):
         super().__init__()
         self.linear = nn.Linear(4, 4)
@@ -349,6 +375,7 @@ class _FakeBackbone(nn.Module):
 
     Always returns (B, 4) regardless of input shape, mimicking a ViT CLS token output.
     """
+
     def __init__(self):
         super().__init__()
         self.blocks = nn.ModuleList([_FakeBlock() for _ in range(12)])
@@ -365,9 +392,9 @@ class _FakeBackbone(nn.Module):
 
 
 class TestDINOFineTuner(unittest.TestCase):
-
     def _make_tuner(self, freeze_blocks: int = 10, embed_dim: int = 4):
         from selfsuvis.pipeline.training.ssl import DINOFineTuner
+
         backbone = _FakeBackbone()
 
         with patch("torch.hub.load", return_value=backbone):
@@ -391,8 +418,9 @@ class TestDINOFineTuner(unittest.TestCase):
 
     def test_unfrozen_blocks_have_grad(self):
         tuner, backbone = self._make_tuner(freeze_blocks=6)
-        trainable = [i for i, b in enumerate(backbone.blocks)
-                     if any(p.requires_grad for p in b.parameters())]
+        trainable = [
+            i for i, b in enumerate(backbone.blocks) if any(p.requires_grad for p in b.parameters())
+        ]
         self.assertEqual(trainable, [6, 7, 8, 9, 10, 11])
 
     def test_freeze_all_blocks(self):
@@ -417,6 +445,7 @@ class TestDINOFineTuner(unittest.TestCase):
             fresh = _FakeBackbone()
             with patch("torch.hub.load", return_value=fresh):
                 from selfsuvis.pipeline.training.ssl import DINOFineTuner
+
                 DINOFineTuner.load_backbone_weights(fresh, ckpt, "cpu")
             # Weights should match
             orig_sd = backbone.state_dict()
@@ -429,8 +458,8 @@ class TestDINOFineTuner(unittest.TestCase):
 # run_finetune — smoke test (tiny data, mocked backbone)
 # ---------------------------------------------------------------------------
 
-class TestRunFinetune(unittest.TestCase):
 
+class TestRunFinetune(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
 
@@ -510,9 +539,15 @@ class TestRunFinetune(unittest.TestCase):
         fdir = _frames_dir_with_videos(self.tmp, {"vid": 4})
         out = os.path.join(self.tmp, "ckpts4")
         cfg = FinetuneConfig(
-            frames_dir=fdir, output_dir=out,
-            approach="augment", epochs=1, batch_size=2,
-            embed_dim=4, proj_out_dim=4, num_workers=0, device="cpu",
+            frames_dir=fdir,
+            output_dir=out,
+            approach="augment",
+            epochs=1,
+            batch_size=2,
+            embed_dim=4,
+            proj_out_dim=4,
+            num_workers=0,
+            device="cpu",
         )
         fake_backbone = _FakeBackbone()
         with patch("torch.hub.load", return_value=fake_backbone):
@@ -525,10 +560,11 @@ class TestRunFinetune(unittest.TestCase):
 # config_from_settings
 # ---------------------------------------------------------------------------
 
-class TestConfigFromSettings(unittest.TestCase):
 
+class TestConfigFromSettings(unittest.TestCase):
     def test_defaults_populated(self):
         from selfsuvis.pipeline.training.ssl import config_from_settings
+
         cfg = config_from_settings()
         self.assertIsInstance(cfg.epochs, int)
         self.assertGreater(cfg.epochs, 0)
@@ -538,10 +574,12 @@ class TestConfigFromSettings(unittest.TestCase):
 
     def test_env_override_respected(self):
         import selfsuvis.pipeline.core.config as pc
+
         original = pc.settings.SSL_FINETUNE_EPOCHS
         try:
             pc.settings.SSL_FINETUNE_EPOCHS = 99
             from selfsuvis.pipeline.training.ssl import config_from_settings
+
             cfg = config_from_settings()
             self.assertEqual(cfg.epochs, 99)
         finally:

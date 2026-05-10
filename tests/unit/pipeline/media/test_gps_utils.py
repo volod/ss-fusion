@@ -1,4 +1,5 @@
 """Unit tests for pipeline.media.gps."""
+
 import json
 from unittest import mock
 
@@ -34,6 +35,7 @@ No GPS data here.
 
 
 # ── _parse_srt_file ───────────────────────────────────────────────────────────
+
 
 def test_parse_srt_valid(tmp_path):
     srt = tmp_path / "video.srt"
@@ -97,6 +99,7 @@ latitude : 47.0 longitude : 8.0 altitude : 400m
 
 # ── _extract_from_ffprobe_atoms ───────────────────────────────────────────────
 
+
 def _ffprobe_json(location: str) -> str:
     return json.dumps({"format": {"tags": {"com.apple.quicktime.location.ISO6709": location}}})
 
@@ -141,6 +144,7 @@ def test_ffprobe_atoms_invalid_json():
 
 
 # ── _interpolate_gps ─────────────────────────────────────────────────────────
+
 
 def test_interpolate_empty_records():
     assert _interpolate_gps([], [1000.0, 2000.0]) == [None, None]
@@ -195,6 +199,7 @@ def test_interpolate_empty_timestamps():
 
 # ── extract_gps integration ───────────────────────────────────────────────────
 
+
 def test_extract_gps_uses_srt_when_present(tmp_path, monkeypatch):
     srt = tmp_path / "video.srt"
     srt.write_text(SRT_TWO_BLOCKS)
@@ -202,6 +207,7 @@ def test_extract_gps_uses_srt_when_present(tmp_path, monkeypatch):
     video.write_text("")
 
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "GPS_SIDECAR_PATH", "")
 
     result = extract_gps(str(video), [1000.0, 2000.0])
@@ -216,6 +222,7 @@ def test_extract_gps_falls_back_to_ffprobe_atoms(tmp_path, monkeypatch):
     video.write_text("")
 
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "GPS_SIDECAR_PATH", "")
 
     ffprobe_out = json.dumps(
@@ -235,6 +242,7 @@ def test_extract_gps_null_fallback(tmp_path, monkeypatch):
     video.write_text("")
 
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "GPS_SIDECAR_PATH", "")
 
     with mock.patch("selfsuvis.pipeline.media.gps._run_ffprobe", return_value=None):
@@ -251,6 +259,7 @@ def test_extract_gps_sidecar_path_override(tmp_path, monkeypatch):
     video.write_text("")
 
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "GPS_SIDECAR_PATH", str(custom_srt))
 
     result = extract_gps(str(video), [1000.0])
@@ -264,6 +273,7 @@ def test_extract_gps_returns_same_length(tmp_path, monkeypatch):
     video.write_text("")
 
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "GPS_SIDECAR_PATH", "")
 
     with mock.patch("selfsuvis.pipeline.media.gps._run_ffprobe", return_value=None):

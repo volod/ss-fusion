@@ -25,6 +25,7 @@ def plot_detections(
         The matplotlib Figure object.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -42,8 +43,9 @@ def plot_detections(
     values = [ds.by_class[k] for k in labels]
     if values:
         colors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"]
-        ax1.pie(values, labels=labels, autopct="%1.0f%%",
-                colors=colors[:len(labels)], startangle=140)
+        ax1.pie(
+            values, labels=labels, autopct="%1.0f%%", colors=colors[: len(labels)], startangle=140
+        )
     ax1.set_title(f"Class distribution (total={ds.total_objects})")
 
     # Per-frame bar chart
@@ -51,10 +53,14 @@ def plot_detections(
     ts = [f.t_sec for f in frames]
     counts = ds.per_frame_counts
     width = (ts[1] - ts[0]) * 0.8 if len(ts) > 1 else 0.1
-    ax2.bar(ts[:len(counts)], counts[:len(ts)], width=width,
-            color="#3498db", alpha=0.85)
-    ax2.axhline(ds.mean_per_frame, color="#e74c3c", linestyle="--",
-                linewidth=1.2, label=f"Mean={ds.mean_per_frame:.1f}")
+    ax2.bar(ts[: len(counts)], counts[: len(ts)], width=width, color="#3498db", alpha=0.85)
+    ax2.axhline(
+        ds.mean_per_frame,
+        color="#e74c3c",
+        linestyle="--",
+        linewidth=1.2,
+        label=f"Mean={ds.mean_per_frame:.1f}",
+    )
     ax2.set_xlabel("Time (s)")
     ax2.set_ylabel("Objects per frame")
     ax2.set_title("Detections over time")

@@ -41,6 +41,7 @@ _IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 # ── Provider selection ─────────────────────────────────────────────────────────
 
+
 def _select_providers(device: str) -> list[str]:
     """Select ONNX Runtime execution providers for *device*, logging gaps.
 
@@ -116,6 +117,7 @@ def _select_providers(device: str) -> list[str]:
 
 # ── Preprocessing ─────────────────────────────────────────────────────────────
 
+
 def _preprocess_image(image_pil: Image.Image, image_size: int = 224) -> np.ndarray:
     """Preprocess a PIL image into a float32 NCHW numpy array.
 
@@ -166,6 +168,7 @@ def _l2_normalise(vec: np.ndarray) -> np.ndarray:
 
 # ── EdgeClassifier ────────────────────────────────────────────────────────────
 
+
 class EdgeClassifier:
     """Cosine-similarity nearest-neighbour classifier backed by an ONNX backbone.
 
@@ -206,15 +209,14 @@ class EdgeClassifier:
             )
 
         providers = _select_providers(device)
-        logger.info(
-            "EdgeClassifier: requested providers for device=%r: %s", device, providers
-        )
+        logger.info("EdgeClassifier: requested providers for device=%r: %s", device, providers)
 
         self._session = ort.InferenceSession(onnx_path, providers=providers)
         active_providers = self._session.get_providers()
         logger.info(
             "EdgeClassifier: ONNX session active providers: %s  (model=%s)",
-            active_providers, onnx_path,
+            active_providers,
+            onnx_path,
         )
 
         # Warn when the session silently downgraded to CPU
@@ -228,7 +230,8 @@ class EdgeClassifier:
         self._input_name: str = self._session.get_inputs()[0].name
         logger.info(
             "EdgeClassifier: loaded ONNX model from %s  (input=%r)",
-            onnx_path, self._input_name,
+            onnx_path,
+            self._input_name,
         )
 
         # Load gallery
@@ -351,12 +354,14 @@ class EdgeClassifier:
             """Torch-based embed used by from_torch instances."""
             import torchvision.transforms as T
 
-            transform = T.Compose([
-                T.Resize(224, interpolation=T.InterpolationMode.BICUBIC),
-                T.CenterCrop(224),
-                T.ToTensor(),
-                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ])
+            transform = T.Compose(
+                [
+                    T.Resize(224, interpolation=T.InterpolationMode.BICUBIC),
+                    T.CenterCrop(224),
+                    T.ToTensor(),
+                    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ]
+            )
             img = image_pil.convert("RGB")
             x = transform(img).unsqueeze(0).to(device)  # (1, 3, 224, 224)
             with torch.no_grad():
@@ -365,16 +370,19 @@ class EdgeClassifier:
             return out[0].cpu().numpy().astype(np.float32)  # (D,)
 
         import types
+
         instance.embed = types.MethodType(_embed_torch, instance)
 
         logger.info(
             "EdgeClassifier.from_torch: gallery loaded from %s  (%d embeddings)",
-            gallery_path, len(instance._gallery_embeddings),
+            gallery_path,
+            len(instance._gallery_embeddings),
         )
         return instance
 
 
 # ── EfficientViT ONNX export ─────────────────────────────────────────────────
+
 
 def export_efficientvit_onnx(
     backbone,
@@ -430,13 +438,12 @@ def export_efficientvit_onnx(
         )
 
     onnx_mb = os.path.getsize(output_path) / 1e6
-    logger.info(
-        "export_efficientvit_onnx: %.1f MB → %s", onnx_mb, output_path
-    )
+    logger.info("export_efficientvit_onnx: %.1f MB → %s", onnx_mb, output_path)
     return output_path
 
 
 # ── Gallery builder ───────────────────────────────────────────────────────────
+
 
 def build_gallery(
     labels_map: dict[str, list[str]],
@@ -468,9 +475,7 @@ def build_gallery(
     for label, paths in labels_map.items():
         for p in paths:
             if not os.path.isfile(p):
-                raise FileNotFoundError(
-                    f"Frame file not found for label '{label}': {p}"
-                )
+                raise FileNotFoundError(f"Frame file not found for label '{label}': {p}")
 
     # Build embedder
     if onnx_path is not None:
@@ -482,18 +487,21 @@ def build_gallery(
     elif backbone is not None:
         import torch
         import torch.nn.functional as F
+
         try:
             import torchvision.transforms as T
         except ImportError as exc:
             raise ImportError("torchvision is required when using a PyTorch backbone.") from exc
 
         _device = next(backbone.parameters()).device
-        transform = T.Compose([
-            T.Resize(image_size, interpolation=T.InterpolationMode.BICUBIC),
-            T.CenterCrop(image_size),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        transform = T.Compose(
+            [
+                T.Resize(image_size, interpolation=T.InterpolationMode.BICUBIC),
+                T.CenterCrop(image_size),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
         backbone_eval = backbone.eval()
 
         def _embed_fn(img: Image.Image) -> np.ndarray:
@@ -514,7 +522,8 @@ def build_gallery(
     total_frames = sum(len(v) for v in labels_map.values())
     logger.info(
         "build_gallery: embedding %d frames across %d labels …",
-        total_frames, len(labels_map),
+        total_frames,
+        len(labels_map),
     )
 
     for label in sorted(labels_map.keys()):
@@ -531,14 +540,18 @@ def build_gallery(
             except Exception:
                 logger.warning(
                     "build_gallery: FAILED to embed %s (label=%r) — skipping frame.",
-                    p, label, exc_info=True,
+                    p,
+                    label,
+                    exc_info=True,
                 )
                 skipped.append(p)
 
     if skipped:
         logger.warning(
             "build_gallery: %d / %d frames were skipped due to errors: %s",
-            len(skipped), total_frames, skipped,
+            len(skipped),
+            total_frames,
+            skipped,
         )
 
     if not all_embeddings:
@@ -560,5 +573,7 @@ def build_gallery(
     )
     logger.info(
         "build_gallery: saved %d embeddings (%d labels) → %s",
-        len(embeddings), len(label_names), output_path,
+        len(embeddings),
+        len(label_names),
+        output_path,
     )

@@ -23,16 +23,17 @@ import numpy as np
 @dataclass
 class FilteredStep:
     """Posterior state record from the forward Kalman pass at one frame timestamp."""
+
     t_sec: float
-    x: np.ndarray   # (6,) [px, py, pz, vx, vy, vz]
-    P: np.ndarray   # (6, 6)
+    x: np.ndarray  # (6,) [px, py, pz, vx, vy, vz]
+    P: np.ndarray  # (6, 6)
 
 
 @dataclass
 class SmoothedStep:
     t_sec: float
-    x: np.ndarray   # (6,) smoothed state
-    P: np.ndarray   # (6, 6) smoothed covariance
+    x: np.ndarray  # (6,) smoothed state
+    P: np.ndarray  # (6, 6) smoothed covariance
     cov_trace: float
 
 

@@ -4,6 +4,7 @@ No DL model loading — backbone is replaced with a thin stub so tests run witho
 GPU or torch.hub access.  All assertions target the SupCon loss maths, CVAT XML
 parsing, dataset construction, and training-loop plumbing.
 """
+
 import os
 from xml.etree import ElementTree as ET
 
@@ -24,6 +25,7 @@ from selfsuvis.pipeline.training.supervised import (
 )
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _write_cvat_xml(path: str, images: list[dict]) -> None:
     """Write a minimal CVAT XML 1.1 file.
@@ -81,11 +83,13 @@ def _write_cvat_xml(path: str, images: list[dict]) -> None:
 def _write_fake_jpeg(path: str, width: int = 64, height: int = 64) -> None:
     """Write a tiny valid JPEG using PIL."""
     from PIL import Image
+
     arr = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
     Image.fromarray(arr, mode="RGB").save(path, format="JPEG")
 
 
 # ── Stub backbone for testing without torch.hub ───────────────────────────────
+
 
 class _StubBackbone(nn.Module):
     """Minimal DINOv3 backbone stub: returns random unit vectors."""
@@ -118,6 +122,7 @@ def _make_stub_tuner(embed_dim: int = 32) -> SupervisedFineTuner:
 
 
 # ── SupConLoss tests ───────────────────────────────────────────────────────────
+
 
 class TestSupConLoss:
     def test_loss_is_scalar(self):
@@ -204,14 +209,18 @@ class TestSupConLoss:
 
 # ── CvatAnnotationParser tests ─────────────────────────────────────────────────
 
+
 class TestCvatAnnotationParser:
     def test_basic_parse(self, tmp_path):
         xml_path = str(tmp_path / "ann.xml")
-        _write_cvat_xml(xml_path, [
-            {"name": "frame_000.jpg", "label": "car"},
-            {"name": "frame_001.jpg", "label": "truck"},
-            {"name": "frame_002.jpg", "label": "car"},
-        ])
+        _write_cvat_xml(
+            xml_path,
+            [
+                {"name": "frame_000.jpg", "label": "car"},
+                {"name": "frame_001.jpg", "label": "truck"},
+                {"name": "frame_002.jpg", "label": "car"},
+            ],
+        )
         parser = CvatAnnotationParser(xml_path)
         assert parser.frame_labels["frame_000.jpg"] == "car"
         assert parser.frame_labels["frame_001.jpg"] == "truck"
@@ -219,10 +228,13 @@ class TestCvatAnnotationParser:
 
     def test_label_names_from_xml(self, tmp_path):
         xml_path = str(tmp_path / "ann.xml")
-        _write_cvat_xml(xml_path, [
-            {"name": "a.jpg", "label": "bus"},
-            {"name": "b.jpg", "label": "car"},
-        ])
+        _write_cvat_xml(
+            xml_path,
+            [
+                {"name": "a.jpg", "label": "bus"},
+                {"name": "b.jpg", "label": "car"},
+            ],
+        )
         parser = CvatAnnotationParser(xml_path)
         # Labels come from XML <labels> block, alphabetically sorted
         assert "bus" in parser.label_names
@@ -230,10 +242,13 @@ class TestCvatAnnotationParser:
 
     def test_label_to_idx_mapping(self, tmp_path):
         xml_path = str(tmp_path / "ann.xml")
-        _write_cvat_xml(xml_path, [
-            {"name": "a.jpg", "label": "car"},
-            {"name": "b.jpg", "label": "bus"},
-        ])
+        _write_cvat_xml(
+            xml_path,
+            [
+                {"name": "a.jpg", "label": "car"},
+                {"name": "b.jpg", "label": "bus"},
+            ],
+        )
         parser = CvatAnnotationParser(xml_path)
         mapping = parser.label_to_idx()
         assert isinstance(mapping, dict)
@@ -245,9 +260,12 @@ class TestCvatAnnotationParser:
     def test_basename_matching(self, tmp_path):
         """XML image name with subdirectory prefix → matched on basename only."""
         xml_path = str(tmp_path / "ann.xml")
-        _write_cvat_xml(xml_path, [
-            {"name": "data/subfolder/frame_000.jpg", "label": "truck"},
-        ])
+        _write_cvat_xml(
+            xml_path,
+            [
+                {"name": "data/subfolder/frame_000.jpg", "label": "truck"},
+            ],
+        )
         parser = CvatAnnotationParser(xml_path)
         assert "frame_000.jpg" in parser.frame_labels
 
@@ -333,6 +351,7 @@ class TestCvatAnnotationParser:
 
 
 # ── AnnotatedFrameDataset tests ────────────────────────────────────────────────
+
 
 class TestAnnotatedFrameDataset:
     def _setup(self, tmp_path, n_frames: int = 6, labels: list[str] | None = None):
@@ -424,6 +443,7 @@ class TestAnnotatedFrameDataset:
 
 # ── SupervisedFinetuneConfig tests ─────────────────────────────────────────────
 
+
 class TestSupervisedFinetuneConfig:
     def test_defaults(self):
         cfg = SupervisedFinetuneConfig(
@@ -448,6 +468,7 @@ class TestSupervisedFinetuneConfig:
 
 
 # ── run_supervised_finetune integration stub ───────────────────────────────────
+
 
 class TestRunSupervisedFinetune:
     """Smoke test for run_supervised_finetune with a stub backbone.
@@ -474,8 +495,9 @@ class TestRunSupervisedFinetune:
         frames_dir, xml_path, out_dir = self._setup_fixtures(tmp_path, n=12)
 
         # Patch SupervisedFineTuner.__init__ to inject stub
-        def _stub_init(self, model_name, freeze_blocks, device, embed_dim,
-                       proj_out_dim, ssl_checkpoint=None):
+        def _stub_init(
+            self, model_name, freeze_blocks, device, embed_dim, proj_out_dim, ssl_checkpoint=None
+        ):
             self.device = device
             self.model_name = model_name
             stub = _StubBackbone(embed_dim)
@@ -487,6 +509,7 @@ class TestRunSupervisedFinetune:
             )
 
         import selfsuvis.pipeline.training.supervised as sf_mod
+
         monkeypatch.setattr(sf_mod.SupervisedFineTuner, "__init__", _stub_init)
 
         # Patch save_checkpoint to avoid writing to disk
@@ -494,6 +517,7 @@ class TestRunSupervisedFinetune:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
             # Save a tiny stub state dict
             torch.save({"stub": True}, path)
+
         monkeypatch.setattr(sf_mod.SupervisedFineTuner, "save_checkpoint", _stub_save)
 
         cfg = SupervisedFinetuneConfig(
@@ -518,8 +542,9 @@ class TestRunSupervisedFinetune:
     def test_best_checkpoint_filename(self, tmp_path, monkeypatch):
         frames_dir, xml_path, out_dir = self._setup_fixtures(tmp_path)
 
-        def _stub_init(self, model_name, freeze_blocks, device, embed_dim,
-                       proj_out_dim, ssl_checkpoint=None):
+        def _stub_init(
+            self, model_name, freeze_blocks, device, embed_dim, proj_out_dim, ssl_checkpoint=None
+        ):
             self.device = device
             self.model_name = model_name
             self.backbone = _StubBackbone(embed_dim)
@@ -532,6 +557,7 @@ class TestRunSupervisedFinetune:
             torch.save({}, path)
 
         import selfsuvis.pipeline.training.supervised as sf_mod
+
         monkeypatch.setattr(sf_mod.SupervisedFineTuner, "__init__", _stub_init)
         monkeypatch.setattr(sf_mod.SupervisedFineTuner, "save_checkpoint", _stub_save)
 
@@ -577,8 +603,10 @@ class TestRunSupervisedFinetune:
         ET.ElementTree(root).write(xml_path)
 
         import selfsuvis.pipeline.training.supervised as sf_mod
+
         monkeypatch.setattr(
-            sf_mod, "run_supervised_finetune",
+            sf_mod,
+            "run_supervised_finetune",
             lambda cfg: (_ for _ in ()).throw(ValueError("No labels")),
         )
 

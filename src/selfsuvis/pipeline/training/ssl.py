@@ -22,6 +22,7 @@ Loading the fine-tuned model:
 Usage (standalone):
     python scripts/finetune_dino.py --frames-dir data/frames --output-dir data/checkpoints
 """
+
 import glob
 import math
 import os
@@ -181,41 +182,46 @@ def collate_multimodal_pairs(
 
 # ── Augmentation pipeline ─────────────────────────────────────────────────────
 
+
 def build_augment_transform(image_size: int = 224) -> transforms.Compose:
     """Strong random augmentation for contrastive self-supervised learning.
 
     Follows SimCLR / MoCo conventions: random crop + flip + colour jitter + blur.
     """
-    return transforms.Compose([
-        transforms.RandomResizedCrop(image_size, scale=(0.2, 1.0),
-                                     interpolation=transforms.InterpolationMode.BICUBIC),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomApply([
-            transforms.ColorJitter(brightness=0.4, contrast=0.4,
-                                   saturation=0.2, hue=0.1)
-        ], p=0.8),
-        transforms.RandomGrayscale(p=0.2),
-        transforms.RandomApply([
-            transforms.GaussianBlur(kernel_size=23, sigma=(0.1, 2.0))
-        ], p=0.5),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225]),
-    ])
+    return transforms.Compose(
+        [
+            transforms.RandomResizedCrop(
+                image_size, scale=(0.2, 1.0), interpolation=transforms.InterpolationMode.BICUBIC
+            ),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomApply(
+                [transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.2, hue=0.1)],
+                p=0.8,
+            ),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply(
+                [transforms.GaussianBlur(kernel_size=23, sigma=(0.1, 2.0))], p=0.5
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
 
 def build_eval_transform(image_size: int = 224) -> transforms.Compose:
     """Deterministic centre-crop transform (matches DINOEmbedder.preprocess)."""
-    return transforms.Compose([
-        transforms.Resize(image_size, interpolation=transforms.InterpolationMode.BICUBIC),
-        transforms.CenterCrop(image_size),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225]),
-    ])
+    return transforms.Compose(
+        [
+            transforms.Resize(image_size, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
 
 # ── Datasets ──────────────────────────────────────────────────────────────────
+
 
 def _collect_frame_paths(frames_dir: str) -> list[str]:
     """Recursively collect all JPEG/PNG frame files under frames_dir."""
@@ -308,10 +314,11 @@ class TemporalPairDataset(Dataset):
     def _build_pairs(self, frames_dir: str) -> None:
         exts = {".jpg", ".jpeg", ".png"}
         frames_root = Path(frames_dir)
-        direct_frames = sorted(
-            p for p in frames_root.iterdir()
-            if p.is_file() and p.suffix.lower() in exts
-        ) if frames_root.exists() else []
+        direct_frames = (
+            sorted(p for p in frames_root.iterdir() if p.is_file() and p.suffix.lower() in exts)
+            if frames_root.exists()
+            else []
+        )
         if len(direct_frames) >= 2:
             self._append_pairs_for_sequence(direct_frames)
             return
@@ -319,9 +326,7 @@ class TemporalPairDataset(Dataset):
         for video_dir in sorted(frames_root.iterdir()):
             if not video_dir.is_dir():
                 continue
-            frames = sorted(
-                p for p in video_dir.iterdir() if p.suffix.lower() in exts
-            )
+            frames = sorted(p for p in video_dir.iterdir() if p.suffix.lower() in exts)
             if len(frames) < 2:
                 continue
             self._append_pairs_for_sequence(frames)
@@ -441,9 +446,7 @@ class TrackTripletDataset(Dataset):
         self.transform = transform
         self.image_size = image_size
         self.crop_pad = crop_pad
-        self.triplets: list[
-            tuple[str, list[float], str, list[float], str, list[float]]
-        ] = []
+        self.triplets: list[tuple[str, list[float], str, list[float], str, list[float]]] = []
         for appearances in track_map.values():
             n = len(appearances)
             if n < 2 * min_gap + 1:
@@ -470,9 +473,7 @@ class TrackTripletDataset(Dataset):
     def __len__(self) -> int:
         return len(self.triplets)
 
-    def __getitem__(
-        self, idx: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         fp_a, bbox_a, fp_b, bbox_b, fp_c, bbox_c = self.triplets[idx]
         img_a = Image.open(fp_a).convert("RGB")
         img_b = Image.open(fp_b).convert("RGB")
@@ -522,6 +523,7 @@ def multimodal_batch_collate(
 
 # ── Loss ──────────────────────────────────────────────────────────────────────
 
+
 class NTXentLoss(nn.Module):
     """NT-Xent (Normalised Temperature-scaled Cross Entropy) loss.
 
@@ -556,10 +558,12 @@ class NTXentLoss(nn.Module):
         mask = torch.eye(2 * B, device=z.device, dtype=torch.bool)
         sim.masked_fill_(mask, float("-inf"))
         # Positive indices: for i in [0,B), positive is i+B; for i in [B,2B), positive is i-B
-        labels = torch.cat([
-            torch.arange(B, 2 * B, device=z.device),
-            torch.arange(0, B, device=z.device),
-        ])
+        labels = torch.cat(
+            [
+                torch.arange(B, 2 * B, device=z.device),
+                torch.arange(0, B, device=z.device),
+            ]
+        )
         return F.cross_entropy(sim, labels)
 
 
@@ -589,9 +593,7 @@ class CycleConsistencyLoss(nn.Module):
         self.base = base_loss
         self.lambda_cycle = lambda_cycle
 
-    def forward(
-        self, z_a: torch.Tensor, z_b: torch.Tensor, z_c: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, z_a: torch.Tensor, z_b: torch.Tensor, z_c: torch.Tensor) -> torch.Tensor:
         """Compute cycle-consistency loss.
 
         Args:
@@ -635,8 +637,7 @@ class MultimodalConsistencyLoss(nn.Module):
         sample_weight: torch.Tensor,
     ) -> torch.Tensor:
         target_values = [
-            float(v) if v is not None and math.isfinite(float(v)) else float("nan")
-            for v in targets
+            float(v) if v is not None and math.isfinite(float(v)) else float("nan") for v in targets
         ]
         target_tensor = torch.tensor(target_values, dtype=pair_cos.dtype, device=pair_cos.device)
         mask = torch.isfinite(target_tensor)
@@ -703,6 +704,7 @@ class MultimodalConsistencyLoss(nn.Module):
 
 # ── Model wrapper ─────────────────────────────────────────────────────────────
 
+
 class ProjectionHead(nn.Module):
     """Two-layer MLP projection head (SimCLR style).
 
@@ -755,6 +757,7 @@ class DINOFineTuner:
 
         # Load backbone
         from selfsuvis.models.dino_model import hub_load_dino
+
         self.backbone = hub_load_dino(model_name, pretrained=True)
         self.backbone = self.backbone.to(device)
 
@@ -766,7 +769,9 @@ class DINOFineTuner:
 
         logger.info(
             "DINOFineTuner: model=%s freeze_blocks=%d trainable_params=%d",
-            model_name, freeze_blocks, self._count_trainable(),
+            model_name,
+            freeze_blocks,
+            self._count_trainable(),
         )
 
     def _freeze_blocks(self, n: int) -> None:
@@ -805,8 +810,8 @@ class DINOFineTuner:
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass: backbone CLS token → projection head → normalised vector."""
-        feats = self.backbone(x)          # (B, embed_dim)
-        return self.head(feats)           # (B, proj_out_dim), L2-normalised
+        feats = self.backbone(x)  # (B, embed_dim)
+        return self.head(feats)  # (B, proj_out_dim), L2-normalised
 
     def save_checkpoint(self, path: str) -> None:
         """Save backbone state dict only (head is discarded at inference time)."""
@@ -823,12 +828,13 @@ class DINOFineTuner:
 
 # ── Training config ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class FinetuneConfig:
     frames_dir: str
     output_dir: str
     model_name: str = "dinov3_vitb14"
-    approach: str = "temporal"        # "multimodal" | "track_cycle" | "track" | "temporal" | "augment"
+    approach: str = "temporal"  # "multimodal" | "track_cycle" | "track" | "temporal" | "augment"
     epochs: int = 10
     batch_size: int = 32
     lr: float = 1e-5
@@ -838,8 +844,8 @@ class FinetuneConfig:
     embed_dim: int = 768
     proj_out_dim: int = 128
     num_workers: int = 4
-    save_every: int = 1               # save checkpoint every N epochs
-    max_gap: int = 3                  # TemporalPairDataset only
+    save_every: int = 1  # save checkpoint every N epochs
+    max_gap: int = 3  # TemporalPairDataset only
     device: str = "cpu"
     seed: int = 42
     depth_consistency_weight: float = 0.15
@@ -848,6 +854,7 @@ class FinetuneConfig:
 
 
 # ── Main training loop ────────────────────────────────────────────────────────
+
 
 def run_finetune(cfg: FinetuneConfig) -> str:
     """Run self-supervised contrastive fine-tuning.
@@ -881,7 +888,11 @@ def run_finetune(cfg: FinetuneConfig) -> str:
     )
     logger.info(
         "Dataset: %d pairs | approach=%s | epochs=%d | batch=%d | device=%s",
-        len(dataset), cfg.approach, cfg.epochs, cfg.batch_size, cfg.device,
+        len(dataset),
+        cfg.approach,
+        cfg.epochs,
+        cfg.batch_size,
+        cfg.device,
     )
 
     # Model + optimiser
@@ -895,9 +906,7 @@ def run_finetune(cfg: FinetuneConfig) -> str:
     optimizer = torch.optim.AdamW(
         tuner.trainable_params(), lr=cfg.lr, weight_decay=cfg.weight_decay
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=cfg.epochs
-    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs)
     loss_fn = NTXentLoss(temperature=cfg.temperature)
 
     best_loss = float("inf")
@@ -922,8 +931,13 @@ def run_finetune(cfg: FinetuneConfig) -> str:
 
         scheduler.step()
         avg_loss = float(np.mean(epoch_losses)) if epoch_losses else float("inf")
-        logger.info("Epoch %d/%d  loss=%.4f  lr=%.2e",
-                    epoch, cfg.epochs, avg_loss, scheduler.get_last_lr()[0])
+        logger.info(
+            "Epoch %d/%d  loss=%.4f  lr=%.2e",
+            epoch,
+            cfg.epochs,
+            avg_loss,
+            scheduler.get_last_lr()[0],
+        )
 
         if epoch % cfg.save_every == 0:
             ckpt = epoch_checkpoint_path(cfg.output_dir, "dino_ssl", epoch)
@@ -934,14 +948,14 @@ def run_finetune(cfg: FinetuneConfig) -> str:
             tuner.save_checkpoint(best_path)
             logger.info("New best checkpoint: loss=%.4f → %s", best_loss, best_path)
 
-    logger.info("Fine-tuning complete. Best loss=%.4f  checkpoint=%s",
-                best_loss, best_path)
+    logger.info("Fine-tuning complete. Best loss=%.4f  checkpoint=%s", best_loss, best_path)
     return best_path
 
 
 # ── Config from environment ───────────────────────────────────────────────────
 
 # ── SkipStep sentinel ─────────────────────────────────────────────────────────
+
 
 class SkipStep(RuntimeError):
     """Raised by GemmaSSLFinetuner when a required pre-condition is not met.
@@ -953,6 +967,7 @@ class SkipStep(RuntimeError):
 
 
 # ── GemmaSSLFinetuner ─────────────────────────────────────────────────────────
+
 
 class GemmaSSLFinetuner:
     """Fine-tunes DINOv3 using Gemma vision encoder embeddings as SSL targets.
@@ -1070,6 +1085,7 @@ class GemmaSSLFinetuner:
 
                 # Load PIL images
                 from PIL import Image as _PIL_Image
+
                 pil_images = []
                 tensors = []
                 for p in batch_paths:
@@ -1100,9 +1116,7 @@ class GemmaSSLFinetuner:
 
                 optimizer.zero_grad()
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    list(self._tuner.trainable_params()), max_norm=1.0
-                )
+                torch.nn.utils.clip_grad_norm_(list(self._tuner.trainable_params()), max_norm=1.0)
                 optimizer.step()
                 epoch_losses.append(loss.item())
 

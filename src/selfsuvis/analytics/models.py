@@ -1,6 +1,5 @@
 """Dataclasses for local-run analysis results."""
 
-
 from dataclasses import dataclass, field
 
 
@@ -69,7 +68,7 @@ class TemporalStats:
     n_frames: int
     surprise_scores: list[float]
     mean_surprise: float
-    peak_frames: list[int]          # indices where surprise is in top 10 %
+    peak_frames: list[int]  # indices where surprise is in top 10 %
 
     @property
     def surprise_timeline(self) -> list[float]:

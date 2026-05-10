@@ -10,6 +10,7 @@ Tests cover:
   - generator produces valid PLY files
   - test assets (scene_a/b/c) are present and valid
 """
+
 import os
 import tempfile
 from pathlib import Path
@@ -34,6 +35,7 @@ _ASSETS = Path(__file__).resolve().parents[3] / "assets" / "splats"
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _make_splat(n: int = 10, seed: int = 0) -> np.ndarray:
     """Create a minimal structured array with all 59 3DGS properties."""
     rng = np.random.default_rng(seed)
@@ -44,11 +46,12 @@ def _make_splat(n: int = 10, seed: int = 0) -> np.ndarray:
     data["opacity"] = rng.uniform(-2, 2, n).astype(np.float32)
     for s in ("scale_0", "scale_1", "scale_2"):
         data[s] = rng.uniform(-3, 0, n).astype(np.float32)
-    data["rot_0"] = 1.0   # identity quaternion (w=1, x=y=z=0)
+    data["rot_0"] = 1.0  # identity quaternion (w=1, x=y=z=0)
     return data
 
 
 # ── write / read round-trip ───────────────────────────────────────────────────
+
 
 def test_write_read_roundtrip():
     original = _make_splat(20, seed=1)
@@ -96,12 +99,13 @@ def test_read_nonexistent_raises():
 
 # ── write_splat_from_arrays ───────────────────────────────────────────────────
 
+
 def test_write_splat_from_arrays_roundtrip():
     n = 15
     rng = np.random.default_rng(7)
-    positions  = rng.uniform(-10, 10, (n, 3)).astype(np.float32)
-    opacities  = rng.uniform(-2, 2, n).astype(np.float32)
-    scales     = rng.uniform(-3, 0, (n, 3)).astype(np.float32)
+    positions = rng.uniform(-10, 10, (n, 3)).astype(np.float32)
+    opacities = rng.uniform(-2, 2, n).astype(np.float32)
+    scales = rng.uniform(-3, 0, (n, 3)).astype(np.float32)
     q = rng.standard_normal((n, 4)).astype(np.float32)
     q /= np.linalg.norm(q, axis=1, keepdims=True)
     rotations = q
@@ -130,7 +134,8 @@ def test_write_splat_from_arrays_sh_dc():
         path = f.name
     try:
         write_splat_from_arrays(
-            path, positions,
+            path,
+            positions,
             opacities=np.zeros(n, dtype=np.float32),
             scales=np.zeros((n, 3), dtype=np.float32),
             rotations=q,
@@ -145,6 +150,7 @@ def test_write_splat_from_arrays_sh_dc():
 
 
 # ── splat_positions ───────────────────────────────────────────────────────────
+
 
 def test_splat_positions_shape():
     data = _make_splat(30)
@@ -175,6 +181,7 @@ def test_splat_positions_values_match():
 
 # ── splat_count ───────────────────────────────────────────────────────────────
 
+
 def test_splat_count():
     data = _make_splat(47)
     with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -187,6 +194,7 @@ def test_splat_count():
 
 
 # ── is_splat_ply ──────────────────────────────────────────────────────────────
+
 
 def test_is_splat_ply_true_for_3dgs():
     data = _make_splat(5)
@@ -201,6 +209,7 @@ def test_is_splat_ply_true_for_3dgs():
 
 def test_is_splat_ply_false_for_non_splat():
     from plyfile import PlyData, PlyElement
+
     pts = np.array([(1.0, 2.0, 3.0)], dtype=[("x", "f4"), ("y", "f4"), ("z", "f4")])
     el = PlyElement.describe(pts, "vertex")
     with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -217,6 +226,7 @@ def test_is_splat_ply_false_for_missing_file():
 
 
 # ── metadata ──────────────────────────────────────────────────────────────────
+
 
 def test_metadata_roundtrip():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -251,12 +261,21 @@ def test_metadata_extra_fields():
 
 # ── generator ─────────────────────────────────────────────────────────────────
 
+
 def test_generator_produces_valid_ply():
     from selfsuvis.scripts.generate_test_splat import generate_splat
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "test.ply")
-        generate_splat(path, n_gaussians=50, origin_lat=48.0, origin_lon=11.0,
-                       origin_alt=100.0, radius_m=10.0, seed=0)
+        generate_splat(
+            path,
+            n_gaussians=50,
+            origin_lat=48.0,
+            origin_lon=11.0,
+            origin_alt=100.0,
+            radius_m=10.0,
+            seed=0,
+        )
         assert os.path.isfile(path)
         assert splat_count(path) == 50
         assert is_splat_ply(path)
@@ -264,10 +283,12 @@ def test_generator_produces_valid_ply():
 
 def test_generator_metadata_matches_args():
     from selfsuvis.scripts.generate_test_splat import generate_splat
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "test.ply")
-        generate_splat(path, n_gaussians=30, origin_lat=52.5, origin_lon=13.4,
-                       origin_alt=50.0, seed=1)
+        generate_splat(
+            path, n_gaussians=30, origin_lat=52.5, origin_lon=13.4, origin_alt=50.0, seed=1
+        )
         meta = read_splat_metadata(path)
         assert meta["origin_lat"] == pytest.approx(52.5)
         assert meta["origin_lon"] == pytest.approx(13.4)
@@ -276,6 +297,7 @@ def test_generator_metadata_matches_args():
 
 def test_generator_positions_within_radius():
     from selfsuvis.scripts.generate_test_splat import generate_splat
+
     radius = 8.0
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "test.ply")
@@ -283,11 +305,12 @@ def test_generator_positions_within_radius():
         pts = splat_positions(path)
         # All points should be within 2×radius of origin (generous bound for the scatter shape)
         dists = np.linalg.norm(pts[:, :2], axis=1)  # horizontal distance
-        assert np.all(dists <= radius * 2.0), f"max dist={dists.max():.2f} > {radius*2}"
+        assert np.all(dists <= radius * 2.0), f"max dist={dists.max():.2f} > {radius * 2}"
 
 
 def test_generator_reproducible_with_seed():
     from selfsuvis.scripts.generate_test_splat import generate_splat
+
     with tempfile.TemporaryDirectory() as tmpdir:
         p1 = os.path.join(tmpdir, "a.ply")
         p2 = os.path.join(tmpdir, "b.ply")
@@ -299,6 +322,7 @@ def test_generator_reproducible_with_seed():
 
 
 # ── test assets ───────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("scene", ["scene_a", "scene_b", "scene_c"])
 def test_asset_exists(scene):
@@ -342,5 +366,5 @@ def test_scene_c_not_overlapping_with_a():
     # Approximate ENU distance from GPS difference
     dlat = (meta_c["origin_lat"] - meta_a["origin_lat"]) * 111_320.0
     dlon = (meta_c["origin_lon"] - meta_a["origin_lon"]) * 111_320.0 * 0.73  # cos(48°)
-    dist = (dlat ** 2 + dlon ** 2) ** 0.5
+    dist = (dlat**2 + dlon**2) ** 0.5
     assert dist > 5_000.0, f"scene_c should be >5km from scene_a, got {dist:.0f}m"

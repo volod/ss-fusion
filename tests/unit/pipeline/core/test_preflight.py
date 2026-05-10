@@ -114,15 +114,28 @@ def test_run_local_preflight_downgrades_scenetok_to_warning_on_small_gpu(monkeyp
     )
     monkeypatch.setattr(
         "selfsuvis.pipeline.core.preflight.settings",
-        type("S", (), {
-            **{
-                k: getattr(__import__("selfsuvis.pipeline.core.preflight", fromlist=["settings"]).settings, k)
-                for k in dir(__import__("selfsuvis.pipeline.core.preflight", fromlist=["settings"]).settings)
-                if k.isupper()
+        type(
+            "S",
+            (),
+            {
+                **{
+                    k: getattr(
+                        __import__(
+                            "selfsuvis.pipeline.core.preflight", fromlist=["settings"]
+                        ).settings,
+                        k,
+                    )
+                    for k in dir(
+                        __import__(
+                            "selfsuvis.pipeline.core.preflight", fromlist=["settings"]
+                        ).settings
+                    )
+                    if k.isupper()
+                },
+                "SCENETOK_ENABLED": True,
+                "SCENETOK_API_URL": "",
             },
-            "SCENETOK_ENABLED": True,
-            "SCENETOK_API_URL": "",
-        })(),
+        )(),
     )
     monkeypatch.setattr(
         "selfsuvis.pipeline.vision.registry.detect_vram_gb",
@@ -132,4 +145,7 @@ def test_run_local_preflight_downgrades_scenetok_to_warning_on_small_gpu(monkeyp
     report = run_local_preflight(_make_args(tmp_path, scenetok=True))
 
     assert not any("scenetok" in item.lower() for item in report.errors)
-    assert any("SceneTok is enabled but local execution is not possible" in item for item in report.warnings)
+    assert any(
+        "SceneTok is enabled but local execution is not possible" in item
+        for item in report.warnings
+    )

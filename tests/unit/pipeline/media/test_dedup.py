@@ -50,6 +50,7 @@ def test_phash_lru_eviction():
 
 # --- additional tests ---
 
+
 def test_phash_lru_hamming_within_threshold():
     """near_duplicate is True when Hamming distance <= hamming_max."""
     lru = PhashLRU(max_size=100, hamming_max=4)

@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 
 import torch
@@ -70,7 +69,9 @@ def test_unidrive_backend_auto_detects_ollama_port(monkeypatch):
 def test_guard_min_free_vram_raises_when_headroom_too_low(monkeypatch):
     from selfsuvis.pipeline.vision import registry
 
-    monkeypatch.setattr(registry, "detect_resources", lambda: {"vram_gb": 16.0, "free_vram_gb": 3.5, "ram_gb": 64.0})
+    monkeypatch.setattr(
+        registry, "detect_resources", lambda: {"vram_gb": 16.0, "free_vram_gb": 3.5, "ram_gb": 64.0}
+    )
     monkeypatch.setattr(sc.settings, "LOCAL_CUDA_STAGE_MIN_FREE_VRAM_GB", 6.0)
 
     try:

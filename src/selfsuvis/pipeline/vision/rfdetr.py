@@ -43,29 +43,104 @@ logging.getLogger("rf-detr").setLevel(logging.ERROR)
 
 _HUMAN_LABELS = frozenset({"person", "pedestrian", "rider", "child", "people"})
 
-_VEHICLE_LABELS = frozenset({
-    "bicycle", "car", "motorcycle", "airplane", "bus", "train",
-    "truck", "boat", "van", "vehicle", "motorbike", "bike",
-})
+_VEHICLE_LABELS = frozenset(
+    {
+        "bicycle",
+        "car",
+        "motorcycle",
+        "airplane",
+        "bus",
+        "train",
+        "truck",
+        "boat",
+        "van",
+        "vehicle",
+        "motorbike",
+        "bike",
+    }
+)
 
 # COCO 80-class index → name; used as fallback when supervision doesn't return class_name
 _COCO_CLASSES: dict[int, str] = {
-    0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
-    5: "bus", 6: "train", 7: "truck", 8: "boat", 9: "traffic light",
-    10: "fire hydrant", 11: "stop sign", 12: "parking meter", 13: "bench",
-    14: "bird", 15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow",
-    20: "elephant", 21: "bear", 22: "zebra", 23: "giraffe", 24: "backpack",
-    25: "umbrella", 26: "handbag", 27: "tie", 28: "suitcase", 29: "frisbee",
-    30: "skis", 31: "snowboard", 32: "sports ball", 33: "kite", 34: "baseball bat",
-    35: "baseball glove", 36: "skateboard", 37: "surfboard", 38: "tennis racket",
-    39: "bottle", 40: "wine glass", 41: "cup", 42: "fork", 43: "knife",
-    44: "spoon", 45: "bowl", 46: "banana", 47: "apple", 48: "sandwich",
-    49: "orange", 50: "broccoli", 51: "carrot", 52: "hot dog", 53: "pizza",
-    54: "donut", 55: "cake", 56: "chair", 57: "couch", 58: "potted plant",
-    59: "bed", 60: "dining table", 61: "toilet", 62: "tv", 63: "laptop",
-    64: "mouse", 65: "remote", 66: "keyboard", 67: "cell phone", 68: "microwave",
-    69: "oven", 70: "toaster", 71: "sink", 72: "refrigerator", 73: "book",
-    74: "clock", 75: "vase", 76: "scissors", 77: "teddy bear", 78: "hair drier",
+    0: "person",
+    1: "bicycle",
+    2: "car",
+    3: "motorcycle",
+    4: "airplane",
+    5: "bus",
+    6: "train",
+    7: "truck",
+    8: "boat",
+    9: "traffic light",
+    10: "fire hydrant",
+    11: "stop sign",
+    12: "parking meter",
+    13: "bench",
+    14: "bird",
+    15: "cat",
+    16: "dog",
+    17: "horse",
+    18: "sheep",
+    19: "cow",
+    20: "elephant",
+    21: "bear",
+    22: "zebra",
+    23: "giraffe",
+    24: "backpack",
+    25: "umbrella",
+    26: "handbag",
+    27: "tie",
+    28: "suitcase",
+    29: "frisbee",
+    30: "skis",
+    31: "snowboard",
+    32: "sports ball",
+    33: "kite",
+    34: "baseball bat",
+    35: "baseball glove",
+    36: "skateboard",
+    37: "surfboard",
+    38: "tennis racket",
+    39: "bottle",
+    40: "wine glass",
+    41: "cup",
+    42: "fork",
+    43: "knife",
+    44: "spoon",
+    45: "bowl",
+    46: "banana",
+    47: "apple",
+    48: "sandwich",
+    49: "orange",
+    50: "broccoli",
+    51: "carrot",
+    52: "hot dog",
+    53: "pizza",
+    54: "donut",
+    55: "cake",
+    56: "chair",
+    57: "couch",
+    58: "potted plant",
+    59: "bed",
+    60: "dining table",
+    61: "toilet",
+    62: "tv",
+    63: "laptop",
+    64: "mouse",
+    65: "remote",
+    66: "keyboard",
+    67: "cell phone",
+    68: "microwave",
+    69: "oven",
+    70: "toaster",
+    71: "sink",
+    72: "refrigerator",
+    73: "book",
+    74: "clock",
+    75: "vase",
+    76: "scissors",
+    77: "teddy bear",
+    78: "hair drier",
     79: "toothbrush",
 }
 
@@ -75,18 +150,30 @@ PRIORITY_ARTIFICIAL = 3
 PRIORITY_OTHER = 4
 
 _PRIORITY_LABEL = {
-    PRIORITY_HUMAN:      "human",
-    PRIORITY_VEHICLE:    "vehicle",
+    PRIORITY_HUMAN: "human",
+    PRIORITY_VEHICLE: "vehicle",
     PRIORITY_ARTIFICIAL: "artificial",
-    PRIORITY_OTHER:      "other",
+    PRIORITY_OTHER: "other",
 }
 
 _TARGET_LABEL_ALIASES: dict[str, frozenset[str]] = {
     "person": frozenset({"person", "pedestrian", "people", "human", "worker", "rider", "child"}),
     "vehicle": frozenset(
         {
-            "vehicle", "car", "truck", "bus", "van", "pickup", "pickup truck",
-            "motorcycle", "motorbike", "bike", "bicycle", "train", "boat", "airplane",
+            "vehicle",
+            "car",
+            "truck",
+            "bus",
+            "van",
+            "pickup",
+            "pickup truck",
+            "motorcycle",
+            "motorbike",
+            "bike",
+            "bicycle",
+            "train",
+            "boat",
+            "airplane",
         }
     ),
     "building": frozenset({"building", "house", "shed", "warehouse", "garage"}),
@@ -153,15 +240,19 @@ def _rfdetr_weights_path(variant: str) -> str:
         try:
             from rfdetr.assets.model_weights import ModelWeights  # type: ignore[import]
             from rfdetr.util.files import _download_file  # type: ignore[import]
+
             asset = ModelWeights.from_filename(name)
             if asset is not None:
                 logger.info("RFDETRTracker: downloading %s → %s", name, dst)
-                _download_file(url=asset.url, filename=str(dst),
-                               expected_md5=asset.md5_hash)
+                _download_file(url=asset.url, filename=str(dst), expected_md5=asset.md5_hash)
             else:
-                logger.warning("RFDETRTracker: no asset entry for %s — will let rfdetr attempt download", name)
+                logger.warning(
+                    "RFDETRTracker: no asset entry for %s — will let rfdetr attempt download", name
+                )
         except Exception as exc:
-            logger.warning("RFDETRTracker: pre-download failed (%s) — rfdetr will retry on load", exc)
+            logger.warning(
+                "RFDETRTracker: pre-download failed (%s) — rfdetr will retry on load", exc
+            )
 
     return str(dst)
 
@@ -173,14 +264,31 @@ def _classify_priority(label: str) -> int:
     if lbl in _VEHICLE_LABELS:
         return PRIORITY_VEHICLE
     # Anything manufactured but not person or vehicle → artificial
-    if lbl not in {"sky", "tree", "grass", "road", "water", "ground", "rock",
-                   "soil", "sand", "cloud", "mountain", "hill", "forest",
-                   "river", "lake", "sea", "ocean"}:
+    if lbl not in {
+        "sky",
+        "tree",
+        "grass",
+        "road",
+        "water",
+        "ground",
+        "rock",
+        "soil",
+        "sand",
+        "cloud",
+        "mountain",
+        "hill",
+        "forest",
+        "river",
+        "lake",
+        "sea",
+        "ocean",
+    }:
         return PRIORITY_ARTIFICIAL
     return PRIORITY_OTHER
 
 
 # ── IoU helper ─────────────────────────────────────────────────────────────────
+
 
 def _iou_norm(a: list[float], b: list[float]) -> float:
     """Compute IoU for two normalised [x1, y1, x2, y2] boxes."""
@@ -242,6 +350,7 @@ def _track_match_score(track: dict[str, Any], det: dict[str, Any]) -> float:
 
 # ── Main tracker class ─────────────────────────────────────────────────────────
 
+
 class RFDETRTracker:
     """Unified RF-DETR detector with lightweight IoU-based multi-frame tracking.
 
@@ -299,7 +408,9 @@ class RFDETRTracker:
         model = self._get_model()
         if model is None:
             return []
-        expanded_targets = _expand_target_labels(target_labels) if target_labels is not None else None
+        expanded_targets = (
+            _expand_target_labels(target_labels) if target_labels is not None else None
+        )
         w, h = image.size
         try:
             dets = self._run_inference(model, image)
@@ -309,14 +420,16 @@ class RFDETRTracker:
                 if expanded_targets is not None and not _label_matches_any(label, expanded_targets):
                     continue
                 priority = _classify_priority(label)
-                results.append({
-                    "label":          label,
-                    "confidence":     round(float(conf), 4),
-                    "bbox_norm":      [round(v, 6) for v in bbox_norm],
-                    "track_id":       0,
-                    "priority":       priority,
-                    "priority_label": _PRIORITY_LABEL[priority],
-                })
+                results.append(
+                    {
+                        "label": label,
+                        "confidence": round(float(conf), 4),
+                        "bbox_norm": [round(v, 6) for v in bbox_norm],
+                        "track_id": 0,
+                        "priority": priority,
+                        "priority_label": _PRIORITY_LABEL[priority],
+                    }
+                )
             return results
         except Exception as exc:
             logger.warning("RFDETRTracker.detect_frame failed: %s", exc)
@@ -369,6 +482,7 @@ class RFDETRTracker:
         gc.collect()
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception:
@@ -400,6 +514,7 @@ class RFDETRTracker:
         try:
             if variant == "large":
                 from rfdetr import RFDETRLarge  # type: ignore[import]
+
                 with suppress_runtime_noise(
                     r".*loss_type=None.*",
                     logger_levels={
@@ -413,6 +528,7 @@ class RFDETRTracker:
                 self._model_variant = "large"
             else:
                 from rfdetr import RFDETRBase  # type: ignore[import]
+
                 with suppress_runtime_noise(
                     r".*loss_type=None.*",
                     logger_levels={
@@ -435,7 +551,9 @@ class RFDETRTracker:
                     },
                 ):
                     model.optimize_for_inference()
-            logger.info("RFDETRTracker: loaded rfdetr_%s (weights=%s)", self._model_variant, weights_path)
+            logger.info(
+                "RFDETRTracker: loaded rfdetr_%s (weights=%s)", self._model_variant, weights_path
+            )
             return model
         except ImportError as exc:
             raise ImportError(
@@ -468,8 +586,8 @@ class RFDETRTracker:
 
         results = []
         try:
-            xyxy = sv_dets.xyxy           # (N, 4) float pixel coords
-            confs = sv_dets.confidence    # (N,) float
+            xyxy = sv_dets.xyxy  # (N, 4) float pixel coords
+            confs = sv_dets.confidence  # (N,) float
             # class names — sv stores them in data["class_name"] for RF-DETR
             class_names = None
             if hasattr(sv_dets, "data") and sv_dets.data:
@@ -515,7 +633,7 @@ class RFDETRTracker:
                 iou_matrix[ti, di] = _track_match_score(self._active_tracks[tid], det)
 
         # Greedy assignment: highest IoU first
-        assigned_track: dict[int, int] = {}   # det_idx → track_id
+        assigned_track: dict[int, int] = {}  # det_idx → track_id
         assigned_det: set = set()
         assigned_track_set: set = set()
 
@@ -570,6 +688,7 @@ class RFDETRTracker:
 
 
 # ── Label matching helper ──────────────────────────────────────────────────────
+
 
 def _label_matches_any(label: str, target_labels: list[str]) -> bool:
     """Return True when *label* appears in or overlaps with any target label."""

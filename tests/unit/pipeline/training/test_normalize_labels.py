@@ -1,4 +1,5 @@
 """Unit tests for pipeline.supervised_finetune._normalize_labels."""
+
 import logging
 
 from selfsuvis.pipeline.training.supervised import _normalize_labels

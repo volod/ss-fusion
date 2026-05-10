@@ -1,4 +1,5 @@
 """Unit tests for pipeline.gps_registration."""
+
 import json
 
 import numpy as np
@@ -12,6 +13,7 @@ from selfsuvis.pipeline.mapping.gps_registration import (
 
 # ── gps_to_enu ────────────────────────────────────────────────────────────────
 
+
 def test_gps_to_enu_same_point_is_origin():
     """A point equal to the origin maps to (0, 0, 0)."""
     e, n, u = gps_to_enu(48.0, 11.0, 500.0, 48.0, 11.0, 500.0)
@@ -24,31 +26,31 @@ def test_gps_to_enu_east_displacement():
     """Moving east increases East component. Up may be non-zero for large offsets
     (Earth curvature: ~1km Up for 1° longitude displacement at equator)."""
     e, n, u = gps_to_enu(0.0, 1.0, 0.0, 0.0, 0.0, 0.0)
-    assert e > 100_000        # >100 km east
-    assert abs(n) < 100       # negligible north
+    assert e > 100_000  # >100 km east
+    assert abs(n) < 100  # negligible north
     # Up can be ~971m for 1° lon at equator due to Earth curvature — not a small-angle test
 
 
 def test_gps_to_enu_north_displacement():
     """Moving north increases North component."""
     e, n, u = gps_to_enu(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    assert n > 100_000        # >100 km north
+    assert n > 100_000  # >100 km north
     assert abs(e) < 100
 
 
 def test_gps_to_enu_altitude_displacement():
     """Moving up increases Up component."""
     e, n, u = gps_to_enu(48.0, 11.0, 100.0, 48.0, 11.0, 0.0)
-    assert abs(u - 100.0) < 0.1   # ~100 m up
+    assert abs(u - 100.0) < 0.1  # ~100 m up
     assert abs(e) < 0.1
     assert abs(n) < 0.1
 
 
 def test_gps_to_enu_small_offset():
     """50m north of origin should give ~50m North."""
-    dlat = 50.0 / 111_320.0   # 50 m in degrees
+    dlat = 50.0 / 111_320.0  # 50 m in degrees
     e, n, u = gps_to_enu(48.0 + dlat, 11.0, 0.0, 48.0, 11.0, 0.0)
-    assert abs(n - 50.0) < 0.5   # within 0.5 m
+    assert abs(n - 50.0) < 0.5  # within 0.5 m
 
 
 def test_gps_to_enu_returns_floats():
@@ -59,6 +61,7 @@ def test_gps_to_enu_returns_floats():
 
 
 # ── register_mission_gps ─────────────────────────────────────────────────────
+
 
 def _make_frame(fid, lat, lon, alt, pose_status="success", R=None, t=None):
     gps = json.dumps({"lat": lat, "lon": lon, "alt": alt})
@@ -120,8 +123,8 @@ def test_register_second_frame_has_nonzero_offset():
     origin, poses = register_mission_gps(frames)
     pos2 = poses["2"]["position_enu"]
     # Should be several tens of metres north and east
-    assert pos2[0] > 10   # east
-    assert pos2[1] > 50   # north
+    assert pos2[0] > 10  # east
+    assert pos2[1] > 50  # north
 
 
 def test_register_gps_only_frame_has_no_rotation():
@@ -172,6 +175,7 @@ def test_register_dict_gps():
 
 
 # ── build_registration_transform ────────────────────────────────────────────
+
 
 def test_registration_transform_identity_same_origin():
     """Same origin → identity translation (zeros in last column)."""

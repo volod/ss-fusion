@@ -10,7 +10,6 @@ def _write_json(path: Path, payload):
 
 
 class TestThreatMemoryPersistence(unittest.TestCase):
-
     def test_persist_threat_memory_summarizes_repeated_conflicts(self):
         from selfsuvis.pipeline.fusion.threat_memory import persist_threat_memory
 
@@ -25,11 +24,25 @@ class TestThreatMemoryPersistence(unittest.TestCase):
                         "automation_confidence": 0.44,
                         "trust_penalty": 0.31,
                         "source_pair_conflicts": [
-                            {"pattern": "occupancy_vs_unidrive_clear", "count": 1, "severity": 0.30},
-                            {"pattern": "caption_confidence_vs_depth_failure", "count": 1, "severity": 0.26},
+                            {
+                                "pattern": "occupancy_vs_unidrive_clear",
+                                "count": 1,
+                                "severity": 0.30,
+                            },
+                            {
+                                "pattern": "caption_confidence_vs_depth_failure",
+                                "count": 1,
+                                "severity": 0.26,
+                            },
                         ],
                         "top_threats": [
-                            {"type": "collision_risk", "score": 0.62, "evidence": {"evidence_sources": ["near_field_occupancy", "object_velocity"]}}
+                            {
+                                "type": "collision_risk",
+                                "score": 0.62,
+                                "evidence": {
+                                    "evidence_sources": ["near_field_occupancy", "object_velocity"]
+                                },
+                            }
                         ],
                     },
                 )
@@ -41,7 +54,10 @@ class TestThreatMemoryPersistence(unittest.TestCase):
                             {"pattern": "caption_confidence_vs_depth_failure", "severity": 0.26},
                         ],
                         "primitives": [
-                            {"type": "collision_risk", "evidence_sources": ["near_field_occupancy", "object_velocity"]},
+                            {
+                                "type": "collision_risk",
+                                "evidence_sources": ["near_field_occupancy", "object_velocity"],
+                            },
                         ],
                     },
                 )
@@ -72,7 +88,11 @@ class TestThreatMemoryPersistence(unittest.TestCase):
                     {"name": "video_a", "video_dir": str(output_dir / "video_a")},
                     {"name": "video_b", "video_dir": str(output_dir / "video_b")},
                 ],
-                {"route_advisories": [{"route_id": "route_test", "recommended_action": "inspect_sensor"}]},
+                {
+                    "route_advisories": [
+                        {"route_id": "route_test", "recommended_action": "inspect_sensor"}
+                    ]
+                },
             )
 
             summary = payload["history_summary"]

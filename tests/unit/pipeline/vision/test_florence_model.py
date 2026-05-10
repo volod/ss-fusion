@@ -87,8 +87,8 @@ def test_compute_confidences_batch():
 
     # batch=2, vocab=10, 1 step
     step0 = torch.zeros(2, 10)
-    step0[0, 2] = 10.0   # sequence 0 → token 2 with prob ≈ 1.0
-    step0[1, 7] = 10.0   # sequence 1 → token 7 with prob ≈ 1.0
+    step0[0, 2] = 10.0  # sequence 0 → token 2 with prob ≈ 1.0
+    step0[1, 7] = 10.0  # sequence 1 → token 7 with prob ≈ 1.0
 
     generated_ids = torch.tensor([[2], [7]])
 
@@ -103,7 +103,7 @@ def test_compute_confidences_padding_skipped():
     from selfsuvis.pipeline.vision.florence import _compute_confidences
 
     step0 = torch.zeros(1, 10)
-    step0[0, 1] = 10.0   # token 1 = padding — should be skipped
+    step0[0, 1] = 10.0  # token 1 = padding — should be skipped
     generated_ids = torch.tensor([[1]])
 
     confs = _compute_confidences((step0,), generated_ids)
@@ -355,6 +355,7 @@ def test_caption_batch_caption_non_null():
     model = FlorenceModel()
     # Use a random noise image — more interesting than solid black
     import numpy as np
+
     arr = (np.random.rand(224, 224, 3) * 255).astype("uint8")
     img = Image.fromarray(arr)
     results = model.caption_batch([img])

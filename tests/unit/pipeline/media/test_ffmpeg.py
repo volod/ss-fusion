@@ -9,11 +9,14 @@ def test_extract_frames_uses_timeout(tmp_path, monkeypatch):
     """extract_frames passes FFMPEG_TIMEOUT_SEC to subprocess.run."""
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    monkeypatch.setattr("selfsuvis.pipeline.media.ffmpeg.settings", MagicMock(
-        FRAMES_DIR=str(frames_dir),
-        SAMPLE_FPS_MAX=5,
-        FFMPEG_TIMEOUT_SEC=123,
-    ))
+    monkeypatch.setattr(
+        "selfsuvis.pipeline.media.ffmpeg.settings",
+        MagicMock(
+            FRAMES_DIR=str(frames_dir),
+            SAMPLE_FPS_MAX=5,
+            FFMPEG_TIMEOUT_SEC=123,
+        ),
+    )
 
     mock_run = MagicMock()
     with patch("selfsuvis.pipeline.media.ffmpeg.run_checked", mock_run):

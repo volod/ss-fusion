@@ -41,11 +41,12 @@ def _state_to_bbox(x: np.ndarray) -> list[float]:
 @dataclass
 class ObjectFilterHistory:
     """Forward-pass record at one time step, used by RTS smoother."""
+
     t_sec: float
-    x: np.ndarray   # (6,) filtered
-    P: np.ndarray   # (6, 6) filtered
-    x_pred: np.ndarray   # (6,) before update
-    P_pred: np.ndarray   # (6, 6) before update
+    x: np.ndarray  # (6,) filtered
+    P: np.ndarray  # (6, 6) filtered
+    x_pred: np.ndarray  # (6,) before update
+    P_pred: np.ndarray  # (6, 6) before update
 
 
 class ObjectKalmanFilter:
@@ -84,14 +85,16 @@ class ObjectKalmanFilter:
         self.x[:4] = z
         # Initial velocity uncertainty is proportional to bbox size
         vel_var = (max(z[2], z[3]) * 0.5) ** 2
-        self.P = np.diag([
-            self._obs_noise ** 2,
-            self._obs_noise ** 2,
-            self._obs_noise ** 2,
-            self._obs_noise ** 2,
-            vel_var,
-            vel_var,
-        ]).astype(np.float64)
+        self.P = np.diag(
+            [
+                self._obs_noise**2,
+                self._obs_noise**2,
+                self._obs_noise**2,
+                self._obs_noise**2,
+                vel_var,
+                vel_var,
+            ]
+        ).astype(np.float64)
         self.t_sec = t_sec
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -119,7 +122,7 @@ class ObjectKalmanFilter:
         z = _bbox_to_state(bbox_norm)
         H = np.zeros((4, 6), dtype=np.float64)
         H[:4, :4] = np.eye(4, dtype=np.float64)
-        R = np.eye(4, dtype=np.float64) * (self._obs_noise ** 2)
+        R = np.eye(4, dtype=np.float64) * (self._obs_noise**2)
 
         y = z - H @ self.x
         S = H @ self.P @ H.T + R
@@ -133,13 +136,15 @@ class ObjectKalmanFilter:
         # Joseph form for numerical stability
         self.P = I_KH @ self.P @ I_KH.T + K @ R @ K.T
 
-        self._history.append(ObjectFilterHistory(
-            t_sec=t_sec,
-            x=self.x.copy(),
-            P=self.P.copy(),
-            x_pred=x_pred_record,
-            P_pred=P_pred_record,
-        ))
+        self._history.append(
+            ObjectFilterHistory(
+                t_sec=t_sec,
+                x=self.x.copy(),
+                P=self.P.copy(),
+                x_pred=x_pred_record,
+                P_pred=P_pred_record,
+            )
+        )
         self.hits += 1
         self.misses = 0
 
@@ -151,7 +156,7 @@ class ObjectKalmanFilter:
         z = _bbox_to_state(bbox_norm)
         H = np.zeros((4, 6), dtype=np.float64)
         H[:4, :4] = np.eye(4, dtype=np.float64)
-        R = np.eye(4, dtype=np.float64) * (self._obs_noise ** 2)
+        R = np.eye(4, dtype=np.float64) * (self._obs_noise**2)
         y = z - H @ self.x
         S = H @ self.P @ H.T + R
         try:

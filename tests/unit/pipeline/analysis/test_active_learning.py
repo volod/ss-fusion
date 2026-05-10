@@ -1,4 +1,5 @@
 """Unit tests for pipeline.active_learning."""
+
 import numpy as np
 import pytest
 
@@ -95,6 +96,7 @@ def test_assign_al_tags_top_k_zero():
 def test_assign_al_tags_uses_settings_default(monkeypatch):
     """assign_al_tags uses settings.AL_TAG_K when top_k is None."""
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "AL_TAG_K", 2)
     dists = [0.9, 0.8, 0.1, 0.1]
     confs = [0.0, 0.1, 0.9, 0.9]
@@ -112,6 +114,7 @@ def test_assign_al_tags_scores_match_formula():
 
 
 # ── fit_kmeans tests ──────────────────────────────────────────────────────────
+
 
 def _random_embeddings(n, dim=64, seed=0):
     rng = np.random.default_rng(seed)
@@ -131,6 +134,7 @@ def test_fit_kmeans_returns_correct_cluster_count():
 def test_fit_kmeans_uses_kmeans_below_threshold():
     """Below batch_threshold, fit_kmeans uses KMeans."""
     from sklearn.cluster import KMeans
+
     emb = _random_embeddings(50)
     model = fit_kmeans(emb, n_clusters=3, batch_threshold=200)
     assert isinstance(model, KMeans)
@@ -139,6 +143,7 @@ def test_fit_kmeans_uses_kmeans_below_threshold():
 def test_fit_kmeans_uses_minibatch_above_threshold():
     """At or above batch_threshold, fit_kmeans uses MiniBatchKMeans."""
     from sklearn.cluster import MiniBatchKMeans
+
     emb = _random_embeddings(50)
     model = fit_kmeans(emb, n_clusters=3, batch_threshold=10)
     assert isinstance(model, MiniBatchKMeans)
@@ -156,6 +161,7 @@ def test_fit_kmeans_uses_settings_threshold(monkeypatch):
     from sklearn.cluster import MiniBatchKMeans
 
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "KMEANS_BATCH_THRESHOLD", 10)
     emb = _random_embeddings(50)
     model = fit_kmeans(emb, n_clusters=3)  # batch_threshold=None → uses settings
@@ -163,6 +169,7 @@ def test_fit_kmeans_uses_settings_threshold(monkeypatch):
 
 
 # ── dino_distances_from_centroids tests ──────────────────────────────────────
+
 
 def test_dino_distances_shape():
     """Returns one distance per embedding."""

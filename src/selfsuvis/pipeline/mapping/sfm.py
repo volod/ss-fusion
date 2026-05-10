@@ -22,6 +22,7 @@ pose_status values:
     "failed"   — registered frame but no valid pose
     "skipped"  — frame was not registered by pycolmap
 """
+
 import os
 import subprocess
 from typing import Any
@@ -41,15 +42,11 @@ def _validate_camera_model(model: str) -> str:
     """Return a validated COLMAP camera model string, falling back to SIMPLE_RADIAL."""
     if model in _COLMAP_CAMERA_MODELS:
         return model
-    logger.warning(
-        "Unknown PYCOLMAP_CAMERA_MODEL %r; falling back to SIMPLE_RADIAL", model
-    )
+    logger.warning("Unknown PYCOLMAP_CAMERA_MODEL %r; falling back to SIMPLE_RADIAL", model)
     return "SIMPLE_RADIAL"
 
 
-def _extract_dense_frames(
-    video_path: str, video_id: str, fps: float
-) -> list[str]:
+def _extract_dense_frames(video_path: str, video_id: str, fps: float) -> list[str]:
     """Extract dense frames for SfM into frames/{video_id}_sfm/.
 
     Returns sorted list of absolute frame paths.
@@ -58,21 +55,23 @@ def _extract_dense_frames(
     ensure_dir(out_dir)
     pattern = os.path.join(out_dir, "frame_%010d.jpg")
     cmd = [
-        "ffmpeg", "-y",
-        "-loglevel", "error",
-        "-i", video_path,
-        "-vf", f"fps={fps},format=yuv420p",
-        "-color_range", "2",
-        "-q:v", "2",
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        video_path,
+        "-vf",
+        f"fps={fps},format=yuv420p",
+        "-color_range",
+        "2",
+        "-q:v",
+        "2",
         pattern,
     ]
     logger.info("SfM dense extraction: video_id=%s fps=%.1f", video_id, fps)
     subprocess.run(cmd, check=True, timeout=settings.FFMPEG_TIMEOUT_SEC)
-    frames = sorted(
-        os.path.join(out_dir, f)
-        for f in os.listdir(out_dir)
-        if f.startswith("frame_")
-    )
+    frames = sorted(os.path.join(out_dir, f) for f in os.listdir(out_dir) if f.startswith("frame_"))
     logger.info("SfM dense extraction complete: %d frames", len(frames))
     return frames
 
@@ -96,8 +95,7 @@ def _run_pycolmap(
         import pycolmap  # type: ignore
     except ImportError:
         logger.warning(
-            "pycolmap is not installed; SfM will be skipped. "
-            "Install with: pip install pycolmap"
+            "pycolmap is not installed; SfM will be skipped. Install with: pip install pycolmap"
         )
         return []
 
@@ -168,7 +166,9 @@ def _run_pycolmap(
         pipeline_options.mapper.init_min_num_inliers = settings.PYCOLMAP_INIT_MIN_NUM_INLIERS
         pipeline_options.mapper.init_min_tri_angle = settings.PYCOLMAP_INIT_MIN_TRI_ANGLE
         pipeline_options.mapper.init_max_forward_motion = settings.PYCOLMAP_INIT_MAX_FORWARD_MOTION
-        pipeline_options.mapper.abs_pose_min_inlier_ratio = settings.PYCOLMAP_ABS_POSE_MIN_INLIER_RATIO
+        pipeline_options.mapper.abs_pose_min_inlier_ratio = (
+            settings.PYCOLMAP_ABS_POSE_MIN_INLIER_RATIO
+        )
         pipeline_options.mapper.abs_pose_min_num_inliers = max(
             20, settings.PYCOLMAP_INIT_MIN_NUM_INLIERS // 2
         )
@@ -186,9 +186,7 @@ def _run_pycolmap(
             return []
 
         # Sort by number of registered images (largest component first)
-        reconstructions = sorted(
-            maps.values(), key=lambda r: r.num_reg_images(), reverse=True
-        )
+        reconstructions = sorted(maps.values(), key=lambda r: r.num_reg_images(), reverse=True)
         logger.info(
             "pycolmap: %d connected component(s), sizes=%s",
             len(reconstructions),
@@ -328,6 +326,10 @@ def run_sfm(
     scene_count = len(reconstructions)
     logger.info(
         "SfM complete: mission=%s frames=%d poses=%d/%d scenes=%d",
-        mission_id, len(results), success_count, len(results), scene_count,
+        mission_id,
+        len(results),
+        success_count,
+        len(results),
+        scene_count,
     )
     return {"frames": results, "scene_count": scene_count}

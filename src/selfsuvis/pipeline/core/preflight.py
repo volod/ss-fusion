@@ -69,7 +69,9 @@ def _check_cached(report: PreflightReport, label: str, check_fn: Any, *, hint: s
         report.add_error(f"missing cached artifact for {label} ({hint})")
 
 
-def _check_tcp_service(report: PreflightReport, label: str, host: str, port: int, *, fatal: bool) -> None:
+def _check_tcp_service(
+    report: PreflightReport, label: str, host: str, port: int, *, fatal: bool
+) -> None:
     try:
         with socket.create_connection((host, port), timeout=1.5):
             report.add_check(f"service reachable: {label} ({host}:{port})")
@@ -152,7 +154,9 @@ def run_local_preflight(args: Any) -> PreflightReport:
     _check_cached(
         report,
         f"OpenCLIP {settings.OPENCLIP_MODEL}/{settings.OPENCLIP_PRETRAINED}",
-        lambda: model_prep._is_openclip_cached(settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED),
+        lambda: model_prep._is_openclip_cached(
+            settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED
+        ),
         hint="run `python -m selfsuvis.scripts.prepare_models --clip`",
     )
     _check_cached(
@@ -182,7 +186,9 @@ def run_local_preflight(args: Any) -> PreflightReport:
             )
 
     if getattr(args, "depth", False):
-        depth_model = _resolve_auto_model("depth", getattr(args, "depth_model", "") or settings.DEPTH_MODEL)
+        depth_model = _resolve_auto_model(
+            "depth", getattr(args, "depth_model", "") or settings.DEPTH_MODEL
+        )
         if depth_model:
             _check_cached(
                 report,
@@ -204,7 +210,9 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 hint="run `python -m selfsuvis.scripts.prepare_models --detection`",
             )
         if settings.YOLO_ENABLED:
-            _check_module(report, "ultralytics", "required by YOLO+SAM and drone-detection training")
+            _check_module(
+                report, "ultralytics", "required by YOLO+SAM and drone-detection training"
+            )
             _check_cached(
                 report,
                 "YOLO11 weights",
@@ -212,12 +220,16 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 hint="run `python -m selfsuvis.scripts.prepare_models --yolo`",
             )
         if settings.SAM_ENABLED:
-            sam_model = settings.SAM_MODEL if settings.SAM_MODEL != "auto" else "facebook/sam2-hiera-large"
+            sam_model = (
+                settings.SAM_MODEL if settings.SAM_MODEL != "auto" else "facebook/sam2-hiera-large"
+            )
             _check_cached(
                 report,
                 f"SAM {sam_model}",
-                lambda model=sam_model: model_prep._is_hf_cached(model)
-                or model_prep._is_hf_cached("facebook/sam2-hiera-large"),
+                lambda model=sam_model: (
+                    model_prep._is_hf_cached(model)
+                    or model_prep._is_hf_cached("facebook/sam2-hiera-large")
+                ),
                 hint="run `python -m selfsuvis.scripts.prepare_models --sam`",
             )
 
@@ -344,7 +356,11 @@ def run_local_preflight(args: Any) -> PreflightReport:
     if getattr(args, "drone_detection", False):
         _check_module(report, "ultralytics", "required by drone-detection training")
         _check_module(report, "onnxruntime", "required by ONNX quantization/export checks")
-        _check_module(report, "onnxslim", "required to avoid mid-run Ultralytics auto-install during ONNX export")
+        _check_module(
+            report,
+            "onnxslim",
+            "required to avoid mid-run Ultralytics auto-install during ONNX export",
+        )
         _check_cached(
             report,
             "YOLOv8n training weights",
@@ -383,7 +399,9 @@ def run_production_preflight(component: str) -> PreflightReport:
         _check_cached(
             report,
             f"OpenCLIP {settings.OPENCLIP_MODEL}/{settings.OPENCLIP_PRETRAINED}",
-            lambda: model_prep._is_openclip_cached(settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED),
+            lambda: model_prep._is_openclip_cached(
+                settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED
+            ),
             hint="run `python -m selfsuvis.scripts.prepare_models --clip`",
         )
     elif settings.MODEL_NAME in {"dinov2", "dinov3"}:
@@ -402,7 +420,9 @@ def run_production_preflight(component: str) -> PreflightReport:
         )
 
     if settings.QDRANT_HOST and settings.QDRANT_PORT:
-        _check_tcp_service(report, "Qdrant", settings.QDRANT_HOST, settings.QDRANT_PORT, fatal=False)
+        _check_tcp_service(
+            report, "Qdrant", settings.QDRANT_HOST, settings.QDRANT_PORT, fatal=False
+        )
 
     return report
 

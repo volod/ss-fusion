@@ -28,6 +28,7 @@ Usage:
     # enu_origin: {lat, lon, alt}  — the ENU reference point
     # global_poses: {frame_id: {position_enu: [x,y,z], R_enu: [[...]], ...}}
 """
+
 import json
 import math
 from typing import Any
@@ -45,6 +46,7 @@ _WGS84_E2 = 6.69437999014e-3
 
 
 # ── WGS-84 ↔ ECEF ──────────────────────────────────────────────────────────
+
 
 def _geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_m: float) -> np.ndarray:
     """Convert WGS-84 geodetic coordinates to ECEF (Earth-Centred Earth-Fixed)."""
@@ -69,11 +71,14 @@ def _ecef_to_enu(
     # Rotation matrix from ECEF to ENU
     sin_lat, cos_lat = math.sin(lat), math.cos(lat)
     sin_lon, cos_lon = math.sin(lon), math.cos(lon)
-    R = np.array([
-        [-sin_lon,          cos_lon,         0       ],
-        [-sin_lat * cos_lon, -sin_lat * sin_lon, cos_lat],
-        [ cos_lat * cos_lon,  cos_lat * sin_lon, sin_lat],
-    ], dtype=np.float64)
+    R = np.array(
+        [
+            [-sin_lon, cos_lon, 0],
+            [-sin_lat * cos_lon, -sin_lat * sin_lon, cos_lat],
+            [cos_lat * cos_lon, cos_lat * sin_lon, sin_lat],
+        ],
+        dtype=np.float64,
+    )
     delta = ecef - origin_ecef
     return R @ delta
 
@@ -98,6 +103,7 @@ def gps_to_enu(
 
 
 # ── Pose composition ─────────────────────────────────────────────────────────
+
 
 def _compose_global_pose(
     R_cam: np.ndarray,
@@ -128,6 +134,7 @@ def _compose_global_pose(
 
 
 # ── Main registration function ────────────────────────────────────────────────
+
 
 def register_mission_gps(
     frames: list[dict[str, Any]],
@@ -211,7 +218,11 @@ def register_mission_gps(
 
     logger.info(
         "GPS registration: origin=(%.6f, %.6f, %.1fm) registered=%d gps_only=%d",
-        origin_lat, origin_lon, origin_alt, n_registered, n_gps_only,
+        origin_lat,
+        origin_lon,
+        origin_alt,
+        n_registered,
+        n_gps_only,
     )
     return enu_origin, global_poses
 
@@ -232,6 +243,7 @@ def _parse_json_field(value: Any) -> dict | None:
 
 # ── SE(3) registration transform ─────────────────────────────────────────────
 
+
 def build_registration_transform(
     enu_origin: dict[str, Any],
     reference_origin: dict[str, Any],
@@ -249,8 +261,12 @@ def build_registration_transform(
         4×4 SE(3) matrix as nested float list (row-major).
     """
     east, north, up = gps_to_enu(
-        enu_origin["lat"], enu_origin["lon"], enu_origin["alt"],
-        reference_origin["lat"], reference_origin["lon"], reference_origin["alt"],
+        enu_origin["lat"],
+        enu_origin["lon"],
+        enu_origin["alt"],
+        reference_origin["lat"],
+        reference_origin["lon"],
+        reference_origin["alt"],
     )
     # Phase 1: rotation = identity (GPS doesn't give us orientation offset between origins)
     T = np.eye(4, dtype=np.float64)

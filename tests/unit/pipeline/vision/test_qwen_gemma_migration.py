@@ -14,6 +14,7 @@ import selfsuvis.pipeline.vision.qwen as qm
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def small_image() -> Image.Image:
     return Image.new("RGB", (8, 8), color=(10, 20, 30))
@@ -55,6 +56,7 @@ def both_disabled(monkeypatch):
 
 # ── is_enabled ────────────────────────────────────────────────────────────────
 
+
 def test_is_enabled_with_gemma_url(gemma_settings):
     model = qm.QwenModel()
     assert model.is_enabled() is True
@@ -76,6 +78,7 @@ def test_disabled_returns_disabled_dict(both_disabled, small_image):
 
 
 # ── Health check uses Gemma settings ─────────────────────────────────────────
+
 
 def test_health_check_uses_gemma_url(gemma_settings):
     """_check_health hits the Gemma URL, not the legacy Qwen URL."""
@@ -102,6 +105,7 @@ def test_health_check_falls_back_to_qwen_url(qwen_only_settings):
 
 
 # ── API calls use Gemma model name ────────────────────────────────────────────
+
 
 def _make_fake_openai_response(content: str):
     choice = MagicMock()

@@ -41,13 +41,13 @@ from selfsuvis.pipeline.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ── Training hyper-parameters ─────────────────────────────────────────────────
-_MIN_FRAMES   = 3       # Minimum frames to attempt gsplat
-_TRAIN_STEPS  = 3000    # Iterations for small scenes (4–100 frames)
-_LR_MEANS     = 1.6e-4
-_LR_REST      = 1.0e-3
-_MAX_SIDE     = 720     # Resize long side to this for training efficiency
-_N_FREE_INIT  = 2000    # Initial Gaussians in pose-free mode
-_N_SFM_CAP   = 50_000  # Max Gaussians; prevents OOM on small GPU
+_MIN_FRAMES = 3  # Minimum frames to attempt gsplat
+_TRAIN_STEPS = 3000  # Iterations for small scenes (4–100 frames)
+_LR_MEANS = 1.6e-4
+_LR_REST = 1.0e-3
+_MAX_SIDE = 720  # Resize long side to this for training efficiency
+_N_FREE_INIT = 2000  # Initial Gaussians in pose-free mode
+_N_SFM_CAP = 50_000  # Max Gaussians; prevents OOM on small GPU
 
 
 def _set_cuda_home_for_build() -> None:
@@ -61,8 +61,10 @@ def _set_cuda_home_for_build() -> None:
     """
     import os
     import subprocess
+
     try:
         import torch
+
         if not torch.cuda.is_available():
             return
         cap = torch.cuda.get_device_capability(0)
@@ -74,14 +76,17 @@ def _set_cuda_home_for_build() -> None:
         # Find the highest-versioned CUDA toolkit under /usr/local/cuda-*
         best_dir, best_ver = "", (0, 0)
         import glob as _glob
+
         for cuda_dir in sorted(_glob.glob("/usr/local/cuda-*")) + ["/usr/local/cuda"]:
             nvcc_bin = f"{cuda_dir}/bin/nvcc"
             if not os.path.isfile(nvcc_bin):
                 continue
             try:
-                out = subprocess.check_output([nvcc_bin, "--version"],
-                                              stderr=subprocess.DEVNULL, text=True)
+                out = subprocess.check_output(
+                    [nvcc_bin, "--version"], stderr=subprocess.DEVNULL, text=True
+                )
                 import re
+
                 m = re.search(r"release (\d+)\.(\d+)", out)
                 if not m:
                     continue
@@ -92,8 +97,13 @@ def _set_cuda_home_for_build() -> None:
             except Exception:
                 continue
         if best_dir and os.environ.get("CUDA_HOME", "") != best_dir:
-            logger.debug("gsplat: setting CUDA_HOME=%s (%d.%d) for sm_%d0 build",
-                         best_dir, best_ver[0], best_ver[1], cc_major)
+            logger.debug(
+                "gsplat: setting CUDA_HOME=%s (%d.%d) for sm_%d0 build",
+                best_dir,
+                best_ver[0],
+                best_ver[1],
+                cc_major,
+            )
             os.environ["CUDA_HOME"] = best_dir
             os.environ["PATH"] = f"{best_dir}/bin:{os.environ.get('PATH', '')}"
     except Exception:
@@ -104,10 +114,12 @@ def _check_gsplat() -> tuple[bool, str]:
     """Return (ok, reason). ok=True when gsplat + CUDA are available."""
     try:
         import torch
+
         if not torch.cuda.is_available():
             return False, "CUDA not available"
         _set_cuda_home_for_build()
         import gsplat  # noqa: F401
+
         return True, ""
     except ImportError:
         return False, "gsplat not installed (pip install gsplat)"
@@ -139,6 +151,7 @@ def build_gaussian_splat(
     max_steps   : Training iterations.
     seed        : Random seed.
     """
+
     def _skip(reason_text: str) -> dict[str, Any]:
         return {
             "splat_ply": None,
@@ -198,20 +211,17 @@ def _train(
     logger.info("gsplat: %d training views  H=%d W=%d", N_views, H, W)
 
     # Init Gaussians
-    means, scales, quats, opacities, sh0, shN = _init_gaussians(
-        frames, map_dir, mode, device
-    )
-    params = dict(means=means, scales=scales, quats=quats,
-                  opacities=opacities, sh0=sh0, shN=shN)
+    means, scales, quats, opacities, sh0, shN = _init_gaussians(frames, map_dir, mode, device)
+    params = dict(means=means, scales=scales, quats=quats, opacities=opacities, sh0=sh0, shN=shN)
 
     # Optimisers — one entry per params key (DefaultStrategy requires exact key match)
     optimizers = {
-        "means":     torch.optim.Adam([means],     lr=_LR_MEANS),
-        "scales":    torch.optim.Adam([scales],    lr=_LR_REST),
-        "quats":     torch.optim.Adam([quats],     lr=_LR_REST),
+        "means": torch.optim.Adam([means], lr=_LR_MEANS),
+        "scales": torch.optim.Adam([scales], lr=_LR_REST),
+        "quats": torch.optim.Adam([quats], lr=_LR_REST),
         "opacities": torch.optim.Adam([opacities], lr=_LR_REST),
-        "sh0":       torch.optim.Adam([sh0],       lr=_LR_REST),
-        "shN":       torch.optim.Adam([shN],       lr=_LR_REST),
+        "sh0": torch.optim.Adam([sh0], lr=_LR_REST),
+        "shN": torch.optim.Adam([shN], lr=_LR_REST),
     }
 
     # DefaultStrategy: best for small bounded scenes.
@@ -221,28 +231,29 @@ def _train(
         refine_start_iter=300,
         refine_stop_iter=refine_stop,
         refine_every=100,
-        reset_every=max_steps + 1,   # disable opacity reset for short runs
+        reset_every=max_steps + 1,  # disable opacity reset for short runs
         verbose=False,
     )
     state = strategy.initialize_state(scene_scale=1.0)
 
     for step in range(max_steps):
-        idx  = step % N_views
-        gt   = images[idx]          # (H, W, 3)
-        vmat = viewmats[idx:idx+1]  # (1, 4, 4)
-        K    = Ks[idx:idx+1]        # (1, 3, 3)
+        idx = step % N_views
+        gt = images[idx]  # (H, W, 3)
+        vmat = viewmats[idx : idx + 1]  # (1, 4, 4)
+        K = Ks[idx : idx + 1]  # (1, 3, 3)
 
         # 1. Forward rasterization — info dict is populated with means2d
-        colors_sh = torch.cat([sh0, shN], dim=1)   # (N, K, 3)
+        colors_sh = torch.cat([sh0, shN], dim=1)  # (N, K, 3)
         render_colors, _alphas, info = rasterization(
             means=means,
             quats=F.normalize(quats, dim=-1),
             scales=torch.exp(scales),
             opacities=torch.sigmoid(opacities),
-            colors=colors_sh.unsqueeze(0),          # (1, N, K, 3)
+            colors=colors_sh.unsqueeze(0),  # (1, N, K, 3)
             viewmats=vmat,
             Ks=K,
-            width=W, height=H,
+            width=W,
+            height=H,
             sh_degree=0,
             packed=True,
             absgrad=True,
@@ -250,44 +261,53 @@ def _train(
         )
 
         # 2. Hook into means2d gradient BEFORE backward (requires info["means2d"])
-        strategy.step_pre_backward(params=params, optimizers=optimizers,
-                                   state=state, step=step, info=info)
+        strategy.step_pre_backward(
+            params=params, optimizers=optimizers, state=state, step=step, info=info
+        )
 
         # 3. Loss + backward
         loss = F.l1_loss(render_colors[0], gt)
         loss.backward()
 
         # 4. Post-backward: densification / pruning decisions
-        strategy.step_post_backward(params=params, optimizers=optimizers,
-                                    state=state, step=step, info=info, packed=True)
+        strategy.step_post_backward(
+            params=params, optimizers=optimizers, state=state, step=step, info=info, packed=True
+        )
         for opt in optimizers.values():
             opt.step()
             opt.zero_grad(set_to_none=True)
 
         if (step + 1) % 1000 == 0:
-            logger.info("  gsplat %d/%d  loss=%.4f  N=%d",
-                        step + 1, max_steps, loss.item(), len(means))
+            logger.info(
+                "  gsplat %d/%d  loss=%.4f  N=%d", step + 1, max_steps, loss.item(), len(means)
+            )
 
     train_sec = time.time() - t_start
 
     # Export
-    splat_path   = map_dir / "gaussian_splat.ply"
-    viewer_html  = map_dir / "view_splat.html"
+    splat_path = map_dir / "gaussian_splat.ply"
+    viewer_html = map_dir / "view_splat.html"
     with torch.no_grad():
-        _export_ply(means.detach(), scales.detach(), quats.detach(),
-                    opacities.detach(), sh0.detach(), shN.detach(), splat_path)
+        _export_ply(
+            means.detach(),
+            scales.detach(),
+            quats.detach(),
+            opacities.detach(),
+            sh0.detach(),
+            shN.detach(),
+            splat_path,
+        )
     _write_viewer_html(viewer_html, splat_path.name)
 
-    logger.info("gsplat: %d Gaussians → %s  (%.1fs)",
-                len(means), splat_path.name, train_sec)
+    logger.info("gsplat: %d Gaussians → %s  (%.1fs)", len(means), splat_path.name, train_sec)
     return {
-        "splat_ply":   str(splat_path),
+        "splat_ply": str(splat_path),
         "viewer_html": str(viewer_html),
         "point_count": int(len(means)),
-        "train_sec":   train_sec,
-        "method":      f"gsplat_{mode}",
-        "skipped":     False,
-        "reason":      None,
+        "train_sec": train_sec,
+        "method": f"gsplat_{mode}",
+        "skipped": False,
+        "reason": None,
     }
 
 
@@ -321,20 +341,18 @@ def _load_data(
             H_ref, W_ref = H, W
 
         # World-to-camera 4×4
-        pose  = f["pose_json"]
-        R     = np.array(pose["R"], dtype=np.float32)
+        pose = f["pose_json"]
+        R = np.array(pose["R"], dtype=np.float32)
         t_vec = np.array(pose["t"], dtype=np.float32)
-        w2c   = np.eye(4, dtype=np.float32)
+        w2c = np.eye(4, dtype=np.float32)
         w2c[:3, :3] = R
-        w2c[:3, 3]  = t_vec
+        w2c[:3, 3] = t_vec
         vmats.append(torch.tensor(w2c))
 
         # Intrinsics
         cam_id = pose.get("camera_id", 1)
         fx, fy, cx, cy = _get_intrinsics(recon, cam_id, W, H, pose)
-        Ks_list.append(torch.tensor(
-            [[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=torch.float32
-        ))
+        Ks_list.append(torch.tensor([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=torch.float32))
 
         img_t = T.ToTensor()(img).permute(1, 2, 0).to(device)
         images.append(img_t)
@@ -401,16 +419,16 @@ def _init_gaussians(
 
     pts, cols = _get_init_points(frames, map_dir, mode)
 
-    N     = len(pts)
+    N = len(pts)
     pts_t = torch.tensor(pts, device=device)
     col_t = torch.tensor(cols, device=device).clamp(0, 1)
 
-    means     = nn.Parameter(pts_t.clone())
-    scales    = nn.Parameter(torch.log(torch.full((N, 3), 0.01, device=device)))
-    quats     = nn.Parameter(F.normalize(torch.randn(N, 4, device=device), dim=-1))
+    means = nn.Parameter(pts_t.clone())
+    scales = nn.Parameter(torch.log(torch.full((N, 3), 0.01, device=device)))
+    quats = nn.Parameter(F.normalize(torch.randn(N, 4, device=device), dim=-1))
     opacities = nn.Parameter(torch.logit(torch.full((N,), 0.1, device=device)))
-    sh0       = nn.Parameter(((col_t - 0.5) / 0.28209).unsqueeze(1))  # (N,1,3)
-    shN       = nn.Parameter(torch.zeros(N, 0, 3, device=device))
+    sh0 = nn.Parameter(((col_t - 0.5) / 0.28209).unsqueeze(1))  # (N,1,3)
+    shN = nn.Parameter(torch.zeros(N, 0, 3, device=device))
 
     logger.info("  gsplat init: %d Gaussians (mode=%s)", N, mode)
     return means, scales, quats, opacities, sh0, shN
@@ -451,7 +469,7 @@ def _get_init_points(
     z_vals = rng.uniform(0.5, 3.0, _N_FREE_INIT).astype(np.float32)
     x_vals = centroid[0] + rng.standard_normal(_N_FREE_INIT).astype(np.float32) * xy_spread
     y_vals = centroid[1] + rng.standard_normal(_N_FREE_INIT).astype(np.float32) * xy_spread * 0.6
-    pts  = np.stack([x_vals, y_vals, z_vals], axis=1)
+    pts = np.stack([x_vals, y_vals, z_vals], axis=1)
     cols = np.full((len(pts), 3), 0.5, dtype=np.float32)
     return pts, cols
 
@@ -462,7 +480,7 @@ def _load_sfm_points(colmap_dir: Path):
         recon = _load_pycolmap_recon(colmap_dir)
         if recon is None or len(recon.points3D) == 0:
             return None, None
-        pts  = np.array([p.xyz for p in recon.points3D.values()], dtype=np.float32)
+        pts = np.array([p.xyz for p in recon.points3D.values()], dtype=np.float32)
         cols = np.array([p.color for p in recon.points3D.values()], dtype=np.float32) / 255.0
         return pts, cols
     except Exception:
@@ -473,6 +491,7 @@ def _load_pycolmap_recon(colmap_dir: Path):
     """Load pycolmap Reconstruction; returns None on any failure."""
     try:
         import pycolmap
+
         for candidate in [colmap_dir / "0", colmap_dir]:
             if candidate.exists():
                 r = pycolmap.Reconstruction(str(candidate))
@@ -517,17 +536,22 @@ def _make_free_poses(
         fx = fy = W / (2.0 * math.tan(math.radians(35)))
         cx, cy = W / 2.0, H / 2.0
 
-        result.append({
-            "frame_path": fp,
-            "t_sec":      t_sec,
-            "pose_status": "success",
-            "pose_json": {
-                "R":  R.tolist(),
-                "t":  t,
-                "camera_id": 1,
-                "fx": fx, "fy": fy, "cx": cx, "cy": cy,
-            },
-        })
+        result.append(
+            {
+                "frame_path": fp,
+                "t_sec": t_sec,
+                "pose_status": "success",
+                "pose_json": {
+                    "R": R.tolist(),
+                    "t": t,
+                    "camera_id": 1,
+                    "fx": fx,
+                    "fy": fy,
+                    "cx": cx,
+                    "cy": cy,
+                },
+            }
+        )
     return result
 
 
@@ -541,10 +565,16 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
     """
     try:
         from gsplat import export_splats
+
         export_splats(
-            means=means, scales=scales, quats=quats,
-            opacities=opacities, sh0=sh0, shN=shN,
-            format="ply", save_to=str(path),
+            means=means,
+            scales=scales,
+            quats=quats,
+            opacities=opacities,
+            sh0=sh0,
+            shN=shN,
+            format="ply",
+            save_to=str(path),
         )
         logger.info("  PLY written via gsplat.export_splats → %s", path)
         return
@@ -555,20 +585,31 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
     import torch.nn.functional as F
 
     N = len(means)
-    means_np  = means.cpu().float().numpy()
-    opac_np   = opacities.cpu().float().numpy()        # logit space
-    scales_np = scales.cpu().float().numpy()            # log space
+    means_np = means.cpu().float().numpy()
+    opac_np = opacities.cpu().float().numpy()  # logit space
+    scales_np = scales.cpu().float().numpy()  # log space
     # Quaternion: 3DGS convention is (w, x, y, z)
-    quats_n   = F.normalize(quats, dim=-1).cpu().float().numpy()
-    sh0_np    = sh0.squeeze(1).cpu().float().numpy()    # (N, 3)
+    quats_n = F.normalize(quats, dim=-1).cpu().float().numpy()
+    sh0_np = sh0.squeeze(1).cpu().float().numpy()  # (N, 3)
 
     dtype = [
-        ("x", "f4"), ("y", "f4"), ("z", "f4"),
-        ("nx", "f4"), ("ny", "f4"), ("nz", "f4"),
-        ("f_dc_0", "f4"), ("f_dc_1", "f4"), ("f_dc_2", "f4"),
+        ("x", "f4"),
+        ("y", "f4"),
+        ("z", "f4"),
+        ("nx", "f4"),
+        ("ny", "f4"),
+        ("nz", "f4"),
+        ("f_dc_0", "f4"),
+        ("f_dc_1", "f4"),
+        ("f_dc_2", "f4"),
         ("opacity", "f4"),
-        ("scale_0", "f4"), ("scale_1", "f4"), ("scale_2", "f4"),
-        ("rot_0", "f4"), ("rot_1", "f4"), ("rot_2", "f4"), ("rot_3", "f4"),
+        ("scale_0", "f4"),
+        ("scale_1", "f4"),
+        ("scale_2", "f4"),
+        ("rot_0", "f4"),
+        ("rot_1", "f4"),
+        ("rot_2", "f4"),
+        ("rot_3", "f4"),
     ]
     # Add higher-order SH if present
     if shN.shape[1] > 0:
@@ -577,6 +618,7 @@ def _export_ply(means, scales, quats, opacities, sh0, shN, path: Path) -> None:
             dtype.append((f"f_rest_{k}", "f4"))
 
     from plyfile import PlyData, PlyElement
+
     vertex = np.empty(N, dtype=dtype)
     vertex["x"] = means_np[:, 0]
     vertex["y"] = means_np[:, 1]

@@ -10,7 +10,6 @@ def _write_json(path: Path, payload):
 
 
 class TestGlobalThreatAggregation(unittest.TestCase):
-
     def test_batch_aggregator_merges_shared_sectors(self):
         from selfsuvis.pipeline.workflows.local.steps_global_threat import step_global_threat
 
@@ -23,21 +22,47 @@ class TestGlobalThreatAggregation(unittest.TestCase):
             local_threat_a = {
                 "local_threat_score": 0.62,
                 "recommended_action": "reduce_speed",
-                "top_threats": [{"type": "visibility_degradation", "score": 0.62, "evidence": {"evidence_sources": ["depth_failure_rate", "caption_confidence"]}}],
+                "top_threats": [
+                    {
+                        "type": "visibility_degradation",
+                        "score": 0.62,
+                        "evidence": {
+                            "evidence_sources": ["depth_failure_rate", "caption_confidence"]
+                        },
+                    }
+                ],
             }
             local_threat_b = {
                 "local_threat_score": 0.71,
                 "recommended_action": "reroute",
-                "top_threats": [{"type": "collision_risk", "score": 0.71, "evidence": {"evidence_sources": ["near_field_occupancy", "object_velocity"]}}],
+                "top_threats": [
+                    {
+                        "type": "collision_risk",
+                        "score": 0.71,
+                        "evidence": {
+                            "evidence_sources": ["near_field_occupancy", "object_velocity"]
+                        },
+                    }
+                ],
             }
             primitives_a = {
                 "primitives": [
-                    {"type": "visibility_degradation", "score": 0.62, "uncertainty": 0.2, "evidence_sources": ["depth_failure_rate", "caption_confidence"]}
+                    {
+                        "type": "visibility_degradation",
+                        "score": 0.62,
+                        "uncertainty": 0.2,
+                        "evidence_sources": ["depth_failure_rate", "caption_confidence"],
+                    }
                 ]
             }
             primitives_b = {
                 "primitives": [
-                    {"type": "collision_risk", "score": 0.71, "uncertainty": 0.15, "evidence_sources": ["near_field_occupancy", "object_velocity"]}
+                    {
+                        "type": "collision_risk",
+                        "score": 0.71,
+                        "uncertainty": 0.15,
+                        "evidence_sources": ["near_field_occupancy", "object_velocity"],
+                    }
                 ]
             }
             physical = {"platform_pose_confidence": 0.8}
@@ -82,7 +107,8 @@ class TestGlobalThreatAggregation(unittest.TestCase):
             self.assertTrue((output_dir / "global_threat_summary.json").exists())
             self.assertGreaterEqual(len(result["sector_risk_levels"]), 1)
             overlapping = [
-                row for row in result["sector_risk_levels"]
+                row
+                for row in result["sector_risk_levels"]
                 if len(row.get("supporting_videos", [])) >= 2
             ]
             self.assertTrue(overlapping)

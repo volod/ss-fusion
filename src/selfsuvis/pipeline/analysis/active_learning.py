@@ -23,6 +23,7 @@ Clustering:
     based on settings.KMEANS_BATCH_THRESHOLD. Switch threshold is tunable via the
     KMEANS_BATCH_THRESHOLD env var (default 25_000 frames).
 """
+
 from typing import Any
 
 import numpy as np
@@ -98,9 +99,7 @@ def assign_al_tags(
             for d, c, s in zip(dino_dists, caption_confidences, rssm_surprises)
         ]
     else:
-        scores = [
-            compute_al_score(d, c) for d, c in zip(dino_dists, caption_confidences)
-        ]
+        scores = [compute_al_score(d, c) for d, c in zip(dino_dists, caption_confidences)]
     tags = ["none"] * n
 
     # Sort indices by score descending; top-K → needs_annotation

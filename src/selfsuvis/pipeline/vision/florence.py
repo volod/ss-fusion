@@ -51,6 +51,7 @@ def _apply_florence2_transformers5_patches() -> None:
     # 1. forced_bos_token_id — removed from PretrainedConfig in transformers 5.0.
     try:
         from transformers import PretrainedConfig as _PC
+
         if not hasattr(_PC, "forced_bos_token_id"):
             _PC.forced_bos_token_id = None
     except Exception:
@@ -144,9 +145,13 @@ def _normalise_sequences(sequences: object) -> torch.Tensor:
     if sequences is None:
         raise RuntimeError("Florence generate returned no sequences")
     if not isinstance(sequences, torch.Tensor):
-        raise RuntimeError(f"Florence generate returned unsupported sequences type: {type(sequences)!r}")
+        raise RuntimeError(
+            f"Florence generate returned unsupported sequences type: {type(sequences)!r}"
+        )
     if sequences.ndim != 2:
-        raise RuntimeError(f"Florence generate returned unexpected sequences shape: {tuple(sequences.shape)!r}")
+        raise RuntimeError(
+            f"Florence generate returned unexpected sequences shape: {tuple(sequences.shape)!r}"
+        )
     return sequences
 
 
@@ -231,7 +236,9 @@ class FlorenceModel:
         self._generation_mode = "scored"
 
         # dtype: FP16 on CUDA, FP32 on CPU
-        torch_dtype = torch.float16 if (self.device == "cuda" and settings.USE_FP16) else torch.float32
+        torch_dtype = (
+            torch.float16 if (self.device == "cuda" and settings.USE_FP16) else torch.float32
+        )
         source = _resolve_local_model_source(_MODEL_ID)
         source_label = str(source) if isinstance(source, Path) else _MODEL_ID
         load_common_kwargs = {
@@ -245,9 +252,7 @@ class FlorenceModel:
             r".*will lose the ability to call `generate` and other related functions.*",
             logger_levels={"transformers": logging.ERROR},
         ):
-            self._processor = AutoProcessor.from_pretrained(
-                source_label, **load_common_kwargs
-            )
+            self._processor = AutoProcessor.from_pretrained(source_label, **load_common_kwargs)
         attn_impl = _best_attn_impl()
         # Flash Attention 2.0 requires float16 or bfloat16; fall back to sdpa for float32.
         if attn_impl == "flash_attention_2" and torch_dtype == torch.float32:
@@ -277,8 +282,9 @@ class FlorenceModel:
             # and require the legacy `torch_dtype` kwarg instead.
             if "torch_dtype" not in str(exc) and "dtype" not in str(exc):
                 raise
-            fallback_kwargs = {k: v for k, v in load_kwargs.items()
-                               if k not in ("dtype", "attn_implementation")}
+            fallback_kwargs = {
+                k: v for k, v in load_kwargs.items() if k not in ("dtype", "attn_implementation")
+            }
             fallback_kwargs["torch_dtype"] = torch_dtype
             fallback_kwargs["attn_implementation"] = "eager"
             with suppress_runtime_noise(
@@ -292,9 +298,7 @@ class FlorenceModel:
             # some transformers versions — retry without attn_implementation.
             if "_supports_sdpa" not in str(exc) and "attn_implementation" not in str(exc):
                 raise
-            logger.warning(
-                "Florence-2 SDPA check failed (%s) — retrying with eager attention", exc
-            )
+            logger.warning("Florence-2 SDPA check failed (%s) — retrying with eager attention", exc)
             fallback_kwargs = {k: v for k, v in load_kwargs.items() if k != "attn_implementation"}
             fallback_kwargs["attn_implementation"] = "eager"
             with suppress_runtime_noise(
@@ -320,6 +324,7 @@ class FlorenceModel:
     def release(self) -> None:
         """Unload model weights from GPU to free VRAM for subsequent models."""
         import gc
+
         if getattr(self, "_model", None) is not None:
             try:
                 # Move to CPU first so accelerate's device_map hooks release GPU pages.
@@ -405,8 +410,10 @@ class FlorenceModel:
         except RuntimeError as exc:
             if "out of memory" in str(exc).lower() and batch_size > 1:
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+
                 log_oom_banner(
-                    logger, "Florence-2",
+                    logger,
+                    "Florence-2",
                     f"batch_size={batch_size} → clearing cache, retrying one image at a time",
                 )
                 torch.cuda.empty_cache()
@@ -435,7 +442,9 @@ class FlorenceModel:
         generated = self._generate_with_fallback(inputs)
         sequences = _normalise_sequences(getattr(generated, "sequences", None))
         scores = getattr(generated, "scores", None)
-        generated_ids = _extract_generated_token_ids(sequences, scores if _scores_are_usable(scores) else None)
+        generated_ids = _extract_generated_token_ids(
+            sequences, scores if _scores_are_usable(scores) else None
+        )
 
         decoded = self._processor.batch_decode(sequences, skip_special_tokens=True)
         captions = []
@@ -448,7 +457,9 @@ class FlorenceModel:
             text = parsed.get(_TASK_PROMPT, raw)
             captions.append(text.strip() if isinstance(text, str) else "")
 
-        confidences = _compute_confidences(scores if _scores_are_usable(scores) else None, generated_ids)
+        confidences = _compute_confidences(
+            scores if _scores_are_usable(scores) else None, generated_ids
+        )
         return list(zip(captions, confidences))
 
     def _generate_with_fallback(self, inputs: dict):
@@ -456,16 +467,23 @@ class FlorenceModel:
         should_try_scored = self._generation_mode != "eager"
         if should_try_scored:
             try:
-                with suppress_runtime_noise(
-                    r"The following generation flags are not valid and may be ignored: .*",
-                    logger_levels={
-                        "transformers": logging.ERROR,
-                        "transformers.generation.configuration_utils": logging.ERROR,
-                    },
-                ), torch.no_grad():
-                    generated = self._model.generate(**_build_generate_kwargs(inputs, include_scores=True))
+                with (
+                    suppress_runtime_noise(
+                        r"The following generation flags are not valid and may be ignored: .*",
+                        logger_levels={
+                            "transformers": logging.ERROR,
+                            "transformers.generation.configuration_utils": logging.ERROR,
+                        },
+                    ),
+                    torch.no_grad(),
+                ):
+                    generated = self._model.generate(
+                        **_build_generate_kwargs(inputs, include_scores=True)
+                    )
                 if _normalise_sequences(getattr(generated, "sequences", None)).shape[0] == 0:
-                    raise RuntimeError("Florence scored generation returned an empty sequence batch")
+                    raise RuntimeError(
+                        "Florence scored generation returned an empty sequence batch"
+                    )
                 self._generation_mode = "scored"
                 return generated
             except Exception as exc:
@@ -476,17 +494,22 @@ class FlorenceModel:
                     exc,
                 )
 
-        with suppress_runtime_noise(
-            r"The following generation flags are not valid and may be ignored: .*",
-            logger_levels={
-                "transformers": logging.ERROR,
-                "transformers.generation.configuration_utils": logging.ERROR,
-            },
-        ), torch.no_grad():
+        with (
+            suppress_runtime_noise(
+                r"The following generation flags are not valid and may be ignored: .*",
+                logger_levels={
+                    "transformers": logging.ERROR,
+                    "transformers.generation.configuration_utils": logging.ERROR,
+                },
+            ),
+            torch.no_grad(),
+        ):
             generated = self._model.generate(**_build_generate_kwargs(inputs, include_scores=False))
         if _normalise_sequences(getattr(generated, "sequences", None)).shape[0] == 0:
             raise RuntimeError("Florence caption-only generation returned an empty sequence batch")
-        self._generation_mode = "eager-noscores" if self._generation_mode == "eager" else "caption-only"
+        self._generation_mode = (
+            "eager-noscores" if self._generation_mode == "eager" else "caption-only"
+        )
         return generated
 
     def _caption_single(self, image: Image.Image) -> tuple[str, float]:
@@ -495,7 +518,9 @@ class FlorenceModel:
             results = self._run_inference([image])
             return results[0]
         except Exception:
-            logger.warning("Florence failed on a single image; returning empty caption", exc_info=True)
+            logger.warning(
+                "Florence failed on a single image; returning empty caption", exc_info=True
+            )
             return ("", 0.5)
 
 
@@ -555,7 +580,7 @@ def _compute_confidences(
             step_logits = step_logits.unsqueeze(0)
 
         probs = torch.softmax(step_logits.float(), dim=-1)  # (batch, vocab)
-        chosen_ids = generated_ids[:, step_idx]            # (batch,)
+        chosen_ids = generated_ids[:, step_idx]  # (batch,)
 
         for b in range(batch_size):
             tok = chosen_ids[b].item()

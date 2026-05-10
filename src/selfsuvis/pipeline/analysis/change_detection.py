@@ -10,6 +10,7 @@ optional natural-language `change_explanation` is generated via the Gemma API.
 
 The query_fn abstraction lets unit tests inject a mock without a live Qdrant.
 """
+
 from collections.abc import Callable
 from typing import Any
 
@@ -26,9 +27,7 @@ _M_PER_DEG_LAT = 111_320.0
 QueryFn = Callable[[np.ndarray, tuple[float, float, float, float]], list[dict[str, Any]]]
 
 
-def latlon_bbox(
-    lat: float, lon: float, radius_m: float
-) -> tuple[float, float, float, float]:
+def latlon_bbox(lat: float, lon: float, radius_m: float) -> tuple[float, float, float, float]:
     """Return (min_lat, max_lat, min_lon, max_lon) bounding box for a GPS circle.
 
     Uses a flat-earth approximation valid for radius_m << Earth radius.
@@ -135,6 +134,7 @@ def detect_changes(
 
 # ── Phase 4: Semantic diff ────────────────────────────────────────────────────
 
+
 def compute_semantic_diff(
     ref_facts: dict[str, Any],
     new_facts: dict[str, Any],
@@ -214,9 +214,7 @@ def generate_change_explanation(
         vc = semantic_diff["vehicle_count"]
         delta = vc.get("delta", 0)
         direction = "increased" if delta > 0 else "decreased"
-        parts.append(
-            f"Vehicle count {direction} from {vc['before']} to {vc['after']}."
-        )
+        parts.append(f"Vehicle count {direction} from {vc['before']} to {vc['after']}.")
     if "road_condition" in semantic_diff:
         rc = semantic_diff["road_condition"]
         parts.append(f"Road condition changed from {rc['before']} to {rc['after']}.")

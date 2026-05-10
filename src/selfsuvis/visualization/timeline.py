@@ -25,6 +25,7 @@ def plot_timeline(
         The matplotlib Figure object.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -42,8 +43,14 @@ def plot_timeline(
     fig.suptitle(f"Timeline — {summary.video_name}")
 
     ax1.plot(ts, surprise, color="#e67e22", linewidth=1.5, label="Surprise")
-    ax1.axhline(sum(surprise) / max(len(surprise), 1), color="#e67e22", linestyle="--",
-                alpha=0.5, linewidth=0.8, label="Mean")
+    ax1.axhline(
+        sum(surprise) / max(len(surprise), 1),
+        color="#e67e22",
+        linestyle="--",
+        alpha=0.5,
+        linewidth=0.8,
+        label="Mean",
+    )
     # Shade peak frames
     if summary.temporal_stats:
         for pi in summary.temporal_stats.peak_frames:
@@ -54,8 +61,14 @@ def plot_timeline(
     ax1.legend(fontsize=8)
     ax1.grid(True, alpha=0.3)
 
-    ax2.bar(ts, detections, width=max(ts[1] - ts[0], 0.1) if len(ts) > 1 else 0.1,
-            color="#2980b9", alpha=0.8, label="Objects")
+    ax2.bar(
+        ts,
+        detections,
+        width=max(ts[1] - ts[0], 0.1) if len(ts) > 1 else 0.1,
+        color="#2980b9",
+        alpha=0.8,
+        label="Objects",
+    )
     ax2.set_ylabel("Detected objects")
     ax2.set_xlabel("Time (s)")
     ax2.legend(fontsize=8)

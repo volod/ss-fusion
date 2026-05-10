@@ -17,7 +17,9 @@ def pressure_hpa_to_altitude_m(pressure_hpa: float) -> float:
     return 44330.0 * (1.0 - (pressure_hpa / 1013.25) ** 0.1903)
 
 
-def normalize_baro_rows(rows: Iterable[dict[str, Any]], origin_alt_m: float) -> list[dict[str, float]]:
+def normalize_baro_rows(
+    rows: Iterable[dict[str, Any]], origin_alt_m: float
+) -> list[dict[str, float]]:
     normalized: list[dict[str, float]] = []
     for row in rows:
         t_sec = float(row.get("t", row.get("timestamp", 0.0)) or 0.0)

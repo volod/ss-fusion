@@ -92,11 +92,13 @@ def _normalise_object_list(raw: Any) -> list[dict[str, Any]]:
             count = int(item.get("count", 1) or 1)
         except Exception:
             count = 1
-        out.append({
-            "label": str(item.get("label", "unknown") or "unknown"),
-            "count": max(0, count),
-            "salience": str(item.get("salience", "unknown") or "unknown"),
-        })
+        out.append(
+            {
+                "label": str(item.get("label", "unknown") or "unknown"),
+                "count": max(0, count),
+                "salience": str(item.get("salience", "unknown") or "unknown"),
+            }
+        )
     return out
 
 
@@ -190,7 +192,10 @@ class UniDriveVLAModel:
         self._load_failed = False
 
     def is_enabled(self) -> bool:
-        return bool(settings.UNIDRIVE_ENABLED and (settings.UNIDRIVE_API_URL or self._is_local_model_candidate()))
+        return bool(
+            settings.UNIDRIVE_ENABLED
+            and (settings.UNIDRIVE_API_URL or self._is_local_model_candidate())
+        )
 
     def _is_local_model_candidate(self) -> bool:
         model_id = str(getattr(settings, "UNIDRIVE_MODEL", "") or "")
@@ -225,20 +230,30 @@ class UniDriveVLAModel:
             import torch
             from transformers import AutoModelForImageTextToText, AutoProcessor
 
-            dtype = torch.float16 if self._device != "cpu" and getattr(settings, "USE_FP16", True) else torch.float32
+            dtype = (
+                torch.float16
+                if self._device != "cpu" and getattr(settings, "USE_FP16", True)
+                else torch.float32
+            )
             self._processor = AutoProcessor.from_pretrained(
                 settings.UNIDRIVE_MODEL,
                 trust_remote_code=True,
                 local_files_only=True,
             )
-            self._model = AutoModelForImageTextToText.from_pretrained(
-                settings.UNIDRIVE_MODEL,
-                trust_remote_code=True,
-                local_files_only=True,
-                low_cpu_mem_usage=True,
-                torch_dtype=dtype,
-            ).to(self._device).eval()
-            logger.info("UniDrive local model loaded: %s on %s", settings.UNIDRIVE_MODEL, self._device)
+            self._model = (
+                AutoModelForImageTextToText.from_pretrained(
+                    settings.UNIDRIVE_MODEL,
+                    trust_remote_code=True,
+                    local_files_only=True,
+                    low_cpu_mem_usage=True,
+                    torch_dtype=dtype,
+                )
+                .to(self._device)
+                .eval()
+            )
+            logger.info(
+                "UniDrive local model loaded: %s on %s", settings.UNIDRIVE_MODEL, self._device
+            )
             return self._model, self._processor
         except Exception as exc:
             self._load_failed = True
@@ -272,10 +287,7 @@ class UniDriveVLAModel:
                 domain_hint=domain_hint,
             )
             inputs = processor(text=[prompt], images=[image], return_tensors="pt")
-            inputs = {
-                k: (v.to(self._device) if hasattr(v, "to") else v)
-                for k, v in inputs.items()
-            }
+            inputs = {k: (v.to(self._device) if hasattr(v, "to") else v) for k, v in inputs.items()}
             with torch.no_grad():
                 generated = model.generate(
                     **inputs,
@@ -284,7 +296,7 @@ class UniDriveVLAModel:
                 )
             input_ids = inputs.get("input_ids")
             if input_ids is not None and hasattr(input_ids, "shape"):
-                generated = generated[:, input_ids.shape[1]:]
+                generated = generated[:, input_ids.shape[1] :]
             raw = processor.batch_decode(generated, skip_special_tokens=True)[0]
         except Exception as exc:
             logger.debug("UniDrive local generation failed: %s", exc, exc_info=True)
@@ -363,7 +375,12 @@ class UniDriveVLAModel:
             resp.raise_for_status()
             raw = resp.json()["choices"][0]["message"]["content"]
         except Exception as exc:
-            logger.debug("UniDrive request failed (backend=%s model=%s): %s", backend, settings.UNIDRIVE_MODEL, exc)
+            logger.debug(
+                "UniDrive request failed (backend=%s model=%s): %s",
+                backend,
+                settings.UNIDRIVE_MODEL,
+                exc,
+            )
             return {"service_unavailable": True, "reason": str(exc)}
 
         parsed = _parse_unidrive_response(str(raw))

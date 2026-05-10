@@ -68,7 +68,9 @@ def file_sha256(path: str, chunk_size: int = 1024 * 1024) -> str:
     return h.hexdigest()
 
 
-def resolve_allowed_path(user_path: str, must_be_file: bool = False, must_be_dir: bool = False) -> str | None:
+def resolve_allowed_path(
+    user_path: str, must_be_file: bool = False, must_be_dir: bool = False
+) -> str | None:
     """
     Resolve user-supplied path against allowed base directories.
     Returns the resolved absolute path if allowed, else None.

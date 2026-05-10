@@ -1,7 +1,9 @@
 """Unit tests for pipeline/audio_extractor.py — no ffmpeg/GPU required."""
+
 from selfsuvis.pipeline.media.audio import _normalise_segments, map_subtitles_to_frames
 
 # ── _normalise_segments ────────────────────────────────────────────────────────
+
 
 def test_normalise_hf_format():
     """HuggingFace pipeline format: {"timestamp": (start, end), "text": ...}"""
@@ -43,6 +45,7 @@ def test_normalise_empty_input():
 
 
 # ── map_subtitles_to_frames ────────────────────────────────────────────────────
+
 
 def test_exact_overlap():
     """Frame at 5 s with segment [4, 6] — within window."""

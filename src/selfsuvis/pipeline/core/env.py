@@ -95,4 +95,3 @@ def env_json_dict(
 def set_env_if_present(key: str, value: Any) -> None:
     if value not in (None, ""):
         os.environ[key] = str(value)
-

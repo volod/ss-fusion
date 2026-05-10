@@ -25,6 +25,7 @@ def plot_training_curves(
         The matplotlib Figure object.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -61,8 +62,7 @@ def plot_training_curves(
         ["Student (MB)", f"{ts.student_mb:.1f}"],
         ["ONNX (MB)", f"{ts.onnx_mb:.1f}"],
     ]
-    table = ax2.table(cellText=rows[1:], colLabels=rows[0],
-                      loc="center", cellLoc="center")
+    table = ax2.table(cellText=rows[1:], colLabels=rows[0], loc="center", cellLoc="center")
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1, 1.5)

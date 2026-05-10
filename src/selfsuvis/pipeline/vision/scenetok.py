@@ -65,9 +65,10 @@ def _decode_b64_npz(b64: str) -> np.ndarray | None:
 def _vram_gb() -> float:
     try:
         import torch
+
         if torch.cuda.is_available():
             props = torch.cuda.get_device_properties(0)
-            return props.total_memory / (1024 ** 3)
+            return props.total_memory / (1024**3)
     except Exception:
         pass
     return 0.0
@@ -116,6 +117,7 @@ class SceneTokModel:
             return False
         try:
             import httpx
+
             resp = httpx.get(
                 f"{api_url.rstrip('/')}{_SIDECAR_HEALTH_ENDPOINT}",
                 timeout=5.0,
@@ -131,7 +133,9 @@ class SceneTokModel:
         mode: str,
     ) -> dict[str, Any]:
         api_url = str(getattr(settings, "SCENETOK_API_URL", "") or "")
-        checkpoint = str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
+        checkpoint = str(
+            getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k"
+        )
         timeout = float(getattr(settings, "SCENETOK_TIMEOUT_SEC", 300) or 300)
 
         payload = {
@@ -144,6 +148,7 @@ class SceneTokModel:
         }
         try:
             import httpx
+
             resp = httpx.post(
                 f"{api_url.rstrip('/')}{_SIDECAR_PROCESS_ENDPOINT}",
                 json=payload,
@@ -166,7 +171,9 @@ class SceneTokModel:
             import torch
             from scenetok import SceneTokDecoder, SceneTokEncoder  # type: ignore[import]
 
-            checkpoint = str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
+            checkpoint = str(
+                getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k"
+            )
             cache_dir = Path.home() / ".cache" / "selfsuvis" / "scenetok"
             ckpt_path = cache_dir / f"{checkpoint}.ckpt"
             if not ckpt_path.exists():
@@ -178,9 +185,17 @@ class SceneTokModel:
                 self._load_failed = True
                 return False
 
-            dtype = torch.float16 if self._device != "cpu" and getattr(settings, "USE_FP16", True) else torch.float32
-            self._encoder = SceneTokEncoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
-            self._decoder = SceneTokDecoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
+            dtype = (
+                torch.float16
+                if self._device != "cpu" and getattr(settings, "USE_FP16", True)
+                else torch.float32
+            )
+            self._encoder = (
+                SceneTokEncoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
+            )
+            self._decoder = (
+                SceneTokDecoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
+            )
             logger.info("SceneTok local model loaded: %s on %s", checkpoint, self._device)
             return True
         except ImportError:
@@ -226,10 +241,12 @@ class SceneTokModel:
                 img_out = Image.fromarray(arr)
                 buf = io.BytesIO()
                 img_out.save(buf, format="PNG")
-                decoded_results.append({
-                    "t_sec": t_sec,
-                    "b64_png": base64.b64encode(buf.getvalue()).decode("ascii"),
-                })
+                decoded_results.append(
+                    {
+                        "t_sec": t_sec,
+                        "b64_png": base64.b64encode(buf.getvalue()).decode("ascii"),
+                    }
+                )
 
             return {
                 "tokens_b64_npz": tokens_b64,
@@ -281,6 +298,7 @@ class SceneTokModel:
         gc.collect()
         try:
             import torch
+
             if torch.cuda.is_available():
                 try:
                     torch.cuda.synchronize()

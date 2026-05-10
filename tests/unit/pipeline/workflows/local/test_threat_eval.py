@@ -10,7 +10,6 @@ def _write_json(path: Path, payload) -> None:
 
 
 class TestThreatEvaluationArtifacts(unittest.TestCase):
-
     def test_calibration_and_eval_outputs_are_written(self):
         from selfsuvis.pipeline.workflows.local.steps_threat_eval import (
             write_threat_calibration,
@@ -31,7 +30,13 @@ class TestThreatEvaluationArtifacts(unittest.TestCase):
                         "automation_confidence": 0.72 if video_name == "video_a" else 0.85,
                         "disagreement_rate": disagreement,
                         "top_threats": [
-                            {"type": "collision_risk" if video_name == "video_a" else "track_anomaly", "score": score, "evidence": {"evidence_sources": ["a", "b"]}}
+                            {
+                                "type": "collision_risk"
+                                if video_name == "video_a"
+                                else "track_anomaly",
+                                "score": score,
+                                "evidence": {"evidence_sources": ["a", "b"]},
+                            }
                         ],
                     },
                 )
@@ -44,7 +49,9 @@ class TestThreatEvaluationArtifacts(unittest.TestCase):
                     {
                         "primitives": [
                             {
-                                "type": "collision_risk" if video_name == "video_a" else "track_anomaly",
+                                "type": "collision_risk"
+                                if video_name == "video_a"
+                                else "track_anomaly",
                                 "score": score,
                                 "spatial_support": ["f1.jpg"],
                                 "temporal_persistence": 3,

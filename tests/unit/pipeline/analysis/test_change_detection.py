@@ -1,4 +1,5 @@
 """Unit tests for pipeline.change_detection."""
+
 import numpy as np
 import pytest
 
@@ -10,6 +11,7 @@ from selfsuvis.pipeline.analysis.change_detection import (
 )
 
 # ── latlon_bbox ───────────────────────────────────────────────────────────────
+
 
 def test_latlon_bbox_center_inside():
     min_lat, max_lat, min_lon, max_lon = latlon_bbox(47.0, 8.0, 100.0)
@@ -46,6 +48,7 @@ def test_latlon_bbox_larger_radius_wider():
 
 # ── cosine_distance ───────────────────────────────────────────────────────────
 
+
 def test_cosine_distance_identical():
     v = np.array([1.0, 0.0, 0.0])
     assert cosine_distance(v, v) == pytest.approx(0.0)
@@ -78,8 +81,10 @@ def test_cosine_distance_zero_vector():
 
 # ── threshold_for_model ───────────────────────────────────────────────────────
 
+
 def test_threshold_for_model_dino(monkeypatch):
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "MODEL_NAME", "dinov3")
     monkeypatch.setattr(config.settings, "CHANGE_DETECTION_THRESHOLD_DINO", 0.25)
     assert threshold_for_model() == pytest.approx(0.25)
@@ -87,6 +92,7 @@ def test_threshold_for_model_dino(monkeypatch):
 
 def test_threshold_for_model_dinov2(monkeypatch):
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "MODEL_NAME", "dinov2")
     monkeypatch.setattr(config.settings, "CHANGE_DETECTION_THRESHOLD_DINO", 0.25)
     assert threshold_for_model() == pytest.approx(0.25)
@@ -94,12 +100,14 @@ def test_threshold_for_model_dinov2(monkeypatch):
 
 def test_threshold_for_model_clip(monkeypatch):
     from selfsuvis.pipeline.core import config
+
     monkeypatch.setattr(config.settings, "MODEL_NAME", "openclip")
     monkeypatch.setattr(config.settings, "CHANGE_DETECTION_THRESHOLD_CLIP", 0.35)
     assert threshold_for_model() == pytest.approx(0.35)
 
 
 # ── detect_changes ────────────────────────────────────────────────────────────
+
 
 def _no_candidates(embedding, bbox):
     return []
@@ -110,9 +118,7 @@ def test_detect_changes_empty_frames():
 
 
 def test_detect_changes_frame_without_gps():
-    frames = [
-        {"frame_id": "f1", "mission_id": "m1", "embedding": [1.0, 0.0], "gps": None}
-    ]
+    frames = [{"frame_id": "f1", "mission_id": "m1", "embedding": [1.0, 0.0], "gps": None}]
     assert detect_changes(frames, _no_candidates) == []
 
 

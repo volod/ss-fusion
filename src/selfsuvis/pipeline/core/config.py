@@ -239,7 +239,9 @@ class Settings:
     REALTIME_BRIDGE_ROBOT_ID = _env("REALTIME_BRIDGE_ROBOT_ID", "drone_bridge")
     REALTIME_BRIDGE_MISSION_ID = _env("REALTIME_BRIDGE_MISSION_ID", "")
     REALTIME_BRIDGE_SENSORS = _env("REALTIME_BRIDGE_SENSORS", "gps,imu,barometer,magnetometer")
-    REALTIME_BRIDGE_AUTO_CREATE_SESSION = _env("REALTIME_BRIDGE_AUTO_CREATE_SESSION", "true").lower() == "true"
+    REALTIME_BRIDGE_AUTO_CREATE_SESSION = (
+        _env("REALTIME_BRIDGE_AUTO_CREATE_SESSION", "true").lower() == "true"
+    )
     REALTIME_BRIDGE_FLUSH_INTERVAL_SEC = _env_float("REALTIME_BRIDGE_FLUSH_INTERVAL_SEC", 0.5)
     REALTIME_BRIDGE_RECONNECT_SEC = _env_float("REALTIME_BRIDGE_RECONNECT_SEC", 5.0)
     REALTIME_BRIDGE_LOG_EVERY_N_PACKETS = _env_int("REALTIME_BRIDGE_LOG_EVERY_N_PACKETS", 100)
@@ -323,8 +325,7 @@ class Settings:
     # Default model name differs per backend: Ollama uses its own tag format.
     _qwen_model_default = (
         "qwen2.5vl:7b"
-        if _env("QWEN_BACKEND", "vllm").lower() == "ollama"
-        or "11434" in _env("QWEN_API_URL", "")
+        if _env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", "")
         else "Qwen/Qwen2.5-VL-7B-Instruct"
     )
     QWEN_MODEL = _env("QWEN_MODEL", _qwen_model_default)
@@ -335,10 +336,12 @@ class Settings:
         if _env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", "")
         else 2
     )
-    _qwen_is_local_ollama = (
-        _env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", "")
+    _qwen_is_local_ollama = _env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env(
+        "QWEN_API_URL", ""
     )
-    QWEN_SIDECAR_CONCURRENCY = max(1, _env_int("QWEN_SIDECAR_CONCURRENCY", _qwen_sidecar_concurrency_default))
+    QWEN_SIDECAR_CONCURRENCY = max(
+        1, _env_int("QWEN_SIDECAR_CONCURRENCY", _qwen_sidecar_concurrency_default)
+    )
     QWEN_IMAGE_MAX_SIDE = _env_int("QWEN_IMAGE_MAX_SIDE", 768 if _qwen_is_local_ollama else 960)
     QWEN_MAX_FRAMES = _env_int("QWEN_MAX_FRAMES", 20 if _qwen_is_local_ollama else 24)
 
@@ -412,11 +415,16 @@ class Settings:
         if "11434" in _env("OCR_API_URL", "")
         or (
             not _env("OCR_API_URL", "")
-            and (_env("QWEN_BACKEND", "vllm").lower() == "ollama" or "11434" in _env("QWEN_API_URL", ""))
+            and (
+                _env("QWEN_BACKEND", "vllm").lower() == "ollama"
+                or "11434" in _env("QWEN_API_URL", "")
+            )
         )
         else 2
     )
-    OCR_SIDECAR_CONCURRENCY = max(1, _env_int("OCR_SIDECAR_CONCURRENCY", _ocr_sidecar_concurrency_default))
+    OCR_SIDECAR_CONCURRENCY = max(
+        1, _env_int("OCR_SIDECAR_CONCURRENCY", _ocr_sidecar_concurrency_default)
+    )
     OCR_IMAGE_MAX_SIDE = _env_int("OCR_IMAGE_MAX_SIDE", 1280)
     # Minimum caption_confidence below which OCR is run (high-confidence frames
     # usually have been captioned well enough; set to 1.0 to OCR all frames).
@@ -615,7 +623,9 @@ class Settings:
     # Self-supervised DINOv3 domain adaptation (scripts/finetune_dino.py)
     SSL_CHECKPOINT_DIR = _env("SSL_CHECKPOINT_DIR", os.path.join(DATA_DIR, "checkpoints"))
     # Supervised CVAT fine-tuning (scripts/supervised_finetune_dino.py)
-    SUP_CHECKPOINT_DIR = _env("SUP_CHECKPOINT_DIR", os.path.join(DATA_DIR, "checkpoints", "supervised"))
+    SUP_CHECKPOINT_DIR = _env(
+        "SUP_CHECKPOINT_DIR", os.path.join(DATA_DIR, "checkpoints", "supervised")
+    )
     SSL_FINETUNE_EPOCHS = _env_int("SSL_FINETUNE_EPOCHS", 10)
     SSL_FINETUNE_LR = _env_float("SSL_FINETUNE_LR", 1e-5)
     SSL_FINETUNE_BATCH_SIZE = _env_int("SSL_FINETUNE_BATCH_SIZE", 32)
@@ -659,10 +669,28 @@ class Settings:
     DRONE_AUDIO_DATA_DIR = _env("DRONE_AUDIO_DATA_DIR", os.path.join(DATA_DIR, "drone-audio-data"))
     DRONE_AUDIO_EPOCHS = _env_int("DRONE_AUDIO_EPOCHS", 10)
 
+    # Site state API v1 — Redis, webhooks, correlator, adapters
+    # Shared base URL — kept for any code that hasn't migrated to per-consumer URLs.
+    REDIS_URL = _env("REDIS_URL", "redis://localhost:6379/0")
+    # Per-consumer Redis endpoints. Each defaults to a separate database on the
+    # same instance so keys are isolated without a separate Redis deployment.
+    # Override individually for distributed deployments (separate instances).
+    CORRELATOR_REDIS_URL = _env("CORRELATOR_REDIS_URL", "redis://localhost:6379/1")
+    WEBHOOK_REDIS_URL = _env("WEBHOOK_REDIS_URL", "redis://localhost:6379/2")
+    HEALTH_REDIS_URL = _env("HEALTH_REDIS_URL", "redis://localhost:6379/3")
+    WEBHOOK_ALERT_URL = _env("WEBHOOK_ALERT_URL", "")
+    WEBHOOK_SECRET = _env("WEBHOOK_SECRET", "")
+    CORRELATOR_ENABLED = _env("CORRELATOR_ENABLED", "true").lower() == "true"
+    # DroneAudioAdapter: path to ONNX model output from SV-21 training pipeline.
+    # Empty = adapter disabled (model file not present by default; run training first).
+    DRONE_AUDIO_MODEL_PATH = _env("DRONE_AUDIO_MODEL_PATH", "")
+    # DroneAudioAdapter: directory to poll for .wav files. Empty = polling disabled.
+    DRONE_AUDIO_WATCH_DIR = _env("DRONE_AUDIO_WATCH_DIR", "")
+
     # Edge model hydration (scripts/export_onnx.py, scripts/build_gallery.py, pipeline/edge_inference.py)
     EDGE_MODELS_DIR = _env("EDGE_MODELS_DIR", os.path.join(DATA_DIR, "models"))
     EDGE_GALLERY_DIR = _env("EDGE_GALLERY_DIR", os.path.join(DATA_DIR, "gallery"))
-    EDGE_ONNX_PATH = _env("EDGE_ONNX_PATH", "")       # path to quantized ONNX for EdgeClassifier
+    EDGE_ONNX_PATH = _env("EDGE_ONNX_PATH", "")  # path to quantized ONNX for EdgeClassifier
     EDGE_GALLERY_PATH = _env("EDGE_GALLERY_PATH", "")  # path to gallery NPZ for EdgeClassifier
     EDGE_TOP_K = _env_int("EDGE_TOP_K", 3)
 
@@ -680,10 +708,13 @@ class Settings:
 
     # API auth and rate limiting
     API_KEY = _env("API_KEY", "")
-    API_AUTH_REQUIRED = _env(
-        "API_AUTH_REQUIRED",
-        "true" if APP_ENV == "prod" else "false",
-    ).lower() == "true"
+    API_AUTH_REQUIRED = (
+        _env(
+            "API_AUTH_REQUIRED",
+            "true" if APP_ENV == "prod" else "false",
+        ).lower()
+        == "true"
+    )
     RATE_LIMIT_PER_MIN = _env_int("RATE_LIMIT_PER_MIN", 120)
     RATE_LIMIT_BURST = _env_int("RATE_LIMIT_BURST", 60)
     TRUST_PROXY_HEADERS = _env("TRUST_PROXY_HEADERS", "false").lower() == "true"
@@ -707,8 +738,14 @@ def validate_settings() -> None:
         raise ValueError("FFMPEG_TIMEOUT_SEC must be >= 1")
     if settings.TILE_SIZE < 1 or settings.STRIDE < 1:
         raise ValueError("TILE_SIZE and STRIDE must be >= 1")
-    if settings.MOTION_LOW < 0 or settings.MOTION_HIGH < 0 or settings.MOTION_LOW > settings.MOTION_HIGH:
-        raise ValueError("MOTION_LOW and MOTION_HIGH must be non-negative and MOTION_LOW <= MOTION_HIGH")
+    if (
+        settings.MOTION_LOW < 0
+        or settings.MOTION_HIGH < 0
+        or settings.MOTION_LOW > settings.MOTION_HIGH
+    ):
+        raise ValueError(
+            "MOTION_LOW and MOTION_HIGH must be non-negative and MOTION_LOW <= MOTION_HIGH"
+        )
     if settings.SAMPLE_FPS_MIN <= 0 or settings.SAMPLE_FPS_MAX < settings.SAMPLE_FPS_MIN:
         raise ValueError("SAMPLE_FPS_MIN must be > 0 and SAMPLE_FPS_MAX >= SAMPLE_FPS_MIN")
     if settings.MAX_REDIRECTS < 0:

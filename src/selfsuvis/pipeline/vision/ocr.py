@@ -102,9 +102,7 @@ class OCRModel:
     def is_enabled(self) -> bool:
         return settings.OCR_ENABLED
 
-    def extract_text_batch(
-        self, images: list[Image.Image]
-    ) -> list[dict[str, Any]]:
+    def extract_text_batch(self, images: list[Image.Image]) -> list[dict[str, Any]]:
         """Extract text from a list of PIL images.
 
         Returns a list of dicts (one per image):
@@ -119,8 +117,12 @@ class OCRModel:
         if concurrency == 1 or len(images) <= 1:
             return [self._extract_one(img) for img in images]
         results: list[dict[str, Any] | None] = [None] * len(images)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(images))) as pool:
-            future_to_idx = {pool.submit(self._extract_one, img): idx for idx, img in enumerate(images)}
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(concurrency, len(images))
+        ) as pool:
+            future_to_idx = {
+                pool.submit(self._extract_one, img): idx for idx, img in enumerate(images)
+            }
             for future in concurrent.futures.as_completed(future_to_idx):
                 idx = future_to_idx[future]
                 try:
@@ -128,8 +130,10 @@ class OCRModel:
                 except Exception:
                     logger.warning("OCR sidecar batch item %d failed", idx, exc_info=True)
                     results[idx] = {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
-        return [r if r is not None else {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
-                for r in results]
+        return [
+            r if r is not None else {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
+            for r in results
+        ]
 
     def extract_text(self, image: Image.Image) -> dict[str, Any]:
         """Extract text from a single PIL image."""
@@ -163,7 +167,12 @@ class OCRModel:
             exc_type = type(exc).__name__.lower()
             if "timeout" in exc_type:
                 logger.warning("OCR timeout after sidecar request")
-                return {"ocr_text": "", "ocr_timeout": True, "ocr_error": True, "ocr_model": self.model_id}
+                return {
+                    "ocr_text": "",
+                    "ocr_timeout": True,
+                    "ocr_error": True,
+                    "ocr_model": self.model_id,
+                }
             logger.warning("OCR extraction failed", exc_info=True)
             return {"ocr_text": "", "ocr_error": True, "ocr_model": self.model_id}
 
@@ -185,7 +194,9 @@ class OCRModel:
                 logger.info(
                     "OCR: requested model %s routed through sidecar at %s using served model %s "
                     "(avoids loading another local VLM into GPU VRAM)",
-                    self.model_id, settings.QWEN_API_URL, settings.QWEN_MODEL,
+                    self.model_id,
+                    settings.QWEN_API_URL,
+                    settings.QWEN_MODEL,
                 )
             else:
                 self._backend = "vlm"
@@ -202,7 +213,11 @@ class OCRModel:
         # the OCR model is a VLM that would OOM if loaded locally alongside the sidecar.
         if settings.OCR_API_URL:
             api_url = settings.OCR_API_URL
-            model = settings.OCR_MODEL if settings.OCR_MODEL.lower() not in ("auto", "") else self.model_id
+            model = (
+                settings.OCR_MODEL
+                if settings.OCR_MODEL.lower() not in ("auto", "")
+                else self.model_id
+            )
             timeout = settings.OCR_TIMEOUT_SEC
         else:
             # Routed through an already-running sidecar. The actual served model is
@@ -217,7 +232,10 @@ class OCRModel:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                        },
                         {"type": "text", "text": _OCR_PROMPT},
                     ],
                 }
@@ -249,14 +267,13 @@ class OCRModel:
             return ""
         import os
         import tempfile
+
         # GOT-OCR2_0 requires the image saved to a temp file
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             tmp_path = f.name
         try:
             image.save(tmp_path, format="JPEG")
-            result = self._model.chat(
-                self._got_tokenizer, tmp_path, ocr_type="ocr"
-            )
+            result = self._model.chat(self._got_tokenizer, tmp_path, ocr_type="ocr")
             return result or ""
         finally:
             try:
@@ -267,6 +284,7 @@ class OCRModel:
     def _load_got(self) -> None:
         try:
             from transformers import AutoModel, AutoTokenizer
+
             device = _get_device()
             self._got_tokenizer = AutoTokenizer.from_pretrained(
                 self.model_id, trust_remote_code=True
@@ -285,7 +303,8 @@ class OCRModel:
         except Exception:
             logger.warning(
                 "Failed to load GOT-OCR2 model %s — run: python scripts/prepare_models.py --ocr",
-                self.model_id, exc_info=True,
+                self.model_id,
+                exc_info=True,
             )
             self._model = None
             self._load_failed = True
@@ -299,6 +318,7 @@ class OCRModel:
             return ""
         try:
             import torch
+
             pixel_values = self._processor(images=image, return_tensors="pt").pixel_values
             device = _get_device()
             pixel_values = pixel_values.to(device)
@@ -326,7 +346,8 @@ class OCRModel:
         except Exception:
             logger.warning(
                 "Failed to load TrOCR model %s — run: python scripts/prepare_models.py --ocr",
-                self.model_id, exc_info=True,
+                self.model_id,
+                exc_info=True,
             )
             self._model = None
             self._load_failed = True
@@ -342,20 +363,24 @@ class OCRModel:
             return ""
         try:
             import torch
+
             device = _get_device()
 
             # Strategy 1: processor.apply_chat_template (Qwen2-VL, LLaVA, etc.)
             try:
-                messages = [{"role": "user", "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": _OCR_PROMPT},
-                ]}]
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image"},
+                            {"type": "text", "text": _OCR_PROMPT},
+                        ],
+                    }
+                ]
                 text = self._processor.apply_chat_template(
                     messages, tokenize=False, add_generation_prompt=True
                 )
-                inputs = self._processor(
-                    text=text, images=[image], return_tensors="pt"
-                ).to(device)
+                inputs = self._processor(text=text, images=[image], return_tensors="pt").to(device)
             except AttributeError:
                 # Strategy 2: tokenizer.apply_chat_template with image placeholder
                 # (Phi-3.5-vision: Phi3VProcessor has no apply_chat_template but its
@@ -367,9 +392,9 @@ class OCRModel:
                     text = tokenizer.apply_chat_template(
                         messages, tokenize=False, add_generation_prompt=True
                     )
-                    inputs = self._processor(
-                        text=text, images=[image], return_tensors="pt"
-                    ).to(device)
+                    inputs = self._processor(text=text, images=[image], return_tensors="pt").to(
+                        device
+                    )
                 except Exception:
                     # Strategy 3: direct processor call (TrOCR-style / older models)
                     inputs = self._processor(
@@ -377,9 +402,9 @@ class OCRModel:
                     ).to(device)
             except Exception:
                 # Strategy 3 fallback for non-AttributeError failures
-                inputs = self._processor(
-                    text=_OCR_PROMPT, images=image, return_tensors="pt"
-                ).to(device)
+                inputs = self._processor(text=_OCR_PROMPT, images=image, return_tensors="pt").to(
+                    device
+                )
 
             with torch.no_grad():
                 out = self._model.generate(**inputs, max_new_tokens=512, do_sample=False)
@@ -405,6 +430,7 @@ class OCRModel:
         import gc
 
         import torch
+
         if getattr(self, "_model", None) is not None:
             try:
                 # Move to CPU first so accelerate's device_map hooks release GPU pages.
@@ -430,15 +456,14 @@ class OCRModel:
             # newer transformers renamed it to get_seq_length() on DynamicCache.
             try:
                 from transformers.cache_utils import DynamicCache
+
                 if not hasattr(DynamicCache, "get_max_length"):
                     DynamicCache.get_max_length = DynamicCache.get_seq_length  # type: ignore[attr-defined]
             except Exception:
                 pass
 
             device = _get_device()
-            self._processor = AutoProcessor.from_pretrained(
-                self.model_id, trust_remote_code=True
-            )
+            self._processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
             dtype = torch.float16 if (settings.USE_FP16 and device != "cpu") else torch.float32
             attn_impl = _best_attn_impl()
             # trust_remote_code models (e.g. Phi-3.5-vision) may have hardcoded flash_attn_func
@@ -458,21 +483,21 @@ class OCRModel:
             # device_map requires accelerate; fall back to .to(device) when absent
             try:
                 import accelerate  # noqa: F401
+
                 if device == "cuda":
                     load_kwargs["device_map"] = "auto"
             except ImportError:
                 pass
 
-            self._model = AutoModelForCausalLM.from_pretrained(
-                self.model_id, **load_kwargs
-            ).eval()
+            self._model = AutoModelForCausalLM.from_pretrained(self.model_id, **load_kwargs).eval()
             if "device_map" not in load_kwargs:
                 self._model = self._model.to(device)
             logger.info("VLM OCR loaded: %s on %s", self.model_id, device)
         except Exception:
             logger.warning(
                 "Failed to load VLM OCR model %s — run: python scripts/prepare_models.py --ocr",
-                self.model_id, exc_info=True,
+                self.model_id,
+                exc_info=True,
             )
             self._model = None
             self._load_failed = True
@@ -488,10 +513,11 @@ class OCRModel:
         if self._model is None:
             return ""
         try:
-            inputs = self._processor(
-                text="<OCR>", images=image, return_tensors="pt"
-            ).to(_get_device())
+            inputs = self._processor(text="<OCR>", images=image, return_tensors="pt").to(
+                _get_device()
+            )
             import torch
+
             with torch.no_grad():
                 ids = self._model.generate(**inputs, max_new_tokens=512)
             result = self._processor.batch_decode(ids, skip_special_tokens=False)[0]
@@ -504,22 +530,27 @@ class OCRModel:
     def _load_florence_ocr(self) -> None:
         try:
             from transformers import AutoModelForCausalLM, AutoProcessor
+
             device = _get_device()
-            self._processor = AutoProcessor.from_pretrained(
-                self.model_id, trust_remote_code=True
-            )
+            self._processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
             import torch
-            self._model = AutoModelForCausalLM.from_pretrained(
-                self.model_id,
-                torch_dtype=torch.float16 if settings.USE_FP16 else torch.float32,
-                trust_remote_code=True,
-                attn_implementation=_best_attn_impl(),
-            ).to(device).eval()
+
+            self._model = (
+                AutoModelForCausalLM.from_pretrained(
+                    self.model_id,
+                    torch_dtype=torch.float16 if settings.USE_FP16 else torch.float32,
+                    trust_remote_code=True,
+                    attn_implementation=_best_attn_impl(),
+                )
+                .to(device)
+                .eval()
+            )
             logger.info("Florence OCR loaded: %s", self.model_id)
         except Exception:
             logger.warning(
                 "Failed to load Florence OCR model %s — run: python scripts/prepare_models.py --ocr",
-                self.model_id, exc_info=True,
+                self.model_id,
+                exc_info=True,
             )
             self._model = None
             self._load_failed = True
@@ -540,4 +571,5 @@ def _encode_b64(image: Image.Image) -> str:
 
 def _get_device() -> str:
     from selfsuvis.pipeline.core import resolve_device
+
     return resolve_device()

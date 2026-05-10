@@ -2,7 +2,6 @@ import unittest
 
 
 class TestMultimodalPairMining(unittest.TestCase):
-
     def test_pair_mining_adds_auxiliary_pairs_deterministically(self):
         from selfsuvis.pipeline.workflows.local.steps_ssl import _build_multimodal_pair_mining
 
@@ -30,11 +29,31 @@ class TestMultimodalPairMining(unittest.TestCase):
         }
         platform_state_fusion = {
             "posterior_samples": [
-                {"t_sec": 0.0, "velocity_enu_mps": {"x": 1.0, "y": 0.0, "z": 0.0}, "covariance_trace": 4.0},
-                {"t_sec": 1.0, "velocity_enu_mps": {"x": 1.1, "y": 0.0, "z": 0.0}, "covariance_trace": 4.0},
-                {"t_sec": 2.0, "velocity_enu_mps": {"x": 0.9, "y": 0.0, "z": 0.0}, "covariance_trace": 5.0},
-                {"t_sec": 3.0, "velocity_enu_mps": {"x": 1.0, "y": 0.1, "z": 0.0}, "covariance_trace": 4.0},
-                {"t_sec": 4.0, "velocity_enu_mps": {"x": 1.0, "y": 0.0, "z": 0.0}, "covariance_trace": 4.0},
+                {
+                    "t_sec": 0.0,
+                    "velocity_enu_mps": {"x": 1.0, "y": 0.0, "z": 0.0},
+                    "covariance_trace": 4.0,
+                },
+                {
+                    "t_sec": 1.0,
+                    "velocity_enu_mps": {"x": 1.1, "y": 0.0, "z": 0.0},
+                    "covariance_trace": 4.0,
+                },
+                {
+                    "t_sec": 2.0,
+                    "velocity_enu_mps": {"x": 0.9, "y": 0.0, "z": 0.0},
+                    "covariance_trace": 5.0,
+                },
+                {
+                    "t_sec": 3.0,
+                    "velocity_enu_mps": {"x": 1.0, "y": 0.1, "z": 0.0},
+                    "covariance_trace": 4.0,
+                },
+                {
+                    "t_sec": 4.0,
+                    "velocity_enu_mps": {"x": 1.0, "y": 0.0, "z": 0.0},
+                    "covariance_trace": 4.0,
+                },
             ]
         }
         full_fusion_result = {

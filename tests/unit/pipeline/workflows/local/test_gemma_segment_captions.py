@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 
 # ── Stubs needed before loading steps_caption ────────────────────────────────
 
+
 def _stub_settings(**overrides):
     s = MagicMock()
     s.GEMMA_API_URL = overrides.get("GEMMA_API_URL", "")
@@ -51,14 +52,19 @@ def _write_frame(path: Path, color=(100, 200, 100)) -> None:
 
 # ── Tests for _analyze_caption_sequence ──────────────────────────────────────
 
+
 def test_analyze_caption_sequence_detects_boundary():
     from selfsuvis.pipeline.workflows.local._common import _analyze_caption_sequence
 
     # Frames 0-2 "road", frames 3-5 "forest" — one boundary at index 3
     results = [
-        {"t_sec": float(i), "frame_path": f"/f{i}.jpg",
-         "caption": "urban road vehicles traffic asphalt" if i < 3
-                    else "completely different scene forest trees sky"}
+        {
+            "t_sec": float(i),
+            "frame_path": f"/f{i}.jpg",
+            "caption": "urban road vehicles traffic asphalt"
+            if i < 3
+            else "completely different scene forest trees sky",
+        }
         for i in range(6)
     ]
     enriched = _analyze_caption_sequence(results, new_segment_threshold=0.45)
@@ -147,6 +153,7 @@ def test_select_ocr_candidate_frames_prefers_text_like_images(tmp_path):
 
 # ── Tests for write_gemma_segment_captions_md ─────────────────────────────────
 
+
 def test_write_gemma_segment_captions_md(tmp_path):
     from selfsuvis.pipeline.workflows.local.steps_report import write_gemma_segment_captions_md
 
@@ -183,6 +190,7 @@ def test_write_gemma_segment_captions_md_empty(tmp_path):
 
 
 # ── Tests for _gemma_diff_two_frames_via_api ──────────────────────────────────
+
 
 def test_gemma_diff_returns_content_from_openai_compat(tmp_path):
     from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_diff_two_frames_via_api
@@ -242,6 +250,7 @@ def test_gemma_diff_returns_empty_on_missing_frames(tmp_path):
 
 # ── Tests for step_gemma_segment_captions ────────────────────────────────────
 
+
 @patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
 def test_step_gemma_segment_captions_skips_when_no_api_url(mock_settings, tmp_path):
     from selfsuvis.pipeline.workflows.local.steps_caption import step_gemma_segment_captions
@@ -286,7 +295,10 @@ def test_step_gemma_segment_captions_writes_md(mock_settings, mock_diff, tmp_pat
     frame_list = [(r["frame_path"], r["t_sec"]) for r in caption_results]
 
     result = step_gemma_segment_captions(
-        frame_list, caption_results, "test_video", tmp_path,
+        frame_list,
+        caption_results,
+        "test_video",
+        tmp_path,
         gemma_api_url="http://localhost:11434/v1",
         gemma_api_model="gemma4:e4b",
     )
@@ -311,7 +323,10 @@ def test_step_gemma_segment_captions_no_boundaries(mock_settings, mock_diff, tmp
     frame_list = [(r["frame_path"], r["t_sec"]) for r in caption_results]
 
     result = step_gemma_segment_captions(
-        frame_list, caption_results, "vid", tmp_path,
+        frame_list,
+        caption_results,
+        "vid",
+        tmp_path,
         gemma_api_url="http://localhost:11434/v1",
     )
     assert result["skipped"] is True
@@ -320,6 +335,7 @@ def test_step_gemma_segment_captions_no_boundaries(mock_settings, mock_diff, tmp
 
 
 # ── Tests for _gemma_extract_frame_structured (Qwen fallback) ─────────────────
+
 
 def test_gemma_extract_frame_structured_parses_json(tmp_path):
     from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_extract_frame_structured
@@ -330,16 +346,22 @@ def test_gemma_extract_frame_structured_parses_json(tmp_path):
     mock_resp = MagicMock()
     mock_resp.raise_for_status = MagicMock()
     mock_resp.json.return_value = {
-        "choices": [{
-            "message": {
-                "content": json.dumps({
-                    "vehicle_groups": [{"type": "car", "count": 2, "color": "red", "position": "centre"}],
-                    "road_surface": "asphalt",
-                    "road_condition": "clear",
-                    "scene_summary": "Two red cars on a dry asphalt road.",
-                })
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "vehicle_groups": [
+                                {"type": "car", "count": 2, "color": "red", "position": "centre"}
+                            ],
+                            "road_surface": "asphalt",
+                            "road_condition": "clear",
+                            "scene_summary": "Two red cars on a dry asphalt road.",
+                        }
+                    )
+                }
             }
-        }]
+        ]
     }
 
     with patch("httpx.post", return_value=mock_resp):
@@ -378,6 +400,7 @@ def test_gemma_extract_frame_structured_returns_parse_error_on_bad_json(tmp_path
 
 
 # ── Tests for _step_qwen_captioning_gemma_fallback ───────────────────────────
+
 
 @patch("selfsuvis.pipeline.workflows.local.steps_caption._gemma_extract_frame_structured")
 @patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
@@ -426,11 +449,20 @@ def test_step_qwen_captioning_uses_gemma_fallback_when_qwen_disabled(mock_settin
     mock_qwen_instance.is_enabled.return_value = False
 
     frame_list = [("/frames/f0.jpg", 0.0)]
-    with patch("selfsuvis.pipeline.workflows.local.steps_caption._step_qwen_captioning_gemma_fallback",
-               return_value=fallback_result) as mock_fallback, \
-         patch.dict("sys.modules", {
-             "selfsuvis.pipeline.vision.qwen": MagicMock(QwenModel=MagicMock(return_value=mock_qwen_instance))
-         }):
+    with (
+        patch(
+            "selfsuvis.pipeline.workflows.local.steps_caption._step_qwen_captioning_gemma_fallback",
+            return_value=fallback_result,
+        ) as mock_fallback,
+        patch.dict(
+            "sys.modules",
+            {
+                "selfsuvis.pipeline.vision.qwen": MagicMock(
+                    QwenModel=MagicMock(return_value=mock_qwen_instance)
+                )
+            },
+        ),
+    ):
         result = step_qwen_captioning(frame_list, "vid", tmp_path, {}, [])
 
     mock_fallback.assert_called_once()

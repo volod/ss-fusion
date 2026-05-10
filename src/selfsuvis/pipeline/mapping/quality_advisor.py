@@ -4,7 +4,6 @@ Produces a run artifact that explains why SfM quality is weak or strong and
 what capture changes would most improve the next flight.
 """
 
-
 import json
 import math
 import subprocess
@@ -19,7 +18,9 @@ from PIL import Image, ImageFilter
 from selfsuvis.pipeline.mapping.common import write_json_report, write_markdown_report
 
 
-def _sample_evenly(frame_list: Sequence[tuple[str, float]], max_frames: int = 24) -> list[tuple[str, float]]:
+def _sample_evenly(
+    frame_list: Sequence[tuple[str, float]], max_frames: int = 24
+) -> list[tuple[str, float]]:
     if len(frame_list) <= max_frames:
         return list(frame_list)
     idxs = np.linspace(0, len(frame_list) - 1, num=max_frames, dtype=int)
@@ -171,7 +172,9 @@ def _parse_frame_rate(rate: str) -> float:
         return 0.0
 
 
-def _collect_bbox_areas(items: Iterable[dict[str, Any]], labels: set[str] | None = None) -> list[float]:
+def _collect_bbox_areas(
+    items: Iterable[dict[str, Any]], labels: set[str] | None = None
+) -> list[float]:
     out: list[float] = []
     for det in items:
         label = str(det.get("label", "") or "").lower()
@@ -253,12 +256,21 @@ def advise_map_quality(
     bbox_areas: list[float] = []
     if tracking_results:
         for frame in tracking_results.get("frames", []) or []:
-            bbox_areas.extend(_collect_bbox_areas(frame.get("detections", []) or [], labels={"car", "truck", "bus", "motorcycle", "vehicle"}))
+            bbox_areas.extend(
+                _collect_bbox_areas(
+                    frame.get("detections", []) or [],
+                    labels={"car", "truck", "bus", "motorcycle", "vehicle"},
+                )
+            )
     median_vehicle_area = float(median(bbox_areas)) if bbox_areas else 0.0
 
     sfm_poses = int((map_result or {}).get("sfm_poses", 0) or 0)
     frame_anchor_count = int(len((map_result or {}).get("frame_positions") or []) or 0)
-    point_count = int((map_result or {}).get("points").shape[0]) if isinstance((map_result or {}).get("points"), np.ndarray) else int((map_result or {}).get("point_count", 0) or 0)
+    point_count = (
+        int((map_result or {}).get("points").shape[0])
+        if isinstance((map_result or {}).get("points"), np.ndarray)
+        else int((map_result or {}).get("point_count", 0) or 0)
+    )
 
     metrics = {
         "clip_duration_sec": duration_sec,
@@ -267,7 +279,9 @@ def advise_map_quality(
         "source_fps": source_fps,
         "sampled_frames_for_advisor": len(sampled),
         "brightness_mean": float(np.mean(brightness)) if brightness else 0.0,
-        "brightness_cv": float(np.std(brightness) / max(np.mean(brightness), 1e-6)) if brightness else 0.0,
+        "brightness_cv": float(np.std(brightness) / max(np.mean(brightness), 1e-6))
+        if brightness
+        else 0.0,
         "contrast_mean": float(np.mean(contrast)) if contrast else 0.0,
         "sharpness_mean": float(np.mean(sharpness)) if sharpness else 0.0,
         "keypoints_median": float(median(keypoints)) if keypoints else 0.0,
@@ -288,54 +302,110 @@ def advise_map_quality(
             if min(width, height) >= 1080
             else ("fair" if min(width, height) >= 720 else "poor")
         ),
-        "exposure_consistency": _score_band(metrics["brightness_cv"], good=0.06, fair=0.12, high_is_good=False),
+        "exposure_consistency": _score_band(
+            metrics["brightness_cv"], good=0.06, fair=0.12, high_is_good=False
+        ),
         "sharpness": _score_band(metrics["sharpness_mean"], good=120.0, fair=60.0),
         "feature_richness": _score_band(metrics["keypoints_median"], good=220.0, fair=120.0),
-        "overlap_matchability": _score_band(metrics["match_inlier_ratio_mean"], good=0.45, fair=0.25),
+        "overlap_matchability": _score_band(
+            metrics["match_inlier_ratio_mean"], good=0.45, fair=0.25
+        ),
         "parallax": _score_band(metrics["translation_norm_median"], good=0.035, fair=0.012),
         "field_size": _score_band(metrics["vehicle_bbox_area_median"], good=0.006, fair=0.0025),
-        "camera_angle": "poor" if angle_hint["label"] == "mostly_overhead" else ("good" if angle_hint["label"] == "oblique" else "fair"),
+        "camera_angle": "poor"
+        if angle_hint["label"] == "mostly_overhead"
+        else ("good" if angle_hint["label"] == "oblique" else "fair"),
     }
 
     issues: list[str] = []
     recommendations: list[str] = []
     if assessments["duration"] == "poor":
-        issues.append(f"Clip is too short for robust mapping ({metrics['clip_duration_sec']:.1f}s).")
-        recommendations.append("Capture at least 25-40 s over the area of interest before expecting high-quality SfM.")
+        issues.append(
+            f"Clip is too short for robust mapping ({metrics['clip_duration_sec']:.1f}s)."
+        )
+        recommendations.append(
+            "Capture at least 25-40 s over the area of interest before expecting high-quality SfM."
+        )
     if assessments["resolution_detail"] == "poor":
         issues.append(f"Source resolution is low for high-detail mapping ({width}x{height}).")
-        recommendations.append("Use at least 1280x720, and preferably 1920x1080 or higher, for high-quality post-flight mapping.")
+        recommendations.append(
+            "Use at least 1280x720, and preferably 1920x1080 or higher, for high-quality post-flight mapping."
+        )
     if assessments["parallax"] == "poor":
-        issues.append(f"Adjacent-frame translation is weak (median normalized motion {metrics['translation_norm_median']:.3f}).")
-        recommendations.append("Fly with deliberate lateral motion or orbit paths; avoid mostly straight top-down glide with little viewpoint change.")
+        issues.append(
+            f"Adjacent-frame translation is weak (median normalized motion {metrics['translation_norm_median']:.3f})."
+        )
+        recommendations.append(
+            "Fly with deliberate lateral motion or orbit paths; avoid mostly straight top-down glide with little viewpoint change."
+        )
     if assessments["camera_angle"] == "poor":
-        issues.append("Scene text suggests mostly overhead capture, which reduces facade and depth cues.")
-        recommendations.append("Tilt the camera to roughly 25-40 degrees off nadir for at least one mapping pass.")
+        issues.append(
+            "Scene text suggests mostly overhead capture, which reduces facade and depth cues."
+        )
+        recommendations.append(
+            "Tilt the camera to roughly 25-40 degrees off nadir for at least one mapping pass."
+        )
     if assessments["field_size"] == "poor":
-        issues.append(f"Objects occupy a very small part of the frame (median vehicle bbox area {metrics['vehicle_bbox_area_median']:.4f}).")
-        recommendations.append("Reduce altitude or narrow the field of view until vehicles and lane markings are materially larger in frame.")
+        issues.append(
+            f"Objects occupy a very small part of the frame (median vehicle bbox area {metrics['vehicle_bbox_area_median']:.4f})."
+        )
+        recommendations.append(
+            "Reduce altitude or narrow the field of view until vehicles and lane markings are materially larger in frame."
+        )
     if assessments["sharpness"] == "poor":
-        issues.append(f"Frame sharpness is low (mean Laplacian variance {metrics['sharpness_mean']:.1f}).")
-        recommendations.append("Reduce speed, increase shutter speed, and avoid aggressive yaw during capture.")
+        issues.append(
+            f"Frame sharpness is low (mean Laplacian variance {metrics['sharpness_mean']:.1f})."
+        )
+        recommendations.append(
+            "Reduce speed, increase shutter speed, and avoid aggressive yaw during capture."
+        )
     if assessments["exposure_consistency"] == "poor":
-        issues.append(f"Exposure varies across the clip (brightness CV {metrics['brightness_cv']:.3f}).")
-        recommendations.append("Lock exposure/white balance during the mapping pass when lighting is changing.")
+        issues.append(
+            f"Exposure varies across the clip (brightness CV {metrics['brightness_cv']:.3f})."
+        )
+        recommendations.append(
+            "Lock exposure/white balance during the mapping pass when lighting is changing."
+        )
     if assessments["feature_richness"] == "poor":
-        issues.append(f"Feature count is low (median ORB keypoints {metrics['keypoints_median']:.0f}).")
-        recommendations.append("Prefer routes containing lane markings, poles, building edges, parked vehicles, and other static texture.")
+        issues.append(
+            f"Feature count is low (median ORB keypoints {metrics['keypoints_median']:.0f})."
+        )
+        recommendations.append(
+            "Prefer routes containing lane markings, poles, building edges, parked vehicles, and other static texture."
+        )
     if assessments["overlap_matchability"] == "poor":
-        issues.append(f"Inter-frame geometric consistency is weak (mean inlier ratio {metrics['match_inlier_ratio_mean']:.2f}).")
-        recommendations.append("Increase image overlap with slower motion and denser sampling, or use cross-hatch passes instead of a single pass.")
+        issues.append(
+            f"Inter-frame geometric consistency is weak (mean inlier ratio {metrics['match_inlier_ratio_mean']:.2f})."
+        )
+        recommendations.append(
+            "Increase image overlap with slower motion and denser sampling, or use cross-hatch passes instead of a single pass."
+        )
 
     readiness_terms = [
-        1.0 if assessments["duration"] == "good" else (0.5 if assessments["duration"] == "fair" else 0.0),
-        1.0 if assessments["resolution_detail"] == "good" else (0.5 if assessments["resolution_detail"] == "fair" else 0.0),
-        1.0 if assessments["parallax"] == "good" else (0.5 if assessments["parallax"] == "fair" else 0.0),
-        1.0 if assessments["camera_angle"] == "good" else (0.5 if assessments["camera_angle"] == "fair" else 0.0),
-        1.0 if assessments["field_size"] == "good" else (0.5 if assessments["field_size"] == "fair" else 0.0),
-        1.0 if assessments["exposure_consistency"] == "good" else (0.5 if assessments["exposure_consistency"] == "fair" else 0.0),
-        1.0 if assessments["sharpness"] == "good" else (0.5 if assessments["sharpness"] == "fair" else 0.0),
-        1.0 if assessments["feature_richness"] == "good" else (0.5 if assessments["feature_richness"] == "fair" else 0.0),
+        1.0
+        if assessments["duration"] == "good"
+        else (0.5 if assessments["duration"] == "fair" else 0.0),
+        1.0
+        if assessments["resolution_detail"] == "good"
+        else (0.5 if assessments["resolution_detail"] == "fair" else 0.0),
+        1.0
+        if assessments["parallax"] == "good"
+        else (0.5 if assessments["parallax"] == "fair" else 0.0),
+        1.0
+        if assessments["camera_angle"] == "good"
+        else (0.5 if assessments["camera_angle"] == "fair" else 0.0),
+        1.0
+        if assessments["field_size"] == "good"
+        else (0.5 if assessments["field_size"] == "fair" else 0.0),
+        1.0
+        if assessments["exposure_consistency"] == "good"
+        else (0.5 if assessments["exposure_consistency"] == "fair" else 0.0),
+        1.0
+        if assessments["sharpness"] == "good"
+        else (0.5 if assessments["sharpness"] == "fair" else 0.0),
+        1.0
+        if assessments["feature_richness"] == "good"
+        else (0.5 if assessments["feature_richness"] == "fair" else 0.0),
     ]
     readiness_score = round(100.0 * (sum(readiness_terms) / len(readiness_terms)), 1)
 
@@ -366,7 +436,9 @@ def advise_map_quality(
     payload = {
         "readiness_score": readiness_score,
         "summary": {
-            "overall": "good" if readiness_score >= 75 else ("fair" if readiness_score >= 50 else "poor"),
+            "overall": "good"
+            if readiness_score >= 75
+            else ("fair" if readiness_score >= 50 else "poor"),
             "issues": issues,
             "recommendations": recommendations,
         },

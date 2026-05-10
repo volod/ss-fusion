@@ -52,7 +52,12 @@ def _anchor_from_global_pose(global_pose_json: dict[str, Any] | None) -> dict[st
 def _build_frame_anchor_lookup(
     frame_positions: list[dict[str, Any]] | None,
     frame_observations: list[dict[str, Any]],
-) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, float]], list[tuple[float, dict[str, float]]], str]:
+) -> tuple[
+    dict[str, dict[str, float]],
+    dict[str, dict[str, float]],
+    list[tuple[float, dict[str, float]]],
+    str,
+]:
     by_frame_path: dict[str, dict[str, float]] = {}
     by_frame_id: dict[str, dict[str, float]] = {}
     by_time: list[tuple[float, dict[str, float]]] = []
@@ -187,7 +192,9 @@ def build_semantic_environment_graph(
                 candidate_dist = dist
 
         obs = {
-            "frame_id": str(frame.get("frame_id") or frame.get("id") or frame.get("frame_path") or ""),
+            "frame_id": str(
+                frame.get("frame_id") or frame.get("id") or frame.get("frame_path") or ""
+            ),
             "frame_path": frame.get("frame_path"),
             "t_sec": float(frame.get("t_sec", 0.0)),
             "position": {"x": pos[0], "y": pos[1], "z": pos[2]},
@@ -341,7 +348,9 @@ def write_semantic_graph_markdown(
         lines.append(f"- `{label}`: {count}")
     lines.append("")
     lines.append("## Top semantic nodes")
-    for node in sorted(graph.get("nodes", []), key=lambda item: (-item["observations"], item["label"]))[:12]:
+    for node in sorted(
+        graph.get("nodes", []), key=lambda item: (-item["observations"], item["label"])
+    )[:12]:
         pos = node["position"]
         lines.append(
             f"- `{node['label']}` at ({pos['x']:.2f}, {pos['y']:.2f}, {pos['z']:.2f}) "

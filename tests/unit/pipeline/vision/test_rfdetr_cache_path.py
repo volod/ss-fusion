@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 from selfsuvis.pipeline.vision import rfdetr

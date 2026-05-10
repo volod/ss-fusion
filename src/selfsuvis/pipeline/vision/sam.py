@@ -68,16 +68,19 @@ def _detect_backend(cfg: str) -> str:
     # Auto-detect by import availability (sam3 preferred, sam2 fallback)
     try:
         import sam3  # type: ignore[import]  # noqa: F401
+
         return _BACKEND_SAM3
     except ImportError:
         pass
     try:
         import sam2  # type: ignore[import]  # noqa: F401
+
         return _BACKEND_SAM2
     except ImportError:
         pass
     try:
         import segment_anything  # type: ignore[import]  # noqa: F401
+
         # SAM1 requires a manually downloaded checkpoint file.  Without it the
         # backend cannot load, so treat an unconfigured SAM1 the same as "not
         # installed" rather than advertising it and then logging a WARNING.
@@ -98,6 +101,7 @@ def _get_device() -> str:
 
 
 # ── Main predictor class ──────────────────────────────────────────────────────
+
 
 class SAMPredictor:
     """Unified SAM2/SAM3 predictor for box-prompted instance segmentation.
@@ -149,10 +153,9 @@ class SAMPredictor:
             return []
         w, h = image.size
         # Convert normalised → pixel coordinates
-        boxes_px = np.array([
-            [x1 * w, y1 * h, x2 * w, y2 * h]
-            for x1, y1, x2, y2 in bboxes_norm
-        ], dtype=np.float32)
+        boxes_px = np.array(
+            [[x1 * w, y1 * h, x2 * w, y2 * h] for x1, y1, x2, y2 in bboxes_norm], dtype=np.float32
+        )
         try:
             return self._predict_with_backend(image, boxes_px, w, h)
         except Exception as exc:
@@ -178,6 +181,7 @@ class SAMPredictor:
         try:
             if backend_tag == "sam3":
                 import sam3.automatic_mask_generator as _sam3_amg  # type: ignore
+
                 amg_cls = getattr(_sam3_amg, "SAM3AutomaticMaskGenerator", None)
                 if amg_cls is None:
                     amg_cls = getattr(_sam3_amg, "SAMAutomaticMaskGenerator", None)
@@ -191,6 +195,7 @@ class SAMPredictor:
                     )
             elif backend_tag == "sam2":
                 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator  # type: ignore
+
                 self._amg = SAM2AutomaticMaskGenerator(
                     predictor_obj.model,
                     points_per_side=points_per_side,
@@ -254,12 +259,14 @@ class SAMPredictor:
             for col in range(grid_side):
                 cx = (col + 0.5) / grid_side
                 cy = (row + 0.5) / grid_side
-                grid_bboxes.append((
-                    max(0.0, cx - pad),
-                    max(0.0, cy - pad),
-                    min(1.0, cx + pad),
-                    min(1.0, cy + pad),
-                ))
+                grid_bboxes.append(
+                    (
+                        max(0.0, cx - pad),
+                        max(0.0, cy - pad),
+                        min(1.0, cx + pad),
+                        min(1.0, cy + pad),
+                    )
+                )
 
         results: list[dict[str, Any]] = []
         for mask_info in self.predict_boxes(image, grid_bboxes):
@@ -273,13 +280,15 @@ class SAMPredictor:
             x1, x2 = int(xs.min()), int(xs.max())
             y1, y2 = int(ys.min()), int(ys.max())
             area = int(mask.sum())
-            results.append({
-                "mask": mask,
-                "bbox": [x1, y1, x2 - x1, y2 - y1],
-                "area": area,
-                "area_norm": round(float(area) / max(1, w * h), 6),
-                "score": round(float(mask_info.get("score", 0.0)), 4),
-            })
+            results.append(
+                {
+                    "mask": mask,
+                    "bbox": [x1, y1, x2 - x1, y2 - y1],
+                    "area": area,
+                    "area_norm": round(float(area) / max(1, w * h), 6),
+                    "score": round(float(mask_info.get("score", 0.0)), 4),
+                }
+            )
         return results
 
     def release(self) -> None:
@@ -289,6 +298,7 @@ class SAMPredictor:
         gc.collect()
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception:
@@ -332,7 +342,10 @@ class SAMPredictor:
         """Load SAM3 predictor (https://github.com/facebookresearch/sam3)."""
         try:
             from sam3.sam3_image_predictor import SAM3ImagePredictor  # type: ignore[import]
-            model_id = self._model_name if self._model_name in _SAM3_HF_MODELS else _SAM3_HF_MODELS[0]
+
+            model_id = (
+                self._model_name if self._model_name in _SAM3_HF_MODELS else _SAM3_HF_MODELS[0]
+            )
             predictor = SAM3ImagePredictor.from_pretrained(model_id)
             if device == "cuda":
                 predictor.model.to("cuda")
@@ -347,7 +360,10 @@ class SAMPredictor:
         """Load SAM2 predictor (pip: sam2)."""
         try:
             from sam2.sam2_image_predictor import SAM2ImagePredictor  # type: ignore[import]
-            model_id = self._model_name if self._model_name in _SAM2_HF_MODELS else _SAM2_HF_MODELS[0]
+
+            model_id = (
+                self._model_name if self._model_name in _SAM2_HF_MODELS else _SAM2_HF_MODELS[0]
+            )
             predictor = SAM2ImagePredictor.from_pretrained(model_id)
             if device == "cuda":
                 predictor.model.to("cuda")
@@ -361,6 +377,7 @@ class SAMPredictor:
     def _load_sam1(self, device: str):
         """Load original SAM predictor (pip: segment-anything)."""
         from segment_anything import SamPredictor, sam_model_registry  # type: ignore[import]
+
         checkpoint = settings.SAM_CHECKPOINT
         if not checkpoint:
             raise RuntimeError(
@@ -389,6 +406,7 @@ class SAMPredictor:
         if backend_tag in ("sam2", "sam3"):
             try:
                 import torch
+
                 with torch.inference_mode():
                     predictor.set_image(img_np)
                     for box in boxes_px:
@@ -400,11 +418,13 @@ class SAMPredictor:
                         mask = masks[0].astype(bool)
                         score = float(scores[0])
                         area_norm = float(mask.sum()) / (w * h)
-                        results.append({
-                            "mask": mask,
-                            "score": round(score, 4),
-                            "area_norm": round(area_norm, 6),
-                        })
+                        results.append(
+                            {
+                                "mask": mask,
+                                "score": round(score, 4),
+                                "area_norm": round(area_norm, 6),
+                            }
+                        )
             except Exception as exc:
                 logger.debug("SAM2/3 predict_boxes failed: %s", exc)
                 results = []
@@ -420,11 +440,13 @@ class SAMPredictor:
                     mask = masks[0].astype(bool)
                     score = float(scores[0])
                     area_norm = float(mask.sum()) / (w * h)
-                    results.append({
-                        "mask": mask,
-                        "score": round(score, 4),
-                        "area_norm": round(area_norm, 6),
-                    })
+                    results.append(
+                        {
+                            "mask": mask,
+                            "score": round(score, 4),
+                            "area_norm": round(area_norm, 6),
+                        }
+                    )
                 except Exception:
                     results.append({"mask": None, "score": 0.0, "area_norm": 0.0})
 

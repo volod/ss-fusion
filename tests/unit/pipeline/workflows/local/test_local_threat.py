@@ -4,7 +4,6 @@ from pathlib import Path
 
 
 class TestLocalThreatContradictions(unittest.TestCase):
-
     def test_contradictions_reduce_automation_confidence_and_policy_biases_inspect_sensor(self):
         from selfsuvis.pipeline.workflows.local.steps_local_threat import step_local_threat
         from selfsuvis.pipeline.workflows.local.steps_policy import step_policy

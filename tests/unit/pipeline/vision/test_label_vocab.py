@@ -1,9 +1,9 @@
 """Unit tests for pipeline.label_vocab."""
 
-
 from selfsuvis.pipeline.vision.labels import DEFAULT_LABELS, load_labels
 
 # --- DEFAULT_LABELS ---
+
 
 def test_default_labels_is_nonempty_list():
     """DEFAULT_LABELS is a non-empty list of strings."""
@@ -22,6 +22,7 @@ def test_default_labels_no_duplicates():
 
 
 # --- load_labels: fallback cases ---
+
 
 def test_load_labels_none_returns_defaults():
     """load_labels(None) returns DEFAULT_LABELS."""
@@ -51,6 +52,7 @@ def test_load_labels_all_comments_returns_defaults(tmp_path):
 
 
 # --- load_labels: file reading ---
+
 
 def test_load_labels_from_file_happy_path(tmp_path):
     """load_labels reads labels from a file, one per line."""
@@ -87,8 +89,6 @@ def test_load_labels_skips_comment_lines(tmp_path):
 def test_load_labels_mixed_content(tmp_path):
     """load_labels handles comments, blank lines, and real labels together."""
     f = tmp_path / "labels.txt"
-    f.write_text(
-        "# animals\ndog\ncat\n\n# vehicles\ncar\ntruck\n"
-    )
+    f.write_text("# animals\ndog\ncat\n\n# vehicles\ncar\ntruck\n")
     result = load_labels(str(f))
     assert result == ["dog", "cat", "car", "truck"]

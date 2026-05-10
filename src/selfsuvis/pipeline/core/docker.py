@@ -23,4 +23,3 @@ REALTIME_ENGINE_IMAGES: Final[dict[str, DockerImageRef]] = {
     "nvblox": DockerImageRef("REALTIME_NVBLOX_IMAGE"),
     "voxblox": DockerImageRef("REALTIME_VOXBLOX_IMAGE"),
 }
-

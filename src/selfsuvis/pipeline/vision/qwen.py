@@ -56,17 +56,17 @@ _QWEN_SYSTEM_PROMPT = (
 
 _QWEN_USER_PROMPT = (
     "Analyse the image and return ONLY a JSON object with these keys:\n"
-    '{\n'
+    "{\n"
     '  "vehicle_groups": [\n'
     '    {"type": "truck|car|bus|motorcycle|emergency|military|van|other",\n'
     '     "count": <integer>,\n'
     '     "color": "<dominant color or unknown>",\n'
     '     "position": "<front|centre|rear|left|right|scattered>"}\n'
-    '  ],\n'
+    "  ],\n"
     '  "road_surface": "asphalt|concrete|gravel|dirt|unknown",\n'
     '  "road_condition": "clear|wet|snow|ice|debris|unknown",\n'
     '  "scene_summary": "<one sentence describing the scene>"\n'
-    '}\n'
+    "}\n"
     "If no vehicles are visible, return an empty vehicle_groups list."
 )
 
@@ -113,20 +113,26 @@ def _build_user_content(
         {"type": "text", "text": _QWEN_USER_PROMPT},
     ]
     if extra_context and extra_context.strip():
-        content.append({
-            "type": "text",
-            "text": f"\n[Prior observations about this scene]:\n{extra_context.strip()}",
-        })
+        content.append(
+            {
+                "type": "text",
+                "text": f"\n[Prior observations about this scene]:\n{extra_context.strip()}",
+            }
+        )
     if subtitle_text and subtitle_text.strip():
-        content.append({
-            "type": "text",
-            "text": f"\n[Audio context at this moment]: {subtitle_text.strip()}",
-        })
+        content.append(
+            {
+                "type": "text",
+                "text": f"\n[Audio context at this moment]: {subtitle_text.strip()}",
+            }
+        )
     if ocr_text and ocr_text.strip():
-        content.append({
-            "type": "text",
-            "text": f"\n[Text visible in frame]: {ocr_text.strip()}",
-        })
+        content.append(
+            {
+                "type": "text",
+                "text": f"\n[Text visible in frame]: {ocr_text.strip()}",
+            }
+        )
     return content
 
 
@@ -295,7 +301,9 @@ class QwenModel:
                 if not self._clip_prescreen_fn(image):
                     return {"clip_filtered": True, "reason": "below_vehicle_threshold"}
             except Exception:
-                logger.debug("CLIP prescreen raised an exception; proceeding without filter", exc_info=True)
+                logger.debug(
+                    "CLIP prescreen raised an exception; proceeding without filter", exc_info=True
+                )
         elif settings.QWEN_CLIP_THRESHOLD > 0:
             tagger = self._lazy_tagger()
             if tagger is not None:
@@ -306,19 +314,24 @@ class QwenModel:
                     if labels:
                         top_label = labels[0]["label"]
                         top_score = labels[0]["score"]
-                        if top_label.lower() not in _VEHICLE_LABELS or top_score < settings.QWEN_CLIP_THRESHOLD:
+                        if (
+                            top_label.lower() not in _VEHICLE_LABELS
+                            or top_score < settings.QWEN_CLIP_THRESHOLD
+                        ):
                             return {"clip_filtered": True, "reason": "below_vehicle_threshold"}
                     else:
                         return {"clip_filtered": True, "reason": "below_vehicle_threshold"}
                 except Exception:
-                    logger.debug("Tagger prescreen failed; proceeding without filter", exc_info=True)
+                    logger.debug(
+                        "Tagger prescreen failed; proceeding without filter", exc_info=True
+                    )
 
         # Build the user message content, including optional audio/OCR context.
         user_content = _build_user_content(image, subtitle_text, ocr_text)
 
         # Call the Gemma sidecar via OpenAI-compatible API (falls back to Qwen settings
         # for deployments that have not yet migrated to GEMMA_API_URL).
-        _api_url   = settings.GEMMA_API_URL or settings.QWEN_API_URL
+        _api_url = settings.GEMMA_API_URL or settings.QWEN_API_URL
         _api_model = settings.GEMMA_API_MODEL if settings.GEMMA_API_URL else settings.QWEN_MODEL
         try:
             response = self._client_for(_api_url).chat.completions.create(
@@ -338,7 +351,10 @@ class QwenModel:
             retry_response = self._client_for(_api_url).chat.completions.create(
                 model=_api_model,
                 messages=[
-                    {"role": "system", "content": _QWEN_SYSTEM_PROMPT + " Return exactly one JSON object."},
+                    {
+                        "role": "system",
+                        "content": _QWEN_SYSTEM_PROMPT + " Return exactly one JSON object.",
+                    },
                     {"role": "user", "content": user_content},
                 ],
                 **_request_kwargs_for_backend(_api_url),
@@ -359,8 +375,11 @@ class QwenModel:
             # Try to import and check the proper class if available
             try:
                 from openai import APITimeoutError as _APITimeoutError
+
                 if isinstance(exc, _APITimeoutError):
-                    logger.warning("Gemma extraction timeout after %ds", _EFFECTIVE_QWEN_TIMEOUT_SEC)
+                    logger.warning(
+                        "Gemma extraction timeout after %ds", _EFFECTIVE_QWEN_TIMEOUT_SEC
+                    )
                     return {"timeout": True, "timeout_sec": _EFFECTIVE_QWEN_TIMEOUT_SEC}
             except ImportError:
                 pass
@@ -403,7 +422,10 @@ class QwenModel:
 
         concurrency = max(1, int(getattr(settings, "QWEN_SIDECAR_CONCURRENCY", 1) or 1))
         if concurrency == 1 or len(jobs) == 1:
-            return [self._extract_frame_facts_with_context(img, s, o, c, domain_hint) for img, s, o, c in jobs]
+            return [
+                self._extract_frame_facts_with_context(img, s, o, c, domain_hint)
+                for img, s, o, c in jobs
+            ]
 
         max_workers = min(concurrency, len(jobs))
         results: list[dict[str, Any] | None] = [None] * len(jobs)
@@ -442,7 +464,9 @@ class QwenModel:
                 if not self._clip_prescreen_fn(image):
                     return {"clip_filtered": True, "reason": "below_vehicle_threshold"}
             except Exception:
-                logger.debug("CLIP prescreen raised an exception; proceeding without filter", exc_info=True)
+                logger.debug(
+                    "CLIP prescreen raised an exception; proceeding without filter", exc_info=True
+                )
         elif settings.QWEN_CLIP_THRESHOLD > 0:
             tagger = self._lazy_tagger()
             if tagger is not None:
@@ -452,12 +476,17 @@ class QwenModel:
                     if labels:
                         top_label = labels[0]["label"]
                         top_score = labels[0]["score"]
-                        if top_label.lower() not in _VEHICLE_LABELS or top_score < settings.QWEN_CLIP_THRESHOLD:
+                        if (
+                            top_label.lower() not in _VEHICLE_LABELS
+                            or top_score < settings.QWEN_CLIP_THRESHOLD
+                        ):
                             return {"clip_filtered": True, "reason": "below_vehicle_threshold"}
                     else:
                         return {"clip_filtered": True, "reason": "below_vehicle_threshold"}
                 except Exception:
-                    logger.debug("Tagger prescreen failed; proceeding without filter", exc_info=True)
+                    logger.debug(
+                        "Tagger prescreen failed; proceeding without filter", exc_info=True
+                    )
 
         user_content = _build_user_content(image, subtitle_text, ocr_text, extra_context)
 
@@ -466,7 +495,7 @@ class QwenModel:
         if domain_hint and domain_hint.strip():
             system_prompt = f"[Scene domain: {domain_hint.strip()}]\n" + system_prompt
 
-        _api_url   = settings.GEMMA_API_URL or settings.QWEN_API_URL
+        _api_url = settings.GEMMA_API_URL or settings.QWEN_API_URL
         _api_model = settings.GEMMA_API_MODEL if settings.GEMMA_API_URL else settings.QWEN_MODEL
         try:
             from openai import OpenAI
@@ -495,7 +524,10 @@ class QwenModel:
             retry_response = client.chat.completions.create(
                 model=_api_model,
                 messages=[
-                    {"role": "system", "content": system_prompt + " Return exactly one JSON object."},
+                    {
+                        "role": "system",
+                        "content": system_prompt + " Return exactly one JSON object.",
+                    },
                     {"role": "user", "content": user_content},
                 ],
                 **_request_kwargs_for_backend(_api_url),
@@ -514,8 +546,11 @@ class QwenModel:
 
             try:
                 from openai import APITimeoutError as _APITimeoutError
+
                 if isinstance(exc, _APITimeoutError):
-                    logger.warning("Gemma extraction timeout after %ds", _EFFECTIVE_QWEN_TIMEOUT_SEC)
+                    logger.warning(
+                        "Gemma extraction timeout after %ds", _EFFECTIVE_QWEN_TIMEOUT_SEC
+                    )
                     return {"timeout": True, "timeout_sec": _EFFECTIVE_QWEN_TIMEOUT_SEC}
             except ImportError:
                 pass
@@ -532,8 +567,13 @@ class QwenModel:
         QWEN_API_URL / QWEN_BACKEND for deployments that have not migrated.
         """
         _api_url = settings.GEMMA_API_URL or settings.QWEN_API_URL
-        backend  = (settings.GEMMA_API_BACKEND if settings.GEMMA_API_URL else settings.QWEN_BACKEND).lower()
-        timeout  = min(settings.GEMMA_API_TIMEOUT_SEC if settings.GEMMA_API_URL else settings.QWEN_TIMEOUT_SEC, 10)
+        backend = (
+            settings.GEMMA_API_BACKEND if settings.GEMMA_API_URL else settings.QWEN_BACKEND
+        ).lower()
+        timeout = min(
+            settings.GEMMA_API_TIMEOUT_SEC if settings.GEMMA_API_URL else settings.QWEN_TIMEOUT_SEC,
+            10,
+        )
 
         # Auto-detect ollama from the default port (11434) when backend is not
         # explicitly set to "ollama" — the vllm health endpoint (/health) returns
@@ -557,7 +597,9 @@ class QwenModel:
         else:
             logger.warning(
                 "%s sidecar unreachable (backend=%s url=%s); Phase 2 will be skipped",
-                sidecar, backend, _api_url,
+                sidecar,
+                backend,
+                _api_url,
             )
 
     def _client_for(self, api_url: str):

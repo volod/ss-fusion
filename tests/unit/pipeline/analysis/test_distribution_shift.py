@@ -2,6 +2,7 @@
 
 No GPU or torch.hub access — backbone is a tiny stub Linear layer.
 """
+
 import os
 
 import numpy as np
@@ -13,6 +14,7 @@ from torchvision import transforms
 from selfsuvis.pipeline.training.supervised import _eval_distribution_shift
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _write_fake_jpeg(path: str, color: tuple = (128, 64, 32)) -> None:
     arr = np.full((32, 32, 3), color, dtype=np.uint8)
@@ -80,16 +82,18 @@ def _make_eval_items(tmp_dir: str, n_per_class: int = 4, n_classes: int = 2):
     return items
 
 
-_TRANSFORM = transforms.Compose([
-    transforms.Resize((32, 32)),
-    transforms.ToTensor(),
-])
+_TRANSFORM = transforms.Compose(
+    [
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+    ]
+)
 
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 
-class TestEvalDistributionShift:
 
+class TestEvalDistributionShift:
     def test_returns_float(self, tmp_path):
         items = _make_eval_items(str(tmp_path))
         torch.manual_seed(0)
@@ -181,8 +185,14 @@ class TestEvalDistributionShift:
         ET.SubElement(root, "version").text = "1.1"
         meta = ET.SubElement(root, "meta")
         task = ET.SubElement(meta, "task")
-        for k, v in [("id", "1"), ("name", "t"), ("size", str(len(images))),
-                     ("mode", "annotation"), ("overlap", "0"), ("flipped", "False")]:
+        for k, v in [
+            ("id", "1"),
+            ("name", "t"),
+            ("size", str(len(images))),
+            ("mode", "annotation"),
+            ("overlap", "0"),
+            ("flipped", "False"),
+        ]:
             ET.SubElement(task, k).text = v
         labels_el = ET.SubElement(task, "labels")
         for lbl in ("car", "truck"):
@@ -198,17 +208,25 @@ class TestEvalDistributionShift:
             el.set("width", "32")
             el.set("height", "32")
             box = ET.SubElement(el, "box")
-            for k, v in [("label", img["label"]), ("source", "manual"),
-                         ("occluded", "0"), ("xtl", "0"), ("ytl", "0"),
-                         ("xbr", "16"), ("ybr", "16"), ("z_order", "0")]:
+            for k, v in [
+                ("label", img["label"]),
+                ("source", "manual"),
+                ("occluded", "0"),
+                ("xtl", "0"),
+                ("ytl", "0"),
+                ("xbr", "16"),
+                ("ybr", "16"),
+                ("z_order", "0"),
+            ]:
                 box.set(k, v)
         ET.ElementTree(root).write(xml_path)
 
         embed_dim = 16
         proj_out_dim = 8
 
-        def _stub_init(self, model_name, freeze_blocks, device, embed_dim,
-                       proj_out_dim, ssl_checkpoint=None):
+        def _stub_init(
+            self, model_name, freeze_blocks, device, embed_dim, proj_out_dim, ssl_checkpoint=None
+        ):
             self.device = device
             self.model_name = model_name
             self.backbone = _StubBackbone(embed_dim)

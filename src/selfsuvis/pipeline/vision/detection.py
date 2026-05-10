@@ -114,7 +114,10 @@ class DetectionModel(_HFPipeMixin):
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
-                log_oom_banner(logger, f"Detection/{self.model_id}", "falling back to CPU for remaining frames")
+
+                log_oom_banner(
+                    logger, f"Detection/{self.model_id}", "falling back to CPU for remaining frames"
+                )
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     try:
@@ -143,7 +146,10 @@ class DetectionModel(_HFPipeMixin):
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
-                log_oom_banner(logger, f"Detection/{self.model_id}", "batch OOM — falling back to CPU")
+
+                log_oom_banner(
+                    logger, f"Detection/{self.model_id}", "batch OOM — falling back to CPU"
+                )
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     return self._detect_many(images, cpu_pipe, candidate_labels)
@@ -174,11 +180,13 @@ class DetectionModel(_HFPipeMixin):
             y1 = box.get("ymin", 0) / h
             x2 = box.get("xmax", w) / w
             y2 = box.get("ymax", h) / h
-            detections.append({
-                "label": det.get("label", ""),
-                "confidence": round(float(det.get("score", 0.0)), 4),
-                "bbox_norm": [round(x1, 4), round(y1, 4), round(x2, 4), round(y2, 4)],
-            })
+            detections.append(
+                {
+                    "label": det.get("label", ""),
+                    "confidence": round(float(det.get("score", 0.0)), 4),
+                    "bbox_norm": [round(x1, 4), round(y1, 4), round(x2, 4), round(y2, 4)],
+                }
+            )
         return {"detections": detections, "detection_model": self.model_id}
 
     def _get_pipe(self, force_device: str | None = None):
@@ -191,7 +199,10 @@ class DetectionModel(_HFPipeMixin):
         try:
             import torch
             from transformers import pipeline as hf_pipeline
-            torch_dtype = torch.float16 if settings.USE_FP16 and target_device != "cpu" else torch.float32
+
+            torch_dtype = (
+                torch.float16 if settings.USE_FP16 and target_device != "cpu" else torch.float32
+            )
             self._release_pipe()
             with _suppress_hf_detection_noise():
                 self._pipe = hf_pipeline(
@@ -209,18 +220,23 @@ class DetectionModel(_HFPipeMixin):
         except Exception as exc:
             if is_cuda_oom(exc) and target_device == "cuda" and force_device != "cpu":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
-                log_oom_banner(logger, f"Detection/{self.model_id}", "load OOM on CUDA — retrying on CPU")
+
+                log_oom_banner(
+                    logger, f"Detection/{self.model_id}", "load OOM on CUDA — retrying on CPU"
+                )
                 self._release_pipe()
                 self._load_failed = False
                 return self._get_pipe(force_device="cpu")
             logger.warning(
                 "Failed to load detection model %s — run: python scripts/prepare_models.py --detection",
-                self.model_id, exc_info=True,
+                self.model_id,
+                exc_info=True,
             )
             self._pipe = None
             self._device = None
             self._load_failed = True
         return self._pipe
+
 
 def _get_device() -> str:
     return resolve_device()
@@ -249,7 +265,11 @@ def _suppress_hf_detection_noise():
 
     sink = io.StringIO()
     try:
-        with warnings.catch_warnings(), contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+        with (
+            warnings.catch_warnings(),
+            contextlib.redirect_stdout(sink),
+            contextlib.redirect_stderr(sink),
+        ):
             warnings.filterwarnings("ignore", message=".*copying from a non-meta parameter.*")
             warnings.filterwarnings(
                 "ignore",

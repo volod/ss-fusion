@@ -1,4 +1,5 @@
 """Unit tests for pipeline/model_registry.py — no GPU or network required."""
+
 import pytest
 
 from selfsuvis.pipeline.vision.registry import (
@@ -11,8 +12,16 @@ from selfsuvis.pipeline.vision.registry import (
 
 # ── CATALOGS structure ────────────────────────────────────────────────────────
 
-EXPECTED_TASKS = {"asr", "ocr", "depth", "detection", "segmentation",
-                  "vqa", "zero_shot_classification", "world_model"}
+EXPECTED_TASKS = {
+    "asr",
+    "ocr",
+    "depth",
+    "detection",
+    "segmentation",
+    "vqa",
+    "zero_shot_classification",
+    "world_model",
+}
 
 
 def test_all_tasks_present():
@@ -56,6 +65,7 @@ def test_params_positive():
 
 
 # ── auto_select ───────────────────────────────────────────────────────────────
+
 
 def test_auto_select_unknown_task_returns_none():
     assert auto_select("nonexistent_task", {"vram_gb": 16.0, "ram_gb": 64.0}) is None
@@ -124,6 +134,7 @@ def test_auto_select_none_resources_doesnt_raise():
 
 # ── get_entry ─────────────────────────────────────────────────────────────────
 
+
 def test_get_entry_found():
     entry = get_entry("asr", "openai/whisper-tiny")
     assert entry is not None
@@ -142,6 +153,7 @@ def test_get_entry_wrong_task_returns_none():
 
 # ── list_models ───────────────────────────────────────────────────────────────
 
+
 def test_list_models_returns_entries():
     entries = list_models("ocr")
     assert len(entries) == 10
@@ -153,6 +165,7 @@ def test_list_models_unknown_task_returns_empty():
 
 
 # ── ModelEntry dataclass defaults ─────────────────────────────────────────────
+
 
 def test_model_entry_defaults():
     e = ModelEntry("test/model", 1.0, 2.0, "test entry")

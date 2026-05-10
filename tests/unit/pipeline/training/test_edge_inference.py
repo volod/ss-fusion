@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_rgb_image(size: int = 64, color: tuple = (128, 64, 32)) -> Image.Image:
     return Image.new("RGB", (size, size), color=color)
 
@@ -90,10 +91,11 @@ def _make_gallery_npz(tmp: str, embed_dim: int = 8) -> tuple:
 # _preprocess_image tests
 # ---------------------------------------------------------------------------
 
-class TestPreprocessImage(unittest.TestCase):
 
+class TestPreprocessImage(unittest.TestCase):
     def test_output_shape(self):
         from selfsuvis.pipeline.training.edge_inference import _preprocess_image
+
         img = _make_rgb_image(256)
         out = _preprocess_image(img, image_size=224)
         self.assertEqual(out.shape, (1, 3, 224, 224))
@@ -102,6 +104,7 @@ class TestPreprocessImage(unittest.TestCase):
     def test_output_shape_small_input(self):
         """Input smaller than image_size should still produce correct shape."""
         from selfsuvis.pipeline.training.edge_inference import _preprocess_image
+
         img = _make_rgb_image(64)
         out = _preprocess_image(img, image_size=224)
         self.assertEqual(out.shape, (1, 3, 224, 224))
@@ -109,6 +112,7 @@ class TestPreprocessImage(unittest.TestCase):
     def test_imagenet_normalisation_applied(self):
         """A solid-grey image should have values close to (0.5-mean)/std after normalisation."""
         from selfsuvis.pipeline.training.edge_inference import _preprocess_image
+
         # Solid grey (128, 128, 128) ≈ 0.502 in [0,1]
         img = Image.new("RGB", (256, 256), color=(128, 128, 128))
         out = _preprocess_image(img, image_size=224)
@@ -119,12 +123,14 @@ class TestPreprocessImage(unittest.TestCase):
 
     def test_values_are_float32(self):
         from selfsuvis.pipeline.training.edge_inference import _preprocess_image
+
         img = _make_rgb_image(128)
         out = _preprocess_image(img, image_size=224)
         self.assertEqual(out.dtype, np.float32)
 
     def test_custom_image_size(self):
         from selfsuvis.pipeline.training.edge_inference import _preprocess_image
+
         img = _make_rgb_image(512)
         out = _preprocess_image(img, image_size=112)
         self.assertEqual(out.shape, (1, 3, 112, 112))
@@ -134,8 +140,8 @@ class TestPreprocessImage(unittest.TestCase):
 # build_gallery tests
 # ---------------------------------------------------------------------------
 
-class TestBuildGallery(unittest.TestCase):
 
+class TestBuildGallery(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.embed_dim = 8
@@ -161,6 +167,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_npz_has_correct_keys(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map, _ = _make_gallery_npz(self.tmp)
         out = os.path.join(self.tmp, "gallery.npz")
         backbone = self._fake_backbone()
@@ -172,6 +179,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_embeddings_shape(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map, _ = _make_gallery_npz(self.tmp)
         out = os.path.join(self.tmp, "gallery.npz")
         total_frames = sum(len(v) for v in labels_map.values())  # 4
@@ -183,6 +191,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_labels_array_length(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map, _ = _make_gallery_npz(self.tmp)
         out = os.path.join(self.tmp, "gallery.npz")
         total_frames = sum(len(v) for v in labels_map.values())
@@ -194,6 +203,7 @@ class TestBuildGallery(unittest.TestCase):
     def test_labels_repeat_correctly(self):
         """Each frame for a label should have that label in the labels array."""
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map, _ = _make_gallery_npz(self.tmp)
         out = os.path.join(self.tmp, "gallery.npz")
         backbone = self._fake_backbone()
@@ -208,6 +218,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_label_names_sorted(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map, _ = _make_gallery_npz(self.tmp)
         out = os.path.join(self.tmp, "gallery.npz")
         backbone = self._fake_backbone()
@@ -219,6 +230,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_embeddings_are_l2_normalised(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map, _ = _make_gallery_npz(self.tmp)
         out = os.path.join(self.tmp, "gallery.npz")
         backbone = self._fake_backbone()
@@ -229,6 +241,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_raises_on_empty_labels_map(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         out = os.path.join(self.tmp, "empty.npz")
         backbone = self._fake_backbone()
         with self.assertRaises(ValueError):
@@ -236,6 +249,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_raises_on_missing_frame(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         labels_map = {"vehicle": ["/nonexistent/path/frame.jpg"]}
         out = os.path.join(self.tmp, "missing.npz")
         backbone = self._fake_backbone()
@@ -244,6 +258,7 @@ class TestBuildGallery(unittest.TestCase):
 
     def test_single_label_single_frame(self):
         from selfsuvis.pipeline.training.edge_inference import build_gallery
+
         p = os.path.join(self.tmp, "frames", "cat", "frame_000.jpg")
         _make_rgb_jpg(p)
         labels_map = {"cat": [p]}
@@ -259,6 +274,7 @@ class TestBuildGallery(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # EdgeClassifier tests (ONNX session mocked)
 # ---------------------------------------------------------------------------
+
 
 class _MockOrtSession:
     """Minimal mock for onnxruntime.InferenceSession."""
@@ -306,7 +322,6 @@ def _make_gallery_file(tmp: str, labels_map: dict, embed_dim: int = 8) -> str:
 
 
 class TestEdgeClassifier(unittest.TestCase):
-
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.embed_dim = 8
@@ -325,7 +340,10 @@ class TestEdgeClassifier(unittest.TestCase):
 
         with patch.dict("sys.modules", {"onnxruntime": ort_mock}):
             from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
-            with patch("selfsuvis.pipeline.training.edge_inference.os.path.isfile", return_value=True):
+
+            with patch(
+                "selfsuvis.pipeline.training.edge_inference.os.path.isfile", return_value=True
+            ):
                 clf = EdgeClassifier(
                     onnx_path="fake.onnx",
                     gallery_path=self.gallery_path,
@@ -383,7 +401,10 @@ class TestEdgeClassifier(unittest.TestCase):
 
         with patch.dict("sys.modules", {"onnxruntime": ort_mock}):
             from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
-            with patch("selfsuvis.pipeline.training.edge_inference.os.path.isfile", return_value=True):
+
+            with patch(
+                "selfsuvis.pipeline.training.edge_inference.os.path.isfile", return_value=True
+            ):
                 clf = EdgeClassifier("fake.onnx", gallery_path, top_k=1)
 
         img = _make_rgb_image()
@@ -416,6 +437,7 @@ class TestEdgeClassifier(unittest.TestCase):
         try:
             with patch.dict("sys.modules", {"onnxruntime": None}):
                 from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
+
                 with self.assertRaises(ImportError):
                     EdgeClassifier("fake.onnx", self.gallery_path)
         finally:
@@ -429,8 +451,8 @@ class TestEdgeClassifier(unittest.TestCase):
 # from_torch classmethod tests
 # ---------------------------------------------------------------------------
 
-class TestEdgeClassifierFromTorch(unittest.TestCase):
 
+class TestEdgeClassifierFromTorch(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.embed_dim = 8
@@ -455,12 +477,14 @@ class TestEdgeClassifierFromTorch(unittest.TestCase):
 
     def test_from_torch_creates_classifier(self):
         from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
+
         backbone = self._fake_backbone()
         clf = EdgeClassifier.from_torch(backbone, self.gallery_path, top_k=2)
         self.assertIsNotNone(clf)
 
     def test_from_torch_classify_returns_tuples(self):
         from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
+
         backbone = self._fake_backbone()
         clf = EdgeClassifier.from_torch(backbone, self.gallery_path, top_k=2)
         img = _make_rgb_image()
@@ -473,6 +497,7 @@ class TestEdgeClassifierFromTorch(unittest.TestCase):
 
     def test_from_torch_embed_shape(self):
         from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
+
         backbone = self._fake_backbone()
         clf = EdgeClassifier.from_torch(backbone, self.gallery_path)
         img = _make_rgb_image()
@@ -481,6 +506,7 @@ class TestEdgeClassifierFromTorch(unittest.TestCase):
 
     def test_from_torch_embed_is_normalised(self):
         from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
+
         backbone = self._fake_backbone()
         clf = EdgeClassifier.from_torch(backbone, self.gallery_path)
         img = _make_rgb_image()
@@ -491,17 +517,17 @@ class TestEdgeClassifierFromTorch(unittest.TestCase):
     def test_from_torch_no_onnx_file_needed(self):
         """from_torch must not require an ONNX file to exist."""
         from selfsuvis.pipeline.training.edge_inference import EdgeClassifier
+
         backbone = self._fake_backbone()
         # Pass a non-existent ONNX path — should not be opened
-        clf = EdgeClassifier.from_torch(
-            backbone, self.gallery_path, top_k=1, device="cpu"
-        )
+        clf = EdgeClassifier.from_torch(backbone, self.gallery_path, top_k=1, device="cpu")
         self.assertIsNotNone(clf)
 
 
 # ---------------------------------------------------------------------------
 # Integration smoke test
 # ---------------------------------------------------------------------------
+
 
 class TestBuildGalleryIntegration(unittest.TestCase):
     """build_gallery → save NPZ → EdgeClassifier.from_torch loads → classify returns correct top label."""
@@ -520,6 +546,7 @@ class TestBuildGalleryIntegration(unittest.TestCase):
 
         class _ColorBackbone(nn.Module):
             """Returns colour statistics of the image as a (B, dim) vector."""
+
             def __init__(self, d):
                 super().__init__()
                 self.d = d
@@ -532,7 +559,7 @@ class TestBuildGalleryIntegration(unittest.TestCase):
                 stats = x.reshape(B, 3, -1).mean(dim=2)  # (B, 3)
                 # Tile 3 → d
                 repeats = (self.d + 2) // 3
-                out = stats.repeat(1, repeats)[:, :self.d]  # (B, d)
+                out = stats.repeat(1, repeats)[:, : self.d]  # (B, d)
                 return out
 
         return _ColorBackbone(dim)
@@ -566,8 +593,9 @@ class TestBuildGalleryIntegration(unittest.TestCase):
             results = clf.classify(img)
             top_label, top_score = results[0]
             self.assertEqual(
-                top_label, label,
-                f"Expected top label '{label}' but got '{top_label}' (score={top_score:.3f})"
+                top_label,
+                label,
+                f"Expected top label '{label}' but got '{top_label}' (score={top_score:.3f})",
             )
             self.assertGreater(top_score, 0.9, "Score for exact gallery frame should be > 0.9")
 

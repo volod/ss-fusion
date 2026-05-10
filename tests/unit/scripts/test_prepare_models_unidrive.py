@@ -1,4 +1,3 @@
-
 from argparse import Namespace
 
 import selfsuvis.scripts.prepare_models as pm

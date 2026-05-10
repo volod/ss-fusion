@@ -78,16 +78,14 @@ def _is_videomae_pretraining_checkpoint(model_id: str, config: Any) -> bool:
     newly initialized attention-bias parameters.
     """
     architectures = tuple(getattr(config, "architectures", []) or ())
-    return (
-        str(getattr(config, "model_type", "")).lower() == "videomae"
-        and (
-            "VideoMAEForPreTraining" in architectures
-            or model_id.startswith(_VIDEOMAE_PREFIXES)
-        )
+    return str(getattr(config, "model_type", "")).lower() == "videomae" and (
+        "VideoMAEForPreTraining" in architectures or model_id.startswith(_VIDEOMAE_PREFIXES)
     )
 
 
-def _remap_videomae_state_dict_for_modern_transformers(state_dict: dict[str, Any]) -> dict[str, Any]:
+def _remap_videomae_state_dict_for_modern_transformers(
+    state_dict: dict[str, Any],
+) -> dict[str, Any]:
     """Convert legacy VideoMAE checkpoint keys to the current HF layout.
 
     Older VideoMAE checkpoints store attention biases as ``q_bias`` / ``v_bias``
@@ -216,7 +214,9 @@ class WorldModel:
             n = len(images)
             if n == 0:
                 return {"world_model_unavailable": True}
-            target_frames = int(getattr(getattr(model, "config", None), "num_frames", self._clip_frames))
+            target_frames = int(
+                getattr(getattr(model, "config", None), "num_frames", self._clip_frames)
+            )
             sampled = _sample_exact_frames(images, max(1, target_frames))
 
             inputs = feat_extractor(sampled, return_tensors="pt")
@@ -272,7 +272,11 @@ class WorldModel:
             if isinstance(source, Path):
                 _has_preprocessor = any(
                     (source / f).exists()
-                    for f in ("preprocessor_config.json", "feature_extractor_config.json", "config.json")
+                    for f in (
+                        "preprocessor_config.json",
+                        "feature_extractor_config.json",
+                        "config.json",
+                    )
                 )
                 if not _has_preprocessor:
                     logger.info(
@@ -297,7 +301,12 @@ class WorldModel:
                 # transformers recognises.
                 try:
                     from transformers import VideoMAEImageProcessor
-                    _preprocessor_loaders: tuple = (VideoMAEImageProcessor, AutoImageProcessor, AutoProcessor)
+
+                    _preprocessor_loaders: tuple = (
+                        VideoMAEImageProcessor,
+                        AutoImageProcessor,
+                        AutoProcessor,
+                    )
                 except ImportError:
                     _preprocessor_loaders = (AutoImageProcessor, AutoProcessor)
                 self._feature_extractor = _load_world_preprocessor(
@@ -305,7 +314,9 @@ class WorldModel:
                     load_kwargs,
                     *_preprocessor_loaders,
                 )
-                model_dtype = torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32
+                model_dtype = (
+                    torch.float16 if settings.USE_FP16 and device != "cpu" else torch.float32
+                )
                 config = AutoConfig.from_pretrained(source_label, **load_kwargs)
                 if _is_videomae_pretraining_checkpoint(candidate_id, config):
                     if isinstance(source, Path):
@@ -321,22 +332,30 @@ class WorldModel:
                     else:
                         from transformers import VideoMAEModel
 
-                        self._model = VideoMAEModel.from_pretrained(
-                            source_label,
-                            dtype=model_dtype,
-                            **load_kwargs,
-                        ).to(device).eval()
+                        self._model = (
+                            VideoMAEModel.from_pretrained(
+                                source_label,
+                                dtype=model_dtype,
+                                **load_kwargs,
+                            )
+                            .to(device)
+                            .eval()
+                        )
                         self._load_note = "VideoMAE encoder loaded via transformers.from_pretrained"
                     logger.info(
                         "Using VideoMAE encoder from checkpoint %s for clip embeddings",
                         source_label,
                     )
                 else:
-                    self._model = AutoModel.from_pretrained(
-                        source_label,
-                        dtype=model_dtype,
-                        **load_kwargs,
-                    ).to(device).eval()
+                    self._model = (
+                        AutoModel.from_pretrained(
+                            source_label,
+                            dtype=model_dtype,
+                            **load_kwargs,
+                        )
+                        .to(device)
+                        .eval()
+                    )
                     self._load_note = None
                 self._model_id = candidate_id
                 logger.info("World model loaded: %s on %s", source_label, device)
@@ -354,7 +373,8 @@ class WorldModel:
                     continue
                 logger.warning(
                     "Failed to load world model %s — run: python scripts/prepare_models.py --world-model",
-                    candidate_id, exc_info=True,
+                    candidate_id,
+                    exc_info=True,
                 )
 
         self._model = None
@@ -367,11 +387,13 @@ class WorldModel:
     def release(self) -> None:
         """Delete the model and flush CUDA cache."""
         import gc
+
         self._model = None
         self._feature_extractor = None
         gc.collect()
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception:
@@ -442,7 +464,9 @@ def _normalise_video_pixel_values(pixel_values, target_frames: int):
     if pixel_values.ndim == 4:
         pixel_values = pixel_values.unsqueeze(0)
     elif pixel_values.ndim != 5:
-        raise RuntimeError(f"Unexpected world-model pixel_values shape: {tuple(pixel_values.shape)}")
+        raise RuntimeError(
+            f"Unexpected world-model pixel_values shape: {tuple(pixel_values.shape)}"
+        )
 
     # Some processors emit (B, C, T, H, W). VideoMAE expects (B, T, C, H, W).
     if pixel_values.shape[1] == 3 and pixel_values.shape[2] != 3:
@@ -471,14 +495,20 @@ def _resample_frame_tensor(pixel_values, target_frames: int):
 
     source_frames = pixel_values.shape[1]
     if source_frames == 1:
-        return pixel_values.expand(pixel_values.shape[0], target_frames, *pixel_values.shape[2:]).contiguous()
+        return pixel_values.expand(
+            pixel_values.shape[0], target_frames, *pixel_values.shape[2:]
+        ).contiguous()
 
-    indices = torch.linspace(
-        0,
-        source_frames - 1,
-        steps=target_frames,
-        device=pixel_values.device,
-    ).round().long()
+    indices = (
+        torch.linspace(
+            0,
+            source_frames - 1,
+            steps=target_frames,
+            device=pixel_values.device,
+        )
+        .round()
+        .long()
+    )
     return pixel_values.index_select(1, indices)
 
 
@@ -517,18 +547,20 @@ class _SimpleVideoPreprocessor:
     """
 
     _MEAN = [0.485, 0.456, 0.406]
-    _STD  = [0.229, 0.224, 0.225]
+    _STD = [0.229, 0.224, 0.225]
     _SIZE = (224, 224)
 
     def __call__(self, images, return_tensors: str = "pt", **_kwargs):
         import torch
         from torchvision import transforms  # type: ignore[import]
 
-        tfm = transforms.Compose([
-            transforms.Resize(self._SIZE),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=self._MEAN, std=self._STD),
-        ])
+        tfm = transforms.Compose(
+            [
+                transforms.Resize(self._SIZE),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=self._MEAN, std=self._STD),
+            ]
+        )
         frames = [tfm(img.convert("RGB")) for img in images]  # each: (C, H, W)
         # Stack → (T, C, H, W) → unsqueeze batch → (1, T, C, H, W)
         pixel_values = torch.stack(frames, dim=0).unsqueeze(0)

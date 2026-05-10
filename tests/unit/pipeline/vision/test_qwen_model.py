@@ -55,7 +55,12 @@ def test_parse_qwen_response_valid():
     assert result["road_condition"] == "clear"
     assert result["scene_summary"] == "Two trucks on a clear asphalt road."
     # Exactly the 4 expected keys
-    assert set(result.keys()) == {"vehicle_groups", "road_surface", "road_condition", "scene_summary"}
+    assert set(result.keys()) == {
+        "vehicle_groups",
+        "road_surface",
+        "road_condition",
+        "scene_summary",
+    }
 
 
 def test_parse_qwen_response_empty_vehicles():
@@ -174,7 +179,9 @@ def test_qwen_extract_batch_parallel_preserves_order(monkeypatch, small_image):
     model = QwenModel()
     model._healthy = True
 
-    def fake_extract(image, subtitle_text=None, ocr_text=None, extra_context=None, domain_hint=None):
+    def fake_extract(
+        image, subtitle_text=None, ocr_text=None, extra_context=None, domain_hint=None
+    ):
         idx = int(subtitle_text)
         time.sleep(0.03 * (3 - idx))
         return {"scene_summary": f"frame-{idx}"}

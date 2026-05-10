@@ -50,7 +50,8 @@ def persist_threat_memory(
 ) -> dict[str, Any]:
     mission_id = output_dir.name or "mission"
     records = [
-        record for record in (
+        record
+        for record in (
             _collect_memory_record(Path(str(stats.get("video_dir", ""))), mission_id)
             for stats in per_video_stats
             if stats.get("video_dir")
@@ -85,10 +86,14 @@ def summarize_threat_memory(
     }
 
     for record in records:
-        route_penalties.setdefault(record.route_id or "unknown", []).append(float(record.trust_penalty))
+        route_penalties.setdefault(record.route_id or "unknown", []).append(
+            float(record.trust_penalty)
+        )
         for conflict in record.source_pair_conflicts:
             pattern = str(conflict.get("pattern", "unknown") or "unknown")
-            pattern_counts[pattern] = pattern_counts.get(pattern, 0) + int(conflict.get("count", 0) or 0)
+            pattern_counts[pattern] = pattern_counts.get(pattern, 0) + int(
+                conflict.get("count", 0) or 0
+            )
             if "unidrive" in pattern:
                 subsystem_conflicts["unidrive"] += int(conflict.get("count", 0) or 0)
             if "track" in pattern or "iou" in pattern:
@@ -165,7 +170,9 @@ def _collect_memory_record(video_dir: Path, mission_id: str) -> ThreatMemoryReco
         platform_metadata={
             "time_range_sec": _time_range_from_fusion(full_fusion),
             "origin_lla": dict((full_fusion.get("platform") or {}).get("origin_lla") or {}),
-            "platform_pose_confidence": float(physical_state.get("platform_pose_confidence", 0.0) or 0.0),
+            "platform_pose_confidence": float(
+                physical_state.get("platform_pose_confidence", 0.0) or 0.0
+            ),
         },
         sensor_metadata=_sensor_metadata(local_threat, primitives, physical_state),
     )
@@ -174,8 +181,10 @@ def _collect_memory_record(video_dir: Path, mission_id: str) -> ThreatMemoryReco
 def _extract_sector_index(full_fusion: dict[str, Any], video_name: str) -> tuple[list[str], str]:
     platform = full_fusion.get("platform") or {}
     origin = platform.get("origin_lla") or {}
-    smoothed = ((full_fusion.get("map_state") or {}).get("smoothed_samples") or [])
-    positions = [dict(row.get("position_enu_m") or {}) for row in smoothed if row.get("position_enu_m")]
+    smoothed = (full_fusion.get("map_state") or {}).get("smoothed_samples") or []
+    positions = [
+        dict(row.get("position_enu_m") or {}) for row in smoothed if row.get("position_enu_m")
+    ]
     if not origin or not positions:
         return [], build_route_segment_id(video_name, [])
     sector_samples = sectorize_global_positions(origin, positions, tile_size_m=50.0)
@@ -190,7 +199,7 @@ def _sensor_metadata(
 ) -> dict[str, Any]:
     source_labels = set()
     for threat in local_threat.get("top_threats") or []:
-        for source in ((threat.get("evidence") or {}).get("evidence_sources") or []):
+        for source in (threat.get("evidence") or {}).get("evidence_sources") or []:
             source_labels.add(str(source))
     for primitive in primitives.get("primitives") or []:
         for source in primitive.get("evidence_sources") or []:
@@ -203,7 +212,7 @@ def _sensor_metadata(
 
 
 def _time_range_from_fusion(full_fusion: dict[str, Any]) -> list[float]:
-    smoothed = ((full_fusion.get("map_state") or {}).get("smoothed_samples") or [])
+    smoothed = (full_fusion.get("map_state") or {}).get("smoothed_samples") or []
     if not smoothed:
         return [0.0, 0.0]
     return [

@@ -16,9 +16,11 @@ def _make_small_image(w: int = 8, h: int = 8) -> Image.Image:
 
 # ── EfficientViTEmbedder — disabled/import guard ──────────────────────────────
 
+
 def test_efficientvit_embedder_missing_timm_raises():
     """ImportError raised with helpful message when timm is not installed."""
     import builtins
+
     real_import = builtins.__import__
 
     def _no_timm(name, *args, **kwargs):
@@ -28,6 +30,7 @@ def test_efficientvit_embedder_missing_timm_raises():
 
     with patch("builtins.__import__", side_effect=_no_timm):
         from selfsuvis.models.efficientvit_model import EfficientViTEmbedder
+
         with pytest.raises(ImportError, match="timm is required"):
             EfficientViTEmbedder(device="cpu")
 
@@ -42,6 +45,7 @@ def test_efficientvit_embedder_cuda_oom_on_load_raises_helpful_message():
         import importlib
 
         import selfsuvis.models.efficientvit_model as mod
+
         importlib.reload(mod)
 
         with pytest.raises(RuntimeError, match="EfficientViT Stage 1→2 requires"):
@@ -69,6 +73,7 @@ def test_efficientvit_embedder_oom_on_encode_raises_helpful_message():
         import importlib
 
         import selfsuvis.models.efficientvit_model as mod
+
         importlib.reload(mod)
 
         embedder = mod.EfficientViTEmbedder(device="cpu", use_fp16=False)
@@ -98,6 +103,7 @@ def test_efficientvit_embedder_encode_empty():
         import importlib
 
         import selfsuvis.models.efficientvit_model as mod
+
         importlib.reload(mod)
 
         embedder = mod.EfficientViTEmbedder(device="cpu", use_fp16=False)
@@ -128,6 +134,7 @@ def test_efficientvit_embedder_encode_normalises():
         import importlib
 
         import selfsuvis.models.efficientvit_model as mod
+
         importlib.reload(mod)
 
         embedder = mod.EfficientViTEmbedder(device="cpu", use_fp16=False)
@@ -161,6 +168,7 @@ def test_efficientvit_embedder_image_dim():
         import importlib
 
         import selfsuvis.models.efficientvit_model as mod
+
         importlib.reload(mod)
 
         embedder = mod.EfficientViTEmbedder(device="cpu", use_fp16=False)

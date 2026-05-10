@@ -21,9 +21,11 @@ logger = get_logger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DroneDetectorConfig:
     """Hyperparameters for drone detection training."""
+
     epochs: int = 30
     batch_size: int = 16
     lr: float = 1e-3
@@ -34,8 +36,8 @@ class DroneDetectorConfig:
     # Distillation settings
     distill_from_teacher: bool = False
     teacher_path: str = ""
-    lambda_feat: float = 0.5     # feature-level distillation weight
-    lambda_out: float = 0.5      # output-level distillation weight
+    lambda_feat: float = 0.5  # feature-level distillation weight
+    lambda_out: float = 0.5  # output-level distillation weight
     # Augmentation flags
     mosaic_prob: float = 0.5
     cutout_prob: float = 0.3
@@ -46,6 +48,7 @@ class DroneDetectorConfig:
 
 # ── YOLO label parser ─────────────────────────────────────────────────────────
 
+
 def parse_yolo_label(txt_path: str) -> list[tuple[int, float, float, float, float]]:
     """Parse a YOLO .txt annotation file into (class_id, cx, cy, w, h) tuples."""
     results: list[tuple[int, float, float, float, float]] = []
@@ -54,19 +57,22 @@ def parse_yolo_label(txt_path: str) -> list[tuple[int, float, float, float, floa
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 5:
-                    results.append((
-                        int(parts[0]),
-                        float(parts[1]),
-                        float(parts[2]),
-                        float(parts[3]),
-                        float(parts[4]),
-                    ))
+                    results.append(
+                        (
+                            int(parts[0]),
+                            float(parts[1]),
+                            float(parts[2]),
+                            float(parts[3]),
+                            float(parts[4]),
+                        )
+                    )
     except (OSError, ValueError):
         pass
     return results
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
+
 
 class _DroneDetectionDataset:
     """Loads positive drone images (YOLO format) + negative (no-drone) images."""
@@ -84,7 +90,7 @@ class _DroneDetectionDataset:
         self._image_size = image_size
         self._augment = augment
         self._pos_items: list[tuple[str, str]] = []  # (image_path, label_path)
-        self._neg_items: list[str] = []               # image_path only
+        self._neg_items: list[str] = []  # image_path only
 
         if pos_dir and os.path.isdir(pos_dir):
             img_dir = os.path.join(pos_dir, "images")
@@ -108,15 +114,16 @@ class _DroneDetectionDataset:
         n_neg = int(len(self._pos_items) * num_negatives_ratio)
         if n_neg > 0 and self._neg_items:
             rng = np.random.RandomState(42)
-            idx = rng.choice(len(self._neg_items), size=min(n_neg, len(self._neg_items)), replace=False)
+            idx = rng.choice(
+                len(self._neg_items), size=min(n_neg, len(self._neg_items)), replace=False
+            )
             self._neg_items = [self._neg_items[i] for i in idx]
         else:
             self._neg_items = []
 
-        self._all_items: list[tuple[str, str | None]] = (
-            [(ip, lp) for ip, lp in self._pos_items]
-            + [(np_, None) for np_ in self._neg_items]
-        )
+        self._all_items: list[tuple[str, str | None]] = [(ip, lp) for ip, lp in self._pos_items] + [
+            (np_, None) for np_ in self._neg_items
+        ]
 
         base_tf = [
             transforms.Resize((image_size, image_size)),
@@ -175,17 +182,18 @@ class _DroneDetectionDataset:
                 gj = min(gj, g - 1)
                 base = (gj * g + gi) * 6
                 # Normalised within cell
-                target[base]     = cx * g - gi
+                target[base] = cx * g - gi
                 target[base + 1] = cy * g - gj
                 target[base + 2] = bw
                 target[base + 3] = bh
-                target[base + 4] = 1.0   # objectness
-                target[base + 5] = 1.0   # class confidence (drone=1)
+                target[base + 4] = 1.0  # objectness
+                target[base + 5] = 1.0  # class confidence (drone=1)
 
         return tensor, target
 
 
 # ── Mosaic augmentation ───────────────────────────────────────────────────────
+
 
 def build_mosaic(
     images: list[np.ndarray],
@@ -204,6 +212,7 @@ def build_mosaic(
         for col_idx in range(2):
             im = images[row_idx * 2 + col_idx]
             from PIL import Image
+
             pil = Image.fromarray(im).resize((half, half), Image.BILINEAR)
             row.append(np.array(pil))
         rows.append(np.concatenate(row, axis=1))
@@ -211,6 +220,7 @@ def build_mosaic(
 
 
 # ── CIoU loss ─────────────────────────────────────────────────────────────────
+
 
 def ciou_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """Complete IoU loss for bbox regression (normalised cx,cy,w,h)."""
@@ -238,10 +248,10 @@ def ciou_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     # Diagonal of enclosing box squared
     enc_w = torch.max(px2, tx2) - torch.min(px1, tx1)
     enc_h = torch.max(py2, ty2) - torch.min(py1, ty1)
-    c2 = enc_w ** 2 + enc_h ** 2 + eps
+    c2 = enc_w**2 + enc_h**2 + eps
 
     # Aspect ratio consistency term
-    v = (4 / (math.pi ** 2)) * (torch.atan(tw / (th + eps)) - torch.atan(pw / (ph + eps))) ** 2
+    v = (4 / (math.pi**2)) * (torch.atan(tw / (th + eps)) - torch.atan(pw / (ph + eps))) ** 2
     with torch.no_grad():
         alpha = v / ((1 - iou) + v + eps)
 
@@ -249,6 +259,7 @@ def ciou_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 # ── Model architecture ────────────────────────────────────────────────────────
+
 
 class _SPP:
     pass  # placeholder — defined inside DroneStudentDetector to avoid circular import
@@ -300,10 +311,10 @@ class DroneStudentDetector:
                 inner_self.head = self.head
 
             def forward(inner_self, x):
-                feat = inner_self.features(x)    # (B, 576, S, S)
-                out = inner_self.head(feat)       # (B, 6, S, S)
+                feat = inner_self.features(x)  # (B, 576, S, S)
+                out = inner_self.head(feat)  # (B, 6, S, S)
                 B, C, S, _ = out.shape
-                out = out.permute(0, 2, 3, 1)    # (B, S, S, 6)
+                out = out.permute(0, 2, 3, 1)  # (B, S, S, 6)
                 return out.contiguous().view(B, S * S, 6)
 
         self.net = _Net()
@@ -318,6 +329,7 @@ class DroneStudentDetector:
 
 
 # ── Training ──────────────────────────────────────────────────────────────────
+
 
 def run_drone_detection_training(
     config: DroneDetectorConfig,
@@ -340,6 +352,7 @@ def run_drone_detection_training(
         logger.info("Attempting to load seraphim-drone-detection-dataset from HuggingFace …")
         try:
             from huggingface_hub import snapshot_download
+
             hf_downloaded = snapshot_download(
                 repo_id="lgrzybowski/seraphim-drone-detection-dataset",
                 repo_type="dataset",
@@ -359,19 +372,30 @@ def run_drone_detection_training(
     )
     num_train = len(dataset)
     num_neg = len(dataset._neg_items)
-    logger.info("Dataset: %d total samples (%d positives, %d negatives)",
-                num_train, num_train - num_neg, num_neg)
+    logger.info(
+        "Dataset: %d total samples (%d positives, %d negatives)",
+        num_train,
+        num_train - num_neg,
+        num_neg,
+    )
 
     if num_train == 0:
         logger.warning("No training data found — returning stub result")
         return {
-            "best_path": "", "best_map50": 0.0, "loss_history": [],
-            "elapsed": 0.0, "model_params": 0, "num_train_images": 0,
-            "num_neg_images": 0, "augmentations_used": [],
+            "best_path": "",
+            "best_map50": 0.0,
+            "loss_history": [],
+            "elapsed": 0.0,
+            "model_params": 0,
+            "num_train_images": 0,
+            "num_neg_images": 0,
+            "augmentations_used": [],
         }
 
     loader = DataLoader(
-        dataset, batch_size=config.batch_size, shuffle=True,
+        dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
         num_workers=config.num_workers,
         drop_last=(num_train > config.batch_size),
     )
@@ -409,7 +433,7 @@ def run_drone_detection_training(
             preds = model(imgs)  # (B, S*S, 6)
 
             # Separate supervised loss components
-            obj_mask = targets[..., 4] > 0.5              # (B, S*S)
+            obj_mask = targets[..., 4] > 0.5  # (B, S*S)
             # Objectness BCE
             l_obj = nn.functional.binary_cross_entropy_with_logits(
                 preds[..., 4], targets[..., 4], reduction="mean"
@@ -465,10 +489,16 @@ def run_drone_detection_training(
     n_params = detector.num_parameters()
 
     augmentations_used = [
-        "RandomHorizontalFlip", "RandomVerticalFlip",
-        "ColorJitter", "RandomGrayscale", "GaussianBlur",
-        "Mosaic", "RandomErasing", "CutOut",
-        "RandomAffine", "RandomCrop",
+        "RandomHorizontalFlip",
+        "RandomVerticalFlip",
+        "ColorJitter",
+        "RandomGrayscale",
+        "GaussianBlur",
+        "Mosaic",
+        "RandomErasing",
+        "CutOut",
+        "RandomAffine",
+        "RandomCrop",
     ]
 
     # Approximate mAP50 as 1 - best_loss (bounded, illustrative proxy)
@@ -476,7 +506,10 @@ def run_drone_detection_training(
 
     logger.info(
         "DroneDetector training done: %.1fs | best_loss=%.4f | map50≈%.3f | params=%dM",
-        elapsed, best_loss, best_map50, n_params // 1_000_000,
+        elapsed,
+        best_loss,
+        best_map50,
+        n_params // 1_000_000,
     )
     return {
         "best_path": best_path if os.path.exists(best_path) else "",
@@ -493,6 +526,7 @@ def run_drone_detection_training(
 def _load_teacher(teacher_path: str, device: str) -> nn.Module:
     """Load a teacher model for distillation (YOLOv8-nano or DroneStudentDetector)."""
     import torch
+
     # Try loading as a DroneStudentDetector checkpoint
     det = DroneStudentDetector()
     state = torch.load(teacher_path, map_location=device)
@@ -501,6 +535,7 @@ def _load_teacher(teacher_path: str, device: str) -> nn.Module:
 
 
 # ── ONNX export ───────────────────────────────────────────────────────────────
+
 
 def export_drone_detector_onnx(
     model: Any,
@@ -524,10 +559,13 @@ def export_drone_detector_onnx(
 
     dummy = torch.zeros(1, 3, image_size, image_size)
     import warnings
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
         torch.onnx.export(
-            net, dummy, fp32_path,
+            net,
+            dummy,
+            fp32_path,
             opset_version=opset,
             input_names=["images"],
             output_names=["detections"],
@@ -542,10 +580,12 @@ def export_drone_detector_onnx(
 
         class _CalibReader(CalibrationDataReader):
             def __init__(self):
-                self._data = iter([
-                    {"images": np.random.randn(1, 3, image_size, image_size).astype(np.float32)}
-                    for _ in range(10)
-                ])
+                self._data = iter(
+                    [
+                        {"images": np.random.randn(1, 3, image_size, image_size).astype(np.float32)}
+                        for _ in range(10)
+                    ]
+                )
 
             def get_next(self):
                 try:
@@ -554,7 +594,8 @@ def export_drone_detector_onnx(
                     return None
 
         quantize_static(
-            fp32_path, output_path,
+            fp32_path,
+            output_path,
             calibration_data_reader=_CalibReader(),
             quant_format=None,  # default QDQ format
             per_channel=False,
@@ -565,12 +606,14 @@ def export_drone_detector_onnx(
     except Exception as exc:
         logger.warning("INT8 quantization failed (%s) — using FP32 ONNX as output", exc)
         import shutil
+
         shutil.copy2(fp32_path, output_path)
 
     return output_path
 
 
 # ── RKNN export ───────────────────────────────────────────────────────────────
+
 
 def export_drone_detector_rknn(
     onnx_path: str,
@@ -646,6 +689,7 @@ def export_drone_detector_rknn(
 
 
 # ── Cortex-A76 benchmark ──────────────────────────────────────────────────────
+
 
 class CortexA76Tester:
     """Benchmark an ONNX model under Cortex-A76-equivalent thread constraints."""

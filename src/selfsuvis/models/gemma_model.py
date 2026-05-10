@@ -80,6 +80,7 @@ class GemmaEmbedder:
         import os as _os
 
         from selfsuvis.pipeline.core.config import mask_secret as _mask_secret  # noqa: PLC0415
+
         token = hf_token or _os.getenv("HUGGING_FACE_HUB_TOKEN") or _os.getenv("HF_TOKEN") or None
         _log.info(
             "GemmaEmbedder: HF token %s",
@@ -102,6 +103,7 @@ class GemmaEmbedder:
                 model_id,
             )
             from transformers import AutoTokenizer  # noqa: PLC0415
+
             self.processor = AutoTokenizer.from_pretrained(
                 model_id,
                 trust_remote_code=True,
@@ -110,7 +112,9 @@ class GemmaEmbedder:
 
         _log.info(
             "GemmaEmbedder: loading model from %s (dtype=%s, device=%s) …",
-            model_id, dtype, device,
+            model_id,
+            dtype,
+            device,
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             model_id,
@@ -122,7 +126,7 @@ class GemmaEmbedder:
         self.model.eval()
 
         self._model_id = model_id
-        self._device   = device
+        self._device = device
         # Gemma 4 multimodal uses a nested text_config; plain Gemma has hidden_size directly.
         _cfg = self.model.config
         self._dim = (
@@ -137,14 +141,14 @@ class GemmaEmbedder:
 
         _log.info(
             "GemmaEmbedder ready  model=%s  dim=%d  multimodal=%s",
-            model_id, self._dim, self._is_multimodal,
+            model_id,
+            self._dim,
+            self._is_multimodal,
         )
 
     # ── Public interface (matches OpenCLIPEmbedder) ───────────────────────────
 
-    def encode_images(
-        self, images: list[Image.Image], batch_size: int = 4
-    ) -> np.ndarray:
+    def encode_images(self, images: list[Image.Image], batch_size: int = 4) -> np.ndarray:
         """Return L2-normalised image embeddings, shape ``(N, dim)``."""
         if not images:
             return np.zeros((0, self._dim), dtype=np.float32)
@@ -159,9 +163,7 @@ class GemmaEmbedder:
         arr = np.concatenate(results, axis=0)
         return self._l2_norm(arr)
 
-    def encode_texts(
-        self, texts: list[str], batch_size: int = 16
-    ) -> np.ndarray:
+    def encode_texts(self, texts: list[str], batch_size: int = 16) -> np.ndarray:
         """Return L2-normalised text embeddings, shape ``(N, dim)``."""
         results: list[np.ndarray] = []
         for start in range(0, len(texts), batch_size):
@@ -174,9 +176,7 @@ class GemmaEmbedder:
         arr = np.concatenate(results, axis=0)
         return self._l2_norm(arr)
 
-    def encode_images_temporal(
-        self, images: list[Image.Image], batch_size: int = 4
-    ) -> np.ndarray:
+    def encode_images_temporal(self, images: list[Image.Image], batch_size: int = 4) -> np.ndarray:
         """Return a single L2-normalised embedding for a sequence of frames.
 
         Computes per-frame embeddings then mean-pools them, producing one
@@ -185,7 +185,7 @@ class GemmaEmbedder:
         if not images:
             return np.zeros((1, self._dim), dtype=np.float32)
         per_frame = self.encode_images(images, batch_size=batch_size)
-        mean_vec  = per_frame.mean(axis=0, keepdims=True)
+        mean_vec = per_frame.mean(axis=0, keepdims=True)
         return self._l2_norm(mean_vec)
 
     def image_dim(self) -> int:
@@ -217,22 +217,21 @@ class GemmaEmbedder:
         try:
             return inputs.to(target)
         except Exception:
-            return {
-                k: v.to(target) if hasattr(v, "to") else v
-                for k, v in inputs.items()
-            }
+            return {k: v.to(target) if hasattr(v, "to") else v for k, v in inputs.items()}
 
     def _build_multimodal_inputs(self, image: Image.Image):
         """Build a single-image multimodal prompt with an explicit image token."""
         # Strategy 1: processor chat template with structured image placeholder.
         try:
-            messages = [{
-                "role": "user",
-                "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": _IMAGE_PROMPT},
-                ],
-            }]
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image"},
+                        {"type": "text", "text": _IMAGE_PROMPT},
+                    ],
+                }
+            ]
             text = self.processor.apply_chat_template(
                 messages,
                 tokenize=False,
@@ -251,10 +250,12 @@ class GemmaEmbedder:
         # Strategy 2: tokenizer chat template with explicit image placeholder.
         try:
             tokenizer = getattr(self.processor, "tokenizer", self.processor)
-            messages = [{
-                "role": "user",
-                "content": f"<|image_1|>\n{_IMAGE_PROMPT}",
-            }]
+            messages = [
+                {
+                    "role": "user",
+                    "content": f"<|image_1|>\n{_IMAGE_PROMPT}",
+                }
+            ]
             text = tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
@@ -324,10 +325,7 @@ class GemmaEmbedder:
             )
 
         target = self._input_device()
-        inputs = {
-            k: v.to(target) for k, v in inputs.items()
-            if isinstance(v, self._torch.Tensor)
-        }
+        inputs = {k: v.to(target) for k, v in inputs.items() if isinstance(v, self._torch.Tensor)}
 
         with self._torch.no_grad():
             outputs = self.model(**inputs, output_hidden_states=True)
@@ -363,7 +361,7 @@ class GemmaEmbedder:
     def _encode_text_batch(self, texts: list[str]) -> np.ndarray:
         """Forward pass for one batch of strings → numpy (batch, dim)."""
         prompts = [_TEXT_PROMPT.format(text=t) for t in texts]
-        inputs  = self.processor(
+        inputs = self.processor(
             text=prompts,
             return_tensors="pt",
             padding=True,
@@ -371,8 +369,7 @@ class GemmaEmbedder:
             max_length=_MAX_TEXT_TOKENS,
         )
         target = self._input_device()
-        inputs = {k: v.to(target) for k, v in inputs.items()
-                  if isinstance(v, self._torch.Tensor)}
+        inputs = {k: v.to(target) for k, v in inputs.items() if isinstance(v, self._torch.Tensor)}
 
         with self._torch.no_grad():
             outputs = self.model(**inputs, output_hidden_states=True)

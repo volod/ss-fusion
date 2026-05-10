@@ -15,6 +15,7 @@ collect_npz_files(path_str, output_dir) -> List[Path]
 view_npz(path_str, output_dir)
     Load NPZ file(s) and open interactive viewer.
 """
+
 import json
 from pathlib import Path
 from typing import Any
@@ -29,10 +30,12 @@ try:
     import sys
 
     import matplotlib
+
     matplotlib.use("TkAgg" if sys.platform != "linux" else "Agg")
     import matplotlib.pyplot as plt
     import matplotlib.widgets as mwidgets
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 — registers 3D projection
+
     _HAS_MPL = True
 except Exception:
     _HAS_MPL = False
@@ -49,8 +52,12 @@ def build_viewer_figure(title: str, points: np.ndarray, colours: np.ndarray):
 
     if len(points) > 0:
         ax.scatter(
-            points[:, 0], points[:, 1], points[:, 2],
-            c=colours.clip(0, 1), s=4, linewidths=0,
+            points[:, 0],
+            points[:, 1],
+            points[:, 2],
+            c=colours.clip(0, 1),
+            s=4,
+            linewidths=0,
         )
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -140,13 +147,13 @@ def view_npz(path_str: str, output_dir: Path) -> None:
     viewer_data: list[dict[str, Any]] = []
     for npz_path in npz_files:
         try:
-            data    = np.load(str(npz_path))
-            points  = data["points"]
+            data = np.load(str(npz_path))
+            points = data["points"]
             colours = data["colours"]
 
             parts = npz_path.parts
             try:
-                idx   = parts.index("3d_map")
+                idx = parts.index("3d_map")
                 label = parts[idx - 1] if idx > 0 else npz_path.stem
             except ValueError:
                 label = npz_path.parent.name
@@ -159,11 +166,13 @@ def view_npz(path_str: str, output_dir: Path) -> None:
                 except Exception:
                     pass
 
-            viewer_data.append({
-                "title":   f"3D Map — {label}  ({method})  [{len(points)} pts]",
-                "points":  points,
-                "colours": colours,
-            })
+            viewer_data.append(
+                {
+                    "title": f"3D Map — {label}  ({method})  [{len(points)} pts]",
+                    "points": points,
+                    "colours": colours,
+                }
+            )
             logger.info("Loaded %s: %d points  method=%s", npz_path, len(points), method)
         except Exception as exc:
             logger.error("Failed to load %s: %s", npz_path, exc)

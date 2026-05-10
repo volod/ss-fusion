@@ -54,9 +54,7 @@ class OpenCLIPTagger:
         labels = []
         for row in sims:
             top_idx = np.argsort(-row)[:top_k]
-            labels.append(
-                [{"label": self.labels[i], "score": float(row[i])} for i in top_idx]
-            )
+            labels.append([{"label": self.labels[i], "score": float(row[i])} for i in top_idx])
         return labels
 
 
@@ -120,7 +118,9 @@ def mask_to_segments(
         raw_masks.append(mask_crop)
 
     labels = tagger.label_segments(crops, top_k=1)
-    for idx, mask in enumerate(sorted(masks, key=lambda m: m.get("area", 0), reverse=True)[: len(crops)]):
+    for idx, mask in enumerate(
+        sorted(masks, key=lambda m: m.get("area", 0), reverse=True)[: len(crops)]
+    ):
         x, y, w, h = mask["bbox"]
         x, y, w, h = int(x), int(y), int(w), int(h)
         seg_mask = raw_masks[idx]

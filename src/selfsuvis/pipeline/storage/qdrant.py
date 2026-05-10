@@ -1,4 +1,3 @@
-
 import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
@@ -25,7 +24,9 @@ class QdrantStore:
             "clip": qmodels.VectorParams(size=self.clip_dim, distance=qmodels.Distance.COSINE)
         }
         if self.dino_dim:
-            vectors_config["dino"] = qmodels.VectorParams(size=self.dino_dim, distance=qmodels.Distance.COSINE)
+            vectors_config["dino"] = qmodels.VectorParams(
+                size=self.dino_dim, distance=qmodels.Distance.COSINE
+            )
         exists = False
         try:
             exists = self.client.collection_exists(self.collection)

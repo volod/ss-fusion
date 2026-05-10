@@ -85,6 +85,7 @@ class RSSMEmbedder:
         if self._torch_available is None:
             try:
                 import torch  # noqa: F401
+
                 self._torch_available = True
             except ImportError:
                 self._torch_available = False
@@ -229,9 +230,7 @@ class RSSMEmbedder:
 
                 if z_prev_pred is not None:
                     # Cosine distance between predicted and actual latent
-                    surprise = 1.0 - float(
-                        F.cosine_similarity(z_prev_pred, mu, dim=-1).item()
-                    )
+                    surprise = 1.0 - float(F.cosine_similarity(z_prev_pred, mu, dim=-1).item())
                     surprise_scores[t] = float(np.clip(surprise, 0.0, 1.0))
 
                 h = recurrent(z, h)
@@ -267,9 +266,10 @@ class RSSMEmbedder:
 
         for t in range(N):
             if t > 0:
-                cos_sim = float(np.dot(ema, embeddings[t]) / (
-                    np.linalg.norm(ema) * np.linalg.norm(embeddings[t]) + 1e-9
-                ))
+                cos_sim = float(
+                    np.dot(ema, embeddings[t])
+                    / (np.linalg.norm(ema) * np.linalg.norm(embeddings[t]) + 1e-9)
+                )
                 surprise_scores[t] = float(np.clip(1.0 - cos_sim, 0.0, 1.0))
             ema = alpha * embeddings[t] + (1.0 - alpha) * ema
 

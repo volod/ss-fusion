@@ -64,6 +64,7 @@ def _resolve_device() -> str:
     cfg = (settings.DEVICE or "auto").lower()
     try:
         import torch  # type: ignore[import-untyped]
+
         if cfg == "auto":
             if torch.cuda.is_available():
                 return "cuda"
@@ -143,7 +144,9 @@ class ASRModel:
             chunks = _normalise_asr_output(result, audio_path)
             logger.info(
                 "ASR transcribed %s → %d segments (model=%s)",
-                audio_path, len(chunks), self._model_id,
+                audio_path,
+                len(chunks),
+                self._model_id,
             )
             return chunks
         except Exception:
@@ -202,7 +205,8 @@ class ASRModel:
         except Exception:
             logger.warning(
                 "Failed to load ASR model %s; ASR will be skipped for this run",
-                model_id, exc_info=True,
+                model_id,
+                exc_info=True,
             )
             self._pipe = None
 
@@ -282,7 +286,11 @@ def _suppress_whisper_pipeline_noise():
 
     sink = io.StringIO()
     try:
-        with warnings.catch_warnings(), contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+        with (
+            warnings.catch_warnings(),
+            contextlib.redirect_stdout(sink),
+            contextlib.redirect_stderr(sink),
+        ):
             warnings.filterwarnings(
                 "ignore",
                 message=r".*chunk_length_s.*very experimental with seq2seq models.*",

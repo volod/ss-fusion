@@ -16,6 +16,7 @@ from selfsuvis.pipeline.analysis.change_detection import (
 
 # ── compute_semantic_diff ─────────────────────────────────────────────────────
 
+
 def test_semantic_diff_empty_when_identical():
     facts = {
         "vehicle_groups": [{"type": "truck", "count": 2}],
@@ -95,15 +96,20 @@ def test_semantic_diff_invalid_vehicle_groups_type():
 
 # ── generate_change_explanation ───────────────────────────────────────────────
 
+
 def test_generate_change_explanation_returns_none_when_no_gemma_url(monkeypatch):
     import selfsuvis.pipeline.analysis.change_detection as cd
+
     monkeypatch.setattr(cd.settings, "GEMMA_API_URL", "")
-    result = generate_change_explanation({"vehicle_count": {"before": 2, "after": 5, "delta": 3}}, 0.4)
+    result = generate_change_explanation(
+        {"vehicle_count": {"before": 2, "after": 5, "delta": 3}}, 0.4
+    )
     assert result is None
 
 
 def test_generate_change_explanation_returns_none_for_empty_diff(monkeypatch):
     import selfsuvis.pipeline.analysis.change_detection as cd
+
     monkeypatch.setattr(cd.settings, "GEMMA_API_URL", "http://gemma:11434/v1")
     result = generate_change_explanation({}, 0.3)
     assert result is None
@@ -111,6 +117,7 @@ def test_generate_change_explanation_returns_none_for_empty_diff(monkeypatch):
 
 def test_generate_change_explanation_calls_gemma_api(monkeypatch):
     import selfsuvis.pipeline.analysis.change_detection as cd
+
     monkeypatch.setattr(cd.settings, "GEMMA_API_URL", "http://gemma:11434/v1")
     monkeypatch.setattr(cd.settings, "GEMMA_API_MODEL", "gemma4:e4b")
 
@@ -134,6 +141,7 @@ def test_generate_change_explanation_calls_gemma_api(monkeypatch):
 
 def test_generate_change_explanation_truncates_at_first_sentence(monkeypatch):
     import selfsuvis.pipeline.analysis.change_detection as cd
+
     monkeypatch.setattr(cd.settings, "GEMMA_API_URL", "http://gemma:11434/v1")
     monkeypatch.setattr(cd.settings, "GEMMA_API_MODEL", "gemma4:e4b")
 
@@ -157,6 +165,7 @@ def test_generate_change_explanation_truncates_at_first_sentence(monkeypatch):
 
 def test_generate_change_explanation_returns_none_on_api_error(monkeypatch):
     import selfsuvis.pipeline.analysis.change_detection as cd
+
     monkeypatch.setattr(cd.settings, "GEMMA_API_URL", "http://gemma:11434/v1")
     monkeypatch.setattr(cd.settings, "GEMMA_API_MODEL", "gemma4:e4b")
 
@@ -173,6 +182,7 @@ def test_generate_change_explanation_returns_none_on_api_error(monkeypatch):
 
 
 # ── detect_changes integration with frame_facts_json ─────────────────────────
+
 
 def _make_embedding(val: float = 1.0, dim: int = 4) -> list:
     v = np.zeros(dim)
@@ -192,7 +202,7 @@ def _make_candidate(frame_id: str, mission_id: str, emb_val: float, facts=None):
 def test_detect_changes_includes_semantic_diff_when_facts_present():
     """detect_changes sets semantic_diff_json when both frames have facts."""
     new_facts = {"vehicle_groups": [{"count": 5}], "road_condition": "wet"}
-    ref_facts  = {"vehicle_groups": [{"count": 2}], "road_condition": "clear"}
+    ref_facts = {"vehicle_groups": [{"count": 2}], "road_condition": "clear"}
 
     new_frames = [
         {

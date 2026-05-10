@@ -1,6 +1,5 @@
 """Helpers for suppressing noisy third-party warnings and console output."""
 
-
 import contextlib
 import io
 import logging

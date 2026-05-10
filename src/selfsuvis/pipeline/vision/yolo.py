@@ -49,29 +49,107 @@ logger = get_logger(__name__)
 
 _HUMAN_LABELS = frozenset({"person", "pedestrian", "rider", "child"})
 
-_VEHICLE_LABELS = frozenset({
-    "bicycle", "car", "motorcycle", "airplane", "bus", "train",
-    "truck", "boat", "van", "vehicle", "motorbike", "bike",
-})
+_VEHICLE_LABELS = frozenset(
+    {
+        "bicycle",
+        "car",
+        "motorcycle",
+        "airplane",
+        "bus",
+        "train",
+        "truck",
+        "boat",
+        "van",
+        "vehicle",
+        "motorbike",
+        "bike",
+    }
+)
 
 # Anything manufactured but not a vehicle or person.
-_ARTIFICIAL_LABELS = frozenset({
-    "traffic light", "fire hydrant", "stop sign", "parking meter",
-    "bench", "chair", "couch", "potted plant", "bed", "dining table",
-    "toilet", "tv", "laptop", "mouse", "remote", "keyboard",
-    "cell phone", "microwave", "oven", "toaster", "sink",
-    "refrigerator", "book", "clock", "vase", "scissors",
-    "teddy bear", "hair drier", "toothbrush", "bottle", "wine glass",
-    "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza",
-    "donut", "cake", "backpack", "umbrella", "handbag", "tie",
-    "suitcase", "frisbee", "skis", "snowboard", "sports ball",
-    "kite", "baseball bat", "baseball glove", "skateboard",
-    "surfboard", "tennis racket", "traffic cone", "barrier",
-    "sign", "pole", "fence", "building", "wall", "column",
-    "streetlight", "street light", "lamppost", "bollard",
-    "mailbox", "fire escape", "awning", "bridge", "column", "pillar",
-})
+_ARTIFICIAL_LABELS = frozenset(
+    {
+        "traffic light",
+        "fire hydrant",
+        "stop sign",
+        "parking meter",
+        "bench",
+        "chair",
+        "couch",
+        "potted plant",
+        "bed",
+        "dining table",
+        "toilet",
+        "tv",
+        "laptop",
+        "mouse",
+        "remote",
+        "keyboard",
+        "cell phone",
+        "microwave",
+        "oven",
+        "toaster",
+        "sink",
+        "refrigerator",
+        "book",
+        "clock",
+        "vase",
+        "scissors",
+        "teddy bear",
+        "hair drier",
+        "toothbrush",
+        "bottle",
+        "wine glass",
+        "cup",
+        "fork",
+        "knife",
+        "spoon",
+        "bowl",
+        "banana",
+        "apple",
+        "sandwich",
+        "orange",
+        "broccoli",
+        "carrot",
+        "hot dog",
+        "pizza",
+        "donut",
+        "cake",
+        "backpack",
+        "umbrella",
+        "handbag",
+        "tie",
+        "suitcase",
+        "frisbee",
+        "skis",
+        "snowboard",
+        "sports ball",
+        "kite",
+        "baseball bat",
+        "baseball glove",
+        "skateboard",
+        "surfboard",
+        "tennis racket",
+        "traffic cone",
+        "barrier",
+        "sign",
+        "pole",
+        "fence",
+        "building",
+        "wall",
+        "column",
+        "streetlight",
+        "street light",
+        "lamppost",
+        "bollard",
+        "mailbox",
+        "fire escape",
+        "awning",
+        "bridge",
+        "column",
+        "pillar",
+    }
+)
 
 PRIORITY_HUMAN = 1
 PRIORITY_VEHICLE = 2
@@ -98,7 +176,22 @@ def classify_label_priority(label: str) -> int:
     norm = label.lower().strip()
     if norm in _HUMAN_LABELS or "person" in norm or "pedestrian" in norm:
         return PRIORITY_HUMAN
-    if norm in _VEHICLE_LABELS or any(v in norm for v in ("car", "truck", "bus", "van", "moto", "bike", "cycle", "boat", "plane", "train", "vehicle")):
+    if norm in _VEHICLE_LABELS or any(
+        v in norm
+        for v in (
+            "car",
+            "truck",
+            "bus",
+            "van",
+            "moto",
+            "bike",
+            "cycle",
+            "boat",
+            "plane",
+            "train",
+            "vehicle",
+        )
+    ):
         return PRIORITY_VEHICLE
     if norm in _ARTIFICIAL_LABELS:
         return PRIORITY_ARTIFICIAL
@@ -134,6 +227,7 @@ def _resolve_yolo_model() -> str:
     # Auto-select based on available VRAM
     try:
         from selfsuvis.pipeline.vision.registry import detect_resources
+
         res = detect_resources()
         vram_mb = res.get("vram_gb", 0.0) * 1024
         for name, size_mb in _YOLO_AUTO_TIERS:
@@ -149,6 +243,7 @@ def _resolve_yolo_model() -> str:
 
 
 # ── Detector class ────────────────────────────────────────────────────────────
+
 
 class YOLODetector:
     """YOLO11 object detector using the ultralytics package.
@@ -203,6 +298,7 @@ class YOLODetector:
         gc.collect()
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception:
@@ -243,19 +339,21 @@ class YOLODetector:
                         continue
                     x1, y1, x2, y2 = box.xyxy[0].tolist()
                     priority = classify_label_priority(label)
-                    detections.append({
-                        "label": label,
-                        "confidence": round(conf, 4),
-                        "bbox_norm": [
-                            round(x1 / w, 4),
-                            round(y1 / h, 4),
-                            round(x2 / w, 4),
-                            round(y2 / h, 4),
-                        ],
-                        "priority": priority,
-                        "priority_label": _PRIORITY_LABEL[priority],
-                        "mask_area_norm": None,
-                    })
+                    detections.append(
+                        {
+                            "label": label,
+                            "confidence": round(conf, 4),
+                            "bbox_norm": [
+                                round(x1 / w, 4),
+                                round(y1 / h, 4),
+                                round(x2 / w, 4),
+                                round(y2 / h, 4),
+                            ],
+                            "priority": priority,
+                            "priority_label": _PRIORITY_LABEL[priority],
+                            "mask_area_norm": None,
+                        }
+                    )
                 except Exception:
                     continue
         return detections
@@ -268,9 +366,7 @@ class YOLODetector:
         try:
             from ultralytics import YOLO  # type: ignore[import]
         except ImportError:
-            logger.warning(
-                "ultralytics not installed — install with: pip install ultralytics"
-            )
+            logger.warning("ultralytics not installed — install with: pip install ultralytics")
             self._load_failed = True
             return None
         try:
@@ -289,7 +385,8 @@ class YOLODetector:
             logger.warning(
                 "Failed to load YOLO model %s (%s) — "
                 "run: pip install ultralytics && python -c \"from ultralytics import YOLO; YOLO('yolo11n.pt')\"",
-                self.model_id, exc,
+                self.model_id,
+                exc,
             )
             self._model = None
             self._load_failed = True

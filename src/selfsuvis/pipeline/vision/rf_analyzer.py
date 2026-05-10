@@ -49,10 +49,30 @@ logger = get_logger(__name__)
 # Modulation class labels in the same order TorchSig uses internally.
 # Override via RF_CLASSIFIER_CLASSES env var (JSON list).
 _DEFAULT_CLASSES = [
-    "OOK", "4ASK", "8ASK", "BPSK", "QPSK", "8PSK", "16PSK", "32PSK",
-    "16APSK", "32APSK", "64APSK", "128APSK", "16QAM", "32QAM", "64QAM",
-    "128QAM", "256QAM", "AM-DSB-WC", "AM-DSB-SC", "AM-USB", "AM-LSB",
-    "FM", "GMSK", "OQPSK",
+    "OOK",
+    "4ASK",
+    "8ASK",
+    "BPSK",
+    "QPSK",
+    "8PSK",
+    "16PSK",
+    "32PSK",
+    "16APSK",
+    "32APSK",
+    "64APSK",
+    "128APSK",
+    "16QAM",
+    "32QAM",
+    "64QAM",
+    "128QAM",
+    "256QAM",
+    "AM-DSB-WC",
+    "AM-DSB-SC",
+    "AM-USB",
+    "AM-LSB",
+    "FM",
+    "GMSK",
+    "OQPSK",
 ]
 
 
@@ -82,9 +102,8 @@ def _load_iq_file(path: str, source: str) -> tuple[np.ndarray | None, float]:
             if os.path.isfile(meta_path):
                 with open(meta_path) as f:
                     meta = json.load(f)
-                sr = (
-                    meta.get("global", {}).get("core:sample_rate")
-                    or meta.get("global", {}).get("sample_rate")
+                sr = meta.get("global", {}).get("core:sample_rate") or meta.get("global", {}).get(
+                    "sample_rate"
                 )
                 if sr:
                     sample_rate = float(sr)
@@ -106,6 +125,7 @@ def _load_audio_proxy(wav_path: str) -> tuple[np.ndarray | None, float]:
     """Load a WAV file as a real-valued proxy signal (treated as I-only baseband)."""
     try:
         import wave
+
         with wave.open(wav_path, "rb") as wf:
             nchannels = wf.getnchannels()
             sampwidth = wf.getsampwidth()
@@ -212,9 +232,7 @@ def _torchsig_spectrogram(samples: np.ndarray, nperseg: int) -> np.ndarray | Non
         from torchsig.transforms.signal_processing import Spectrogram  # type: ignore[import]
 
         spec_transform = Spectrogram(nperseg=nperseg)
-        tensor = torch.from_numpy(
-            np.stack([samples.real, samples.imag], axis=0).astype(np.float32)
-        )
+        tensor = torch.from_numpy(np.stack([samples.real, samples.imag], axis=0).astype(np.float32))
         result = spec_transform(tensor)
         arr = result.numpy() if hasattr(result, "numpy") else np.array(result)
         # torchsig returns linear magnitude; convert to dB
@@ -231,6 +249,7 @@ def _load_classifier(checkpoint_path: str):
     """Load a TorchScript modulation classifier from *checkpoint_path*."""
     try:
         import torch
+
         model = torch.jit.load(checkpoint_path, map_location="cpu")
         model.eval()
         logger.info("RF: loaded modulation classifier from %s", checkpoint_path)
@@ -393,6 +412,7 @@ class RFSignalAnalyzer:
         gc.collect()
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception:

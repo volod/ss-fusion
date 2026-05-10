@@ -119,7 +119,9 @@ def test_steps_report_analytics_formatters_render_compact_cells():
     assert steps_report._fmt_analytics_temporal(summary) == "0.663 / 3 peaks"
     assert steps_report._fmt_analytics_world_tracking(summary) == "degraded / 371 tracks"
     assert steps_report._fmt_analytics_map(summary) == "degraded (10p/10 poses)"
-    assert steps_report._fmt_analytics_warnings(summary) == "map_degraded, world_model_unavailable +1"
+    assert (
+        steps_report._fmt_analytics_warnings(summary) == "map_degraded, world_model_unavailable +1"
+    )
 
 
 def test_fallback_ocr_frame_sample_selects_evenly_spaced_subset():

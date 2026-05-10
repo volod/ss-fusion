@@ -25,6 +25,7 @@ def plot_embedding_pca(
     Points are coloured by temporal index (early=blue, late=red).
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -38,8 +39,16 @@ def plot_embedding_pca(
     colors = np.linspace(0, 1, len(proj))
 
     fig, ax = plt.subplots(figsize=(8, 7))
-    sc = ax.scatter(proj[:, 0], proj[:, 1], c=colors, cmap="coolwarm",
-                    s=40, alpha=0.85, edgecolors="k", linewidths=0.3)
+    sc = ax.scatter(
+        proj[:, 0],
+        proj[:, 1],
+        c=colors,
+        cmap="coolwarm",
+        s=40,
+        alpha=0.85,
+        edgecolors="k",
+        linewidths=0.3,
+    )
     plt.colorbar(sc, ax=ax, label="Temporal index (early → late)")
     ax.set_xlabel("PC 1")
     ax.set_ylabel("PC 2")
@@ -61,6 +70,7 @@ def plot_similarity_matrix(
 ) -> "Figure":
     """Cosine-similarity heatmap of all frame-pair embeddings."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 

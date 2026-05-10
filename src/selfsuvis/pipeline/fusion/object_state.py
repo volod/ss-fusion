@@ -44,8 +44,8 @@ from selfsuvis.pipeline.fusion.semantic_priors import SemanticPrior
 logger = get_logger(__name__)
 
 # Track lifecycle thresholds
-_CONFIRM_HITS = 3        # frames needed to become confirmed
-_MAX_MISS_FRAMES = 5     # consecutive misses before deletion
+_CONFIRM_HITS = 3  # frames needed to become confirmed
+_MAX_MISS_FRAMES = 5  # consecutive misses before deletion
 # Observation noise (normalised bbox coords)
 _OBS_NOISE = 0.005
 # Process noise scale for object RTS smoother (normalised coords / frame)
@@ -58,14 +58,15 @@ _INF_COST = 1e9
 @dataclass
 class ObjectStateSample:
     """Smoothed state estimate for one object at one frame."""
+
     track_id: int
     label: str
     t_sec: float
-    bbox_norm: list[float]          # [x1, y1, x2, y2] smoothed
-    velocity_norm: list[float]      # [vcx, vcy] normalised/frame
-    bbox_std: list[float]           # [std_cx, std_cy, std_w, std_h]
+    bbox_norm: list[float]  # [x1, y1, x2, y2] smoothed
+    velocity_norm: list[float]  # [vcx, vcy] normalised/frame
+    bbox_std: list[float]  # [std_cx, std_cy, std_w, std_h]
     confidence: float
-    track_state: str                # "tentative" | "confirmed" | "smoothed"
+    track_state: str  # "tentative" | "confirmed" | "smoothed"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -100,10 +101,7 @@ class ObjectFusionResult:
             "track_count": self.track_count,
             "confirmed_tracks": self.confirmed_tracks,
             "diagnostics": self.diagnostics,
-            "per_frame": [
-                [s.to_dict() for s in frame_samples]
-                for frame_samples in self.per_frame
-            ],
+            "per_frame": [[s.to_dict() for s in frame_samples] for frame_samples in self.per_frame],
         }
 
     def to_local_state_summary(self) -> dict[str, Any]:
@@ -118,10 +116,7 @@ class ObjectFusionResult:
             near_field_density     — mean fraction of central image area (cx,cy ∈ [0.3,0.7])
                                      occupied by tracked bboxes
         """
-        frame_dicts = [
-            [s.to_dict() for s in frame_samples]
-            for frame_samples in self.per_frame
-        ]
+        frame_dicts = [[s.to_dict() for s in frame_samples] for frame_samples in self.per_frame]
         return summarize_object_frame_dicts(frame_dicts)
 
 
@@ -185,11 +180,9 @@ def run_object_state_fusion(
         ObjectFusionResult with per-frame smoothed object states.
     """
     if not tracking_results:
-        return ObjectFusionResult(
-            enabled=True, status="skipped", reason="no tracking results"
-        )
+        return ObjectFusionResult(enabled=True, status="skipped", reason="no tracking results")
 
-    speed_priors = (prior.object_speed_priors if prior else {})
+    speed_priors = prior.object_speed_priors if prior else {}
     active_tracks: dict[int, ObjectKalmanFilter] = {}
     next_id = 1
     per_frame_raw: list[list[dict[str, Any]]] = []  # for RTS
@@ -204,8 +197,7 @@ def run_object_state_fusion(
             trk.predict(t_sec)
 
         confirmed_tracks = [
-            trk for trk in active_tracks.values()
-            if trk.state in ("tentative", "confirmed")
+            trk for trk in active_tracks.values() if trk.state in ("tentative", "confirmed")
         ]
 
         # Build cost matrix and solve assignment
@@ -221,7 +213,10 @@ def run_object_state_fusion(
                     if trk.hits >= confirm_hits:
                         trk.state = "confirmed"
                     if speed_priors:
-                        dt = max(0.02, t_sec - (trk.history[-2].t_sec if len(trk.history) >= 2 else t_sec))
+                        dt = max(
+                            0.02,
+                            t_sec - (trk.history[-2].t_sec if len(trk.history) >= 2 else t_sec),
+                        )
                         _apply_speed_prior(trk, speed_priors, dt)
                     matched_trks.add(r)
                     matched_dets.add(c)
@@ -253,15 +248,17 @@ def run_object_state_fusion(
         frame_snapshot: list[dict[str, Any]] = []
         for trk in active_tracks.values():
             if trk.state in ("tentative", "confirmed"):
-                frame_snapshot.append({
-                    "track_id": trk.track_id,
-                    "label": trk.label,
-                    "t_sec": t_sec,
-                    "x": trk.x.copy(),
-                    "P": trk.P.copy(),
-                    "hits": trk.hits,
-                    "state": trk.state,
-                })
+                frame_snapshot.append(
+                    {
+                        "track_id": trk.track_id,
+                        "label": trk.label,
+                        "t_sec": t_sec,
+                        "x": trk.x.copy(),
+                        "P": trk.P.copy(),
+                        "hits": trk.hits,
+                        "state": trk.state,
+                    }
+                )
         per_frame_raw.append(frame_snapshot)
 
     # ── RTS backward smoother per confirmed track ──────────────────────────
@@ -274,10 +271,7 @@ def run_object_state_fusion(
     # Run RTS over each confirmed track
     smoothed_by_track: dict[int, dict[float, np.ndarray]] = {}
     for tid, hist in confirmed_filter_history.items():
-        steps = [
-            FilteredStep(t_sec=h.t_sec, x=h.x, P=h.P)
-            for h in hist
-        ]
+        steps = [FilteredStep(t_sec=h.t_sec, x=h.x, P=h.P) for h in hist]
         rts_result = rts_smooth(steps, _OBJ_PROC_POS_STD, _OBJ_PROC_VEL_STD)
         smoothed_by_track[tid] = {s.t_sec: s.x for s in rts_result}
 
@@ -298,23 +292,31 @@ def run_object_state_fusion(
                 track_state = snap["state"]
 
             P_diag = np.sqrt(np.diag(snap["P"]))
-            frame_out.append(ObjectStateSample(
-                track_id=tid,
-                label=snap["label"],
-                t_sec=t,
-                bbox_norm=_state_to_bbox(x_out),
-                velocity_norm=[float(x_out[4]), float(x_out[5])],
-                bbox_std=[float(P_diag[0]), float(P_diag[1]),
-                          float(P_diag[2]), float(P_diag[3])],
-                confidence=float(snap["hits"] / max(snap["hits"] + snap.get("misses", 0), 1)),
-                track_state=track_state,
-            ))
+            frame_out.append(
+                ObjectStateSample(
+                    track_id=tid,
+                    label=snap["label"],
+                    t_sec=t,
+                    bbox_norm=_state_to_bbox(x_out),
+                    velocity_norm=[float(x_out[4]), float(x_out[5])],
+                    bbox_std=[
+                        float(P_diag[0]),
+                        float(P_diag[1]),
+                        float(P_diag[2]),
+                        float(P_diag[3]),
+                    ],
+                    confidence=float(snap["hits"] / max(snap["hits"] + snap.get("misses", 0), 1)),
+                    track_state=track_state,
+                )
+            )
         per_frame_out.append(frame_out)
 
     n_confirmed = sum(1 for trk in active_tracks.values() if trk.state == "confirmed")
     logger.info(
         "Object fusion: %d tracks total, %d confirmed, %d RTS-smoothed",
-        len(active_tracks), n_confirmed, len(smoothed_by_track),
+        len(active_tracks),
+        n_confirmed,
+        len(smoothed_by_track),
     )
     return ObjectFusionResult(
         enabled=True,
@@ -333,6 +335,7 @@ def run_object_state_fusion(
 
 
 # ── Clip-level summary helper ─────────────────────────────────────────────────
+
 
 def summarize_object_frame_dicts(
     per_frame_dicts: list[list[dict[str, Any]]],
@@ -354,7 +357,7 @@ def summarize_object_frame_dicts(
                                         image region ([0.3,0.7]² in normalised
                                         coords) occupied by tracked bboxes
     """
-    _NEAR_LO, _NEAR_HI = 0.3, 0.7          # central region boundaries
+    _NEAR_LO, _NEAR_HI = 0.3, 0.7  # central region boundaries
     _ACTIVE = {"confirmed", "smoothed"}
 
     vel_by_label: dict[str, list[float]] = {}
@@ -371,7 +374,7 @@ def summarize_object_frame_dicts(
             if isinstance(tid, int):
                 confirmed_track_ids.add(tid)
             vx, vy = (s.get("velocity_norm") or [0.0, 0.0])[:2]
-            speed = (vx ** 2 + vy ** 2) ** 0.5
+            speed = (vx**2 + vy**2) ** 0.5
             label = (s.get("label") or "unknown").lower()
             vel_by_label.setdefault(label, []).append(speed)
 
@@ -395,14 +398,12 @@ def summarize_object_frame_dicts(
     return {
         "confirmed_track_count": len(confirmed_track_ids),
         "mean_velocity_norm": float(sum(all_speeds) / len(all_speeds)) if all_speeds else 0.0,
-        "max_velocity_norm":  float(max(all_speeds)) if all_speeds else 0.0,
-        "velocity_by_label":  {
-            lbl: float(sum(sp) / len(sp)) for lbl, sp in vel_by_label.items()
-        },
-        "mean_bbox_uncertainty": float(
-            sum(all_uncertainties) / len(all_uncertainties)
-        ) if all_uncertainties else 0.0,
-        "near_field_density": float(
-            sum(frame_near_densities) / len(frame_near_densities)
-        ) if frame_near_densities else 0.0,
+        "max_velocity_norm": float(max(all_speeds)) if all_speeds else 0.0,
+        "velocity_by_label": {lbl: float(sum(sp) / len(sp)) for lbl, sp in vel_by_label.items()},
+        "mean_bbox_uncertainty": float(sum(all_uncertainties) / len(all_uncertainties))
+        if all_uncertainties
+        else 0.0,
+        "near_field_density": float(sum(frame_near_densities) / len(frame_near_densities))
+        if frame_near_densities
+        else 0.0,
     }

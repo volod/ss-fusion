@@ -92,6 +92,7 @@ def test_validate_settings_invalid_motion_range(monkeypatch):
 def test_validate_settings_no_api_key_logs_warning(monkeypatch, caplog):
     """validate_settings logs a warning when API_KEY is not set."""
     import logging
+
     monkeypatch.setattr(config.settings, "API_AUTH_REQUIRED", False)
     monkeypatch.setattr(config.settings, "API_KEY", "")
     with caplog.at_level(logging.WARNING, logger="selfsuvis.pipeline.config"):
@@ -111,6 +112,7 @@ def test_validate_settings_requires_api_key_when_auth_required(monkeypatch):
 def test_validate_settings_no_allowed_paths_logs_warning(monkeypatch, caplog):
     """validate_settings logs a warning when ALLOWED_INDEX_PATHS is empty."""
     import logging
+
     monkeypatch.setattr(config.settings, "ALLOWED_INDEX_PATHS", [])
     with caplog.at_level(logging.WARNING, logger="selfsuvis.pipeline.config"):
         config.validate_settings()

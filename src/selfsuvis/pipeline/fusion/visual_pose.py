@@ -46,7 +46,7 @@ def _umeyama_sim3(
     src_c = src - mu_src
     dst_c = dst - mu_dst
 
-    sigma2_src = float(np.mean(np.sum(src_c ** 2, axis=1)))
+    sigma2_src = float(np.mean(np.sum(src_c**2, axis=1)))
     if sigma2_src < 1e-12:
         # Degenerate: all SfM points are the same
         return 1.0, np.eye(3), mu_dst - mu_src, float(np.linalg.norm(dst_c))
@@ -66,7 +66,7 @@ def _umeyama_sim3(
 
     # RMSE
     residuals = dst - (scale * (src @ R.T) + t)
-    rmse = float(np.sqrt(np.mean(np.sum(residuals ** 2, axis=1))))
+    rmse = float(np.sqrt(np.mean(np.sum(residuals**2, axis=1))))
 
     return scale, R, t, rmse
 
@@ -108,8 +108,9 @@ def align_sfm_to_enu(
 
     if len(src_pts) < min_frames:
         logger.info(
-            "Visual-pose alignment skipped: only %d co-located SfM+GPS frames "
-            "(need ≥ %d)", len(src_pts), min_frames,
+            "Visual-pose alignment skipped: only %d co-located SfM+GPS frames (need ≥ %d)",
+            len(src_pts),
+            min_frames,
         )
         return None, []
 
@@ -120,16 +121,15 @@ def align_sfm_to_enu(
 
     # Measurement std: base + residual (RMSE of alignment)
     meas_std = max(_MIN_STD_M, sfm_base_std_m + rmse)
-    meas_var = meas_std ** 2
-    cov = tuple(
-        tuple(float(v) for v in row)
-        for row in np.diag([meas_var, meas_var, meas_var])
-    )
+    meas_var = meas_std**2
+    cov = tuple(tuple(float(v) for v in row) for row in np.diag([meas_var, meas_var, meas_var]))
 
     logger.info(
-        "Visual-pose Sim(3) alignment: %d frames | scale=%.3f | RMSE=%.2f m | "
-        "meas_std=%.2f m",
-        len(src_pts), scale, rmse, meas_std,
+        "Visual-pose Sim(3) alignment: %d frames | scale=%.3f | RMSE=%.2f m | meas_std=%.2f m",
+        len(src_pts),
+        scale,
+        rmse,
+        meas_std,
     )
 
     # Build measurements for ALL SfM frames (not only the ones used for fitting)

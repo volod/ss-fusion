@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -23,10 +22,12 @@ class PlatformStateFilter:
     def is_initialized(self) -> bool:
         return self.x is not None and self.P is not None and self.t_sec is not None
 
-    def initialize_from_position(self, t_sec: float, position_enu_m: np.ndarray, position_cov: np.ndarray) -> None:
+    def initialize_from_position(
+        self, t_sec: float, position_enu_m: np.ndarray, position_cov: np.ndarray
+    ) -> None:
         self.x = np.zeros(6, dtype=np.float64)
         self.x[:3] = position_enu_m
-        vel_var = self.init_vel_std_mps ** 2
+        vel_var = self.init_vel_std_mps**2
         self.P = np.zeros((6, 6), dtype=np.float64)
         self.P[:3, :3] = position_cov
         self.P[3:, 3:] = np.eye(3, dtype=np.float64) * vel_var
@@ -57,7 +58,9 @@ class PlatformStateFilter:
 
     def set_acceleration(self, measurement: PlatformMeasurement) -> None:
         self.current_accel_enu = np.array(measurement.values, dtype=np.float64)
-        self.measurement_counts[measurement.kind] = self.measurement_counts.get(measurement.kind, 0) + 1
+        self.measurement_counts[measurement.kind] = (
+            self.measurement_counts.get(measurement.kind, 0) + 1
+        )
 
     def update_position(self, measurement: PlatformMeasurement) -> None:
         if not self.is_initialized():
@@ -66,7 +69,9 @@ class PlatformStateFilter:
                 np.array(measurement.values, dtype=np.float64),
                 measurement.covariance_matrix(),
             )
-            self.measurement_counts[measurement.kind] = self.measurement_counts.get(measurement.kind, 0) + 1
+            self.measurement_counts[measurement.kind] = (
+                self.measurement_counts.get(measurement.kind, 0) + 1
+            )
             return
 
         assert self.x is not None and self.P is not None

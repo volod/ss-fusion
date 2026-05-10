@@ -155,4 +155,7 @@ def test_world_model_process_clip_uses_local_videomae_checkpoint_path(monkeypatc
     assert result["world_model"]["embedding_dim"] == 4
     assert result["world_model"]["temporal_window_frames"] == 4
     assert result["world_model"]["model"] == "MCG-NJU/videomae-large"
-    assert model._load_note == "legacy VideoMAE checkpoint remapped successfully (local cache: videomae-cache)"
+    assert (
+        model._load_note
+        == "legacy VideoMAE checkpoint remapped successfully (local cache: videomae-cache)"
+    )

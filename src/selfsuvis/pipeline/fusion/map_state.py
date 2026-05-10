@@ -47,10 +47,11 @@ logger = get_logger(__name__)
 @dataclass
 class MapStateSample:
     """Smoothed platform state estimate at one frame timestamp."""
+
     t_sec: float
     position_enu_m: dict[str, float]
     velocity_enu_mps: dict[str, float]
-    covariance_diag: list[float]   # diagonal of 6×6 P (6 values)
+    covariance_diag: list[float]  # diagonal of 6×6 P (6 values)
     cov_trace: float
     quality: str
 
@@ -113,9 +114,7 @@ def run_map_state_fusion(
         MapFusionResult with smoothed trajectory and alignment diagnostics.
     """
     if not settings.STATE_FUSION_ENABLED:
-        return MapFusionResult(
-            enabled=False, status="skipped", reason="STATE_FUSION_ENABLED=false"
-        )
+        return MapFusionResult(enabled=False, status="skipped", reason="STATE_FUSION_ENABLED=false")
     if not frame_times_sec:
         return MapFusionResult(enabled=True, status="skipped", reason="no frame timestamps")
 
@@ -131,8 +130,7 @@ def run_map_state_fusion(
     )
     if origin_lla is None or not gps_measurements:
         return MapFusionResult(
-            enabled=True, status="skipped",
-            reason="no GPS measurements aligned to frames"
+            enabled=True, status="skipped", reason="no GPS measurements aligned to frames"
         )
 
     imu_measurements = _build_imu_measurements(video_path)
@@ -147,8 +145,12 @@ def run_map_state_fusion(
             if gps is None:
                 continue
             tx, ty, tz = gps_to_enu(
-                float(gps["lat"]), float(gps["lon"]), float(gps.get("alt", 0.0)),
-                origin_lla["lat"], origin_lla["lon"], origin_lla["alt"],
+                float(gps["lat"]),
+                float(gps["lon"]),
+                float(gps.get("alt", 0.0)),
+                origin_lla["lat"],
+                origin_lla["lon"],
+                origin_lla["alt"],
             )
             gps_enu_by_t[float(t_sec)] = (tx, ty, tz)
 
@@ -167,32 +169,35 @@ def run_map_state_fusion(
 
     # ── 3. Merge all measurements and build event timeline ───────────────────
     all_measurements = (
-        list(gps_measurements)
-        + list(imu_measurements)
-        + list(baro_measurements)
-        + sfm_measurements
+        list(gps_measurements) + list(imu_measurements) + list(baro_measurements) + sfm_measurements
     )
     _kind_priority = {
-        "imu_accel": 0, "gps_position": 1, "sfm_position": 1,
+        "imu_accel": 0,
+        "gps_position": 1,
+        "sfm_position": 1,
         "barometer_altitude": 2,
     }
-    all_measurements.sort(
-        key=lambda m: (m.t_sec, _kind_priority.get(m.kind, 9))
-    )
+    all_measurements.sort(key=lambda m: (m.t_sec, _kind_priority.get(m.kind, 9)))
 
     events: list[_Event] = []
     for m in all_measurements:
-        events.append(_Event(
-            t_sec=m.t_sec,
-            priority=_kind_priority.get(m.kind, 9),
-            event_type="measurement",
-            payload=m,
-        ))
+        events.append(
+            _Event(
+                t_sec=m.t_sec,
+                priority=_kind_priority.get(m.kind, 9),
+                event_type="measurement",
+                payload=m,
+            )
+        )
     for t in frame_times_sec:
-        events.append(_Event(
-            t_sec=float(t), priority=3,
-            event_type="frame_sample", payload=float(t),
-        ))
+        events.append(
+            _Event(
+                t_sec=float(t),
+                priority=3,
+                event_type="frame_sample",
+                payload=float(t),
+            )
+        )
     events.sort(key=lambda e: (e.t_sec, e.priority))
 
     # ── 4. Forward Kalman pass ───────────────────────────────────────────────
@@ -223,21 +228,26 @@ def run_map_state_fusion(
         assert flt.x is not None and flt.P is not None
 
         cov_trace = float(np.trace(flt.P))
-        raw_samples.append(PlatformPosteriorSample(
-            t_sec=float(event.payload),
-            position_enu_m={"x": float(flt.x[0]), "y": float(flt.x[1]), "z": float(flt.x[2])},
-            velocity_enu_mps={"x": float(flt.x[3]), "y": float(flt.x[4]), "z": float(flt.x[5])},
-            covariance_trace=cov_trace,
-            quality=_sample_quality(cov_trace),
-            measurement_kinds=_recent_measurement_kinds(all_measurements, float(event.payload), context_gap),
-        ))
+        raw_samples.append(
+            PlatformPosteriorSample(
+                t_sec=float(event.payload),
+                position_enu_m={"x": float(flt.x[0]), "y": float(flt.x[1]), "z": float(flt.x[2])},
+                velocity_enu_mps={"x": float(flt.x[3]), "y": float(flt.x[4]), "z": float(flt.x[5])},
+                covariance_trace=cov_trace,
+                quality=_sample_quality(cov_trace),
+                measurement_kinds=_recent_measurement_kinds(
+                    all_measurements, float(event.payload), context_gap
+                ),
+            )
+        )
         filtered_history.append(
             FilteredStep(t_sec=float(event.payload), x=flt.x.copy(), P=flt.P.copy())
         )
 
     if not raw_samples:
         return MapFusionResult(
-            enabled=True, status="skipped",
+            enabled=True,
+            status="skipped",
             reason="filter never initialized",
             sfm_alignment=sfm_alignment_info,
         )
@@ -259,22 +269,23 @@ def run_map_state_fusion(
             P_s = filtered_history[i].P
             cov_trace_s = float(np.trace(P_s))
 
-        smoothed_samples.append(MapStateSample(
-            t_sec=raw.t_sec,
-            position_enu_m={"x": float(x_s[0]), "y": float(x_s[1]), "z": float(x_s[2])},
-            velocity_enu_mps={"x": float(x_s[3]), "y": float(x_s[4]), "z": float(x_s[5])},
-            covariance_diag=[float(np.sqrt(abs(P_s[k, k]))) for k in range(6)],
-            cov_trace=cov_trace_s,
-            quality=_sample_quality(cov_trace_s),
-        ))
+        smoothed_samples.append(
+            MapStateSample(
+                t_sec=raw.t_sec,
+                position_enu_m={"x": float(x_s[0]), "y": float(x_s[1]), "z": float(x_s[2])},
+                velocity_enu_mps={"x": float(x_s[3]), "y": float(x_s[4]), "z": float(x_s[5])},
+                covariance_diag=[float(np.sqrt(abs(P_s[k, k]))) for k in range(6)],
+                cov_trace=cov_trace_s,
+                quality=_sample_quality(cov_trace_s),
+            )
+        )
 
     cov_values = [s.cov_trace for s in smoothed_samples]
     raw_cov_values = [s.covariance_trace for s in raw_samples]
     innovation_values = list(flt.innovation_norms)
 
     logger.info(
-        "Map-state fusion: %d frames | smoother=%s | "
-        "mean cov trace: raw=%.2f → smoothed=%.2f",
+        "Map-state fusion: %d frames | smoother=%s | mean cov trace: raw=%.2f → smoothed=%.2f",
         len(smoothed_samples),
         "rts" if rts_result is not None else "off",
         (sum(raw_cov_values) / len(raw_cov_values)) if raw_cov_values else 0.0,
@@ -295,15 +306,13 @@ def run_map_state_fusion(
             "gps_measurements": len(gps_measurements),
             "imu_measurements": len(imu_measurements),
             "baro_measurements": len(baro_measurements),
-            "mean_cov_trace_raw": (
-                sum(raw_cov_values) / len(raw_cov_values)
-            ) if raw_cov_values else None,
-            "mean_cov_trace_smoothed": (
-                sum(cov_values) / len(cov_values)
-            ) if cov_values else None,
-            "mean_innovation_norm": (
-                sum(innovation_values) / len(innovation_values)
-            ) if innovation_values else None,
+            "mean_cov_trace_raw": (sum(raw_cov_values) / len(raw_cov_values))
+            if raw_cov_values
+            else None,
+            "mean_cov_trace_smoothed": (sum(cov_values) / len(cov_values)) if cov_values else None,
+            "mean_innovation_norm": (sum(innovation_values) / len(innovation_values))
+            if innovation_values
+            else None,
             "process_noise_scale": round(noise_scale, 3),
             "gps_noise_scale": round(gps_scale, 3),
         },
@@ -311,6 +320,7 @@ def run_map_state_fusion(
 
 
 # ── Private helpers (extend summaries.py helpers with noise scaling) ─────────
+
 
 def _build_gps_measurements_scaled(
     frame_times_sec: Sequence[float],
@@ -326,21 +336,27 @@ def _build_gps_measurements_scaled(
         "lon": float(origin["lon"]),
         "alt": float(origin.get("alt", 0.0)),
     }
-    cov = _measurement_covariance([gps_pos_std ** 2] * 3)
+    cov = _measurement_covariance([gps_pos_std**2] * 3)
     measurements: list[PlatformMeasurement] = []
     for t_sec, sample in zip(frame_times_sec, gps_samples):
         if sample is None:
             continue
         tx, ty, tz = gps_to_enu(
-            float(sample["lat"]), float(sample["lon"]), float(sample.get("alt", 0.0)),
-            origin_lla["lat"], origin_lla["lon"], origin_lla["alt"],
+            float(sample["lat"]),
+            float(sample["lon"]),
+            float(sample.get("alt", 0.0)),
+            origin_lla["lat"],
+            origin_lla["lon"],
+            origin_lla["alt"],
         )
-        measurements.append(PlatformMeasurement(
-            kind="gps_position",
-            t_sec=float(t_sec),
-            values=(float(tx), float(ty), float(tz)),
-            covariance=cov,
-            source="video_gps",
-            frame="enu",
-        ))
+        measurements.append(
+            PlatformMeasurement(
+                kind="gps_position",
+                t_sec=float(t_sec),
+                values=(float(tx), float(ty), float(tz)),
+                covariance=cov,
+                source="video_gps",
+                frame="enu",
+            )
+        )
     return origin_lla, measurements

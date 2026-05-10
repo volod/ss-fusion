@@ -18,6 +18,7 @@ dict with keys:
     viewer_html : str | None  — path to standalone HTML viewer
     gsplat_method : str       — gsplat method or "skipped"
 """
+
 import json
 import time
 from collections.abc import Iterable
@@ -49,8 +50,9 @@ def _sfm_point_cloud(
     success_frames = [f for f in sfm_result["frames"] if f["pose_status"] == "success"]
     sfm_poses = len(success_frames)
     scene_count = sfm_result.get("scene_count", 0)
-    logger.info("SfM: %d/%d poses recovered, %d scene(s)",
-                sfm_poses, len(sfm_result["frames"]), scene_count)
+    logger.info(
+        "SfM: %d/%d poses recovered, %d scene(s)", sfm_poses, len(sfm_result["frames"]), scene_count
+    )
 
     if sfm_poses == 0:
         return None, None, sfm_poses, scene_count, sfm_result["frames"], []
@@ -60,9 +62,9 @@ def _sfm_point_cloud(
     max_t = max(sfm_result["frames"][-1]["t_sec"], 1.0)
     for f in success_frames:
         pose = f["pose_json"]
-        R = np.array(pose["R"])   # 3×3
-        t = np.array(pose["t"])   # (3,)
-        centre = (-R.T @ t).astype(np.float32)      # camera centre in world coords
+        R = np.array(pose["R"])  # 3×3
+        t = np.array(pose["t"])  # (3,)
+        centre = (-R.T @ t).astype(np.float32)  # camera centre in world coords
         pts.append(centre)
         ratio = f["t_sec"] / max_t
         cols.append([ratio, 0.3, 1.0 - ratio])
@@ -99,11 +101,11 @@ def _pca_point_cloud(
     step = max(1, len(frame_list) // 200)
     sampled_frames = frame_list[::step]
     imgs = [Image.open(fp).convert("RGB") for fp, _ in sampled_frames]
-    embeds = model_for_pca.encode_images(imgs)           # (N, D)
+    embeds = model_for_pca.encode_images(imgs)  # (N, D)
 
     emb_centered = embeds - embeds.mean(axis=0)
     _, _, Vt = np.linalg.svd(emb_centered, full_matrices=False)
-    points = (emb_centered @ Vt[:3].T).astype(np.float32)   # (N, 3)
+    points = (emb_centered @ Vt[:3].T).astype(np.float32)  # (N, 3)
 
     n = len(points)
     ratios = np.linspace(0, 1, n)
@@ -243,7 +245,9 @@ def _interpolate_frame_positions(
     return interpolated
 
 
-def _position_lookup(frame_positions: list[dict[str, Any]]) -> tuple[dict[str, dict[str, float]], list[tuple[float, dict[str, float]]]]:
+def _position_lookup(
+    frame_positions: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, float]], list[tuple[float, dict[str, float]]]]:
     by_path: dict[str, dict[str, float]] = {}
     by_time: list[tuple[float, dict[str, float]]] = []
     for item in frame_positions:
@@ -449,16 +453,23 @@ def export_ply(
     from plyfile import PlyData, PlyElement
 
     rgb = (colours.clip(0, 1) * 255).astype(np.uint8)
-    vertex = np.empty(len(points), dtype=[
-        ("x", "f4"), ("y", "f4"), ("z", "f4"),
-        ("red", "u1"), ("green", "u1"), ("blue", "u1"),
-    ])
+    vertex = np.empty(
+        len(points),
+        dtype=[
+            ("x", "f4"),
+            ("y", "f4"),
+            ("z", "f4"),
+            ("red", "u1"),
+            ("green", "u1"),
+            ("blue", "u1"),
+        ],
+    )
     vertex["x"] = points[:, 0]
     vertex["y"] = points[:, 1]
     vertex["z"] = points[:, 2]
-    vertex["red"]   = rgb[:, 0]
+    vertex["red"] = rgb[:, 0]
     vertex["green"] = rgb[:, 1]
-    vertex["blue"]  = rgb[:, 2]
+    vertex["blue"] = rgb[:, 2]
 
     PlyData([PlyElement.describe(vertex, "vertex")], text=False).write(str(ply_path))
     logger.info("PLY exported: %s (%d points)", ply_path, len(points))
@@ -494,14 +505,14 @@ def build_sparse_map(
     t0 = time.time()
     map_dir = Path(map_dir)
     map_dir.mkdir(parents=True, exist_ok=True)
-    npz_path   = map_dir / "sparse_map.npz"
+    npz_path = map_dir / "sparse_map.npz"
     stats_path = map_dir / "map_stats.json"
 
     points3d: np.ndarray | None = None
-    colours:  np.ndarray | None = None
-    sfm_poses   = 0
+    colours: np.ndarray | None = None
+    sfm_poses = 0
     scene_count = 0
-    method      = "none"
+    method = "none"
     sfm_frames: list | None = None
     frame_positions: list[dict[str, Any]] = []
     quality_note = ""
@@ -509,8 +520,8 @@ def build_sparse_map(
     if run_sfm_flag:
         logger.info("Running Structure-from-Motion (pycolmap) …")
         try:
-            points3d, colours, sfm_poses, scene_count, sfm_frames, frame_positions = _sfm_point_cloud(
-                video_path, video_id
+            points3d, colours, sfm_poses, scene_count, sfm_frames, frame_positions = (
+                _sfm_point_cloud(video_path, video_id)
             )
             if points3d is not None:
                 method = "sfm"
@@ -522,7 +533,9 @@ def build_sparse_map(
                         sfm_poses,
                     )
                     try:
-                        interpolated_positions = _interpolate_frame_positions(frame_list, frame_positions)
+                        interpolated_positions = _interpolate_frame_positions(
+                            frame_list, frame_positions
+                        )
                         enriched_points, enriched_colours = _build_semantic_enriched_point_cloud(
                             frame_positions=interpolated_positions or frame_positions,
                             yolo_detection_results=yolo_detection_results,
@@ -533,21 +546,27 @@ def build_sparse_map(
                             points3d, colours = enriched_points, enriched_colours
                             frame_positions = interpolated_positions or frame_positions
                             method = "sfm_sparse+semantic_pseudo3d"
-                            quality_note = (
-                                "SfM was too sparse; interpolated trajectory and semantic pseudo-3D anchors were used"
-                            )
+                            quality_note = "SfM was too sparse; interpolated trajectory and semantic pseudo-3D anchors were used"
                         else:
                             raise RuntimeError("semantic enrichment did not add enough structure")
                     except Exception as enrich_exc:
-                        logger.warning("Semantic enrichment after sparse SfM failed (%s); falling back to visual PCA", enrich_exc)
+                        logger.warning(
+                            "Semantic enrichment after sparse SfM failed (%s); falling back to visual PCA",
+                            enrich_exc,
+                        )
                         try:
-                            pca_points, pca_colours, pca_method, pca_positions = _visual_pca_point_cloud(frame_list)
+                            pca_points, pca_colours, pca_method, pca_positions = (
+                                _visual_pca_point_cloud(frame_list)
+                            )
                             points3d, colours = pca_points, pca_colours
                             frame_positions = pca_positions
                             method = f"sfm_sparse+{pca_method}"
                             quality_note = "SfM was too sparse; PCA fallback geometry used"
                         except Exception as pca_exc:
-                            logger.warning("PCA fallback after sparse SfM failed (%s); keeping sparse SfM map", pca_exc)
+                            logger.warning(
+                                "PCA fallback after sparse SfM failed (%s); keeping sparse SfM map",
+                                pca_exc,
+                            )
         except Exception as exc:
             logger.warning("SfM failed (%s) — using PCA fallback", exc)
     else:
@@ -556,7 +575,9 @@ def build_sparse_map(
     if points3d is None:
         logger.info("Building fallback 3D point cloud …")
         try:
-            pca_points, pca_colours, pca_method, pca_positions = _pca_point_cloud(frame_list, models)
+            pca_points, pca_colours, pca_method, pca_positions = _pca_point_cloud(
+                frame_list, models
+            )
             enriched_points, enriched_colours = _build_semantic_enriched_point_cloud(
                 frame_positions=pca_positions,
                 yolo_detection_results=yolo_detection_results,
@@ -572,7 +593,12 @@ def build_sparse_map(
                 )
                 quality_note = "No SfM poses were recovered; semantic pseudo-3D anchors were built on PCA trajectory"
             else:
-                points3d, colours, method, frame_positions = pca_points, pca_colours, pca_method, pca_positions
+                points3d, colours, method, frame_positions = (
+                    pca_points,
+                    pca_colours,
+                    pca_method,
+                    pca_positions,
+                )
         except Exception as exc:
             logger.warning("Embedding PCA fallback failed (%s); using CPU visual PCA fallback", exc)
             try:
@@ -581,8 +607,8 @@ def build_sparse_map(
             except Exception as visual_exc:
                 logger.warning("Visual PCA fallback failed (%s)", visual_exc)
                 points3d = np.zeros((1, 3), dtype=np.float32)
-                colours  = np.ones((1, 3),  dtype=np.float32)
-                method   = "failed"
+                colours = np.ones((1, 3), dtype=np.float32)
+                method = "failed"
                 frame_positions = []
                 quality_note = "3D map construction failed; generated placeholder geometry"
 
@@ -590,13 +616,14 @@ def build_sparse_map(
     ply_path = export_ply(points3d, colours, map_dir / "sparse_map.ply")
 
     # ── 3D Gaussian Splatting ─────────────────────────────────────────────────
-    splat_ply    = None
-    viewer_html  = None
+    splat_ply = None
+    viewer_html = None
     gsplat_method = "skipped"
     if run_gsplat_flag:
         logger.info("Building 3D Gaussian Splat (gsplat) …")
         try:
             from selfsuvis.pipeline.mapping.gsplat import build_gaussian_splat
+
             gs = build_gaussian_splat(
                 frame_list=frame_list,
                 map_dir=map_dir,
@@ -605,10 +632,14 @@ def build_sparse_map(
             )
             gsplat_method = gs["method"]
             if not gs["skipped"]:
-                splat_ply   = gs["splat_ply"]
+                splat_ply = gs["splat_ply"]
                 viewer_html = gs["viewer_html"]
-                logger.info("  Gaussian Splat: %d Gaussians → %s  (%.1fs)",
-                            gs["point_count"], Path(splat_ply).name, gs["train_sec"])
+                logger.info(
+                    "  Gaussian Splat: %d Gaussians → %s  (%.1fs)",
+                    gs["point_count"],
+                    Path(splat_ply).name,
+                    gs["train_sec"],
+                )
                 logger.info("  Viewer HTML: %s", viewer_html)
             else:
                 logger.info("  Gaussian Splat skipped: %s", gs["reason"])
@@ -617,10 +648,10 @@ def build_sparse_map(
             gsplat_method = "error"
 
     map_stats = {
-        "method":        method,
-        "point_count":   int(len(points3d)),
-        "sfm_poses":     sfm_poses,
-        "scene_count":   scene_count,
+        "method": method,
+        "point_count": int(len(points3d)),
+        "sfm_poses": sfm_poses,
+        "scene_count": scene_count,
         "frame_anchor_count": len(frame_positions),
         "quality_degraded": bool(
             len(points3d) < _MIN_USEFUL_MAP_POINTS
@@ -635,12 +666,12 @@ def build_sparse_map(
                 else ""
             )
         ),
-        "elapsed_sec":   round(time.time() - t0, 3),
-        "npz":           str(npz_path),
-        "ply":           str(ply_path),
+        "elapsed_sec": round(time.time() - t0, 3),
+        "npz": str(npz_path),
+        "ply": str(ply_path),
         "gsplat_method": gsplat_method,
-        "splat_ply":     splat_ply,
-        "viewer_html":   viewer_html,
+        "splat_ply": splat_ply,
+        "viewer_html": viewer_html,
     }
     stats_path.write_text(json.dumps(map_stats, indent=2), encoding="utf-8")
 
@@ -650,13 +681,13 @@ def build_sparse_map(
     if splat_ply:
         logger.info("  3DGS: %s  (open view_splat.html in browser for interactive view)", splat_ply)
     return {
-        "npz_path":      str(npz_path),
-        "ply_path":      str(ply_path),
-        "points":        points3d,
-        "colours":       colours,
-        "sfm_poses":     sfm_poses,
-        "scene_count":   scene_count,
-        "method":        method,
+        "npz_path": str(npz_path),
+        "ply_path": str(ply_path),
+        "points": points3d,
+        "colours": colours,
+        "sfm_poses": sfm_poses,
+        "scene_count": scene_count,
+        "method": method,
         "frame_positions": frame_positions,
         "quality_note": (
             quality_note
@@ -671,8 +702,8 @@ def build_sparse_map(
             or sfm_poses < _MIN_USEFUL_SFM_POSES
             or str(method).startswith("sfm_sparse+")
         ),
-        "elapsed_sec":   time.time() - t0,
-        "splat_ply":     splat_ply,
-        "viewer_html":   viewer_html,
+        "elapsed_sec": time.time() - t0,
+        "splat_ply": splat_ply,
+        "viewer_html": viewer_html,
         "gsplat_method": gsplat_method,
     }

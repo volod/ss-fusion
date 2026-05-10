@@ -1,4 +1,3 @@
-
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -38,9 +37,13 @@ def _build_gps_measurements(
     if origin is None:
         return None, []
 
-    origin_lla = {"lat": float(origin["lat"]), "lon": float(origin["lon"]), "alt": float(origin.get("alt", 0.0))}
+    origin_lla = {
+        "lat": float(origin["lat"]),
+        "lon": float(origin["lon"]),
+        "alt": float(origin.get("alt", 0.0)),
+    }
     pos_std = float(settings.STATE_FUSION_GPS_POS_STD_M)
-    gps_cov = _measurement_covariance([pos_std ** 2, pos_std ** 2, pos_std ** 2])
+    gps_cov = _measurement_covariance([pos_std**2, pos_std**2, pos_std**2])
     measurements: list[PlatformMeasurement] = []
     for t_sec, sample in zip(frame_times_sec, gps_samples):
         if sample is None:
@@ -68,7 +71,7 @@ def _build_gps_measurements(
 
 def _build_imu_measurements(video_path: str) -> list[PlatformMeasurement]:
     accel_std = float(settings.STATE_FUSION_IMU_ACCEL_STD_MPS2)
-    cov = _measurement_covariance([accel_std ** 2, accel_std ** 2, accel_std ** 2])
+    cov = _measurement_covariance([accel_std**2, accel_std**2, accel_std**2])
     rows = load_imu_sidecar(video_path)
     measurements: list[PlatformMeasurement] = []
     for row in rows:
@@ -90,9 +93,11 @@ def _build_imu_measurements(video_path: str) -> list[PlatformMeasurement]:
     return measurements
 
 
-def _build_baro_measurements(video_path: str, origin_lla: dict[str, float]) -> list[PlatformMeasurement]:
+def _build_baro_measurements(
+    video_path: str, origin_lla: dict[str, float]
+) -> list[PlatformMeasurement]:
     alt_std = float(settings.STATE_FUSION_BARO_ALT_STD_M)
-    cov = _measurement_covariance([alt_std ** 2])
+    cov = _measurement_covariance([alt_std**2])
     rows = normalize_baro_rows(load_baro_sidecar(video_path), origin_lla["alt"])
     measurements: list[PlatformMeasurement] = []
     for row in rows:
@@ -125,7 +130,9 @@ def _sample_quality(cov_trace: float) -> str:
     return "uncertain"
 
 
-def _recent_measurement_kinds(measurements: Iterable[PlatformMeasurement], t_sec: float, max_gap_sec: float) -> list[str]:
+def _recent_measurement_kinds(
+    measurements: Iterable[PlatformMeasurement], t_sec: float, max_gap_sec: float
+) -> list[str]:
     kinds = {
         measurement.kind
         for measurement in measurements
@@ -143,20 +150,29 @@ def run_platform_state_fusion(
     """Run the platform-state fusion MVP on frame times and telemetry sidecars."""
 
     if not settings.STATE_FUSION_ENABLED:
-        return PlatformFusionResult(enabled=False, status="skipped", reason="STATE_FUSION_ENABLED=false")
+        return PlatformFusionResult(
+            enabled=False, status="skipped", reason="STATE_FUSION_ENABLED=false"
+        )
 
     if not frame_times_sec:
         return PlatformFusionResult(enabled=True, status="skipped", reason="no frame timestamps")
 
     origin_lla, gps_measurements = _build_gps_measurements(frame_times_sec, gps_samples)
     if origin_lla is None or not gps_measurements:
-        return PlatformFusionResult(enabled=True, status="skipped", reason="no GPS measurements aligned to frames")
+        return PlatformFusionResult(
+            enabled=True, status="skipped", reason="no GPS measurements aligned to frames"
+        )
 
     imu_measurements = _build_imu_measurements(video_path)
     baro_measurements = _build_baro_measurements(video_path, origin_lla)
 
     all_measurements = list(gps_measurements) + list(imu_measurements) + list(baro_measurements)
-    all_measurements.sort(key=lambda measurement: (measurement.t_sec, {"imu_accel": 0, "gps_position": 1, "barometer_altitude": 2}.get(measurement.kind, 9)))
+    all_measurements.sort(
+        key=lambda measurement: (
+            measurement.t_sec,
+            {"imu_accel": 0, "gps_position": 1, "barometer_altitude": 2}.get(measurement.kind, 9),
+        )
+    )
 
     filter_ = PlatformStateFilter(
         process_pos_std_m=float(settings.STATE_FUSION_PROCESS_POS_STD_M),
@@ -166,9 +182,20 @@ def run_platform_state_fusion(
 
     events: list[_Event] = []
     for measurement in all_measurements:
-        events.append(_Event(t_sec=measurement.t_sec, priority={"imu_accel": 0, "gps_position": 1, "barometer_altitude": 2}[measurement.kind], event_type="measurement", payload=measurement))
+        events.append(
+            _Event(
+                t_sec=measurement.t_sec,
+                priority={"imu_accel": 0, "gps_position": 1, "barometer_altitude": 2}[
+                    measurement.kind
+                ],
+                event_type="measurement",
+                payload=measurement,
+            )
+        )
     for t_sec in frame_times_sec:
-        events.append(_Event(t_sec=float(t_sec), priority=3, event_type="frame_sample", payload=float(t_sec)))
+        events.append(
+            _Event(t_sec=float(t_sec), priority=3, event_type="frame_sample", payload=float(t_sec))
+        )
     events.sort(key=lambda event: (event.t_sec, event.priority))
 
     posterior_samples: list[PlatformPosteriorSample] = []
@@ -203,7 +230,11 @@ def run_platform_state_fusion(
                 },
                 covariance_trace=cov_trace,
                 quality=_sample_quality(cov_trace),
-                measurement_kinds=_recent_measurement_kinds(all_measurements, float(event.payload), float(settings.STATE_FUSION_CONTEXT_GAP_SEC)),
+                measurement_kinds=_recent_measurement_kinds(
+                    all_measurements,
+                    float(event.payload),
+                    float(settings.STATE_FUSION_CONTEXT_GAP_SEC),
+                ),
             )
         )
 
@@ -215,7 +246,9 @@ def run_platform_state_fusion(
 
     innovation_values = list(filter_.innovation_norms)
     diagnostics = {
-        "mean_innovation_norm": (sum(innovation_values) / len(innovation_values)) if innovation_values else None,
+        "mean_innovation_norm": (sum(innovation_values) / len(innovation_values))
+        if innovation_values
+        else None,
         "max_innovation_norm": max(innovation_values) if innovation_values else None,
         "predict_steps": sum(1 for event in events if event.event_type == "frame_sample"),
         "measurement_total": len(all_measurements),

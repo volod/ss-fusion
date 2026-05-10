@@ -11,7 +11,6 @@ def _make_frame(path: Path) -> None:
 
 
 class TestFieldStateStep(unittest.TestCase):
-
     def test_field_state_summary_contains_visibility(self):
         from selfsuvis.pipeline.workflows.local.steps_field_state import step_field_state
 
@@ -41,7 +40,11 @@ class TestFieldStateStep(unittest.TestCase):
                 "free_space_estimate": 0.68,
             }
             caption_results = [
-                {"frame_path": frame_list[1][0], "caption": "road with smoke ahead", "caption_confidence": 0.40},
+                {
+                    "frame_path": frame_list[1][0],
+                    "caption": "road with smoke ahead",
+                    "caption_confidence": 0.40,
+                },
             ]
             unidrive_result = {"skipped": True, "results": []}
 
@@ -63,7 +66,6 @@ class TestFieldStateStep(unittest.TestCase):
 
 
 class TestThreatPrimitivesFieldIntegration(unittest.TestCase):
-
     def test_field_state_enriches_visibility_and_rf_primitives(self):
         from selfsuvis.pipeline.workflows.local.steps_threat_primitives import (
             step_threat_primitives,
@@ -94,7 +96,10 @@ class TestThreatPrimitivesFieldIntegration(unittest.TestCase):
                             "mean": 0.55,
                             "uncertainty": 0.18,
                             "trend": "worsening",
-                            "evidence_sources": ["depth_confidence_drop", "unidrive_visibility_semantics"],
+                            "evidence_sources": [
+                                "depth_confidence_drop",
+                                "unidrive_visibility_semantics",
+                            ],
                             "support_frames": [frame_list[0][0], frame_list[1][0]],
                         },
                         "rf_interference": {

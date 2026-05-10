@@ -28,6 +28,7 @@ import torch.nn as nn
 
 # ── Shared tiny model that accepts any spatial input ─────────────────────────
 
+
 class _AnyModel(nn.Module):
     """Returns a constant tensor of shape (B, out_dim) regardless of input size."""
 
@@ -58,31 +59,36 @@ def _fake_distiller_stats(best_path: str) -> dict:
 
 # ── DistillConfig ─────────────────────────────────────────────────────────────
 
-class TestDistillConfigStageField(unittest.TestCase):
 
+class TestDistillConfigStageField(unittest.TestCase):
     def test_stage_defaults_to_1(self):
         from selfsuvis.pipeline.training.distill import DistillConfig
+
         self.assertEqual(DistillConfig().stage, 1)
 
     def test_stage_can_be_set_to_2(self):
         from selfsuvis.pipeline.training.distill import DistillConfig
+
         self.assertEqual(DistillConfig(stage=2).stage, 2)
 
     def test_lambda_caption_anchor_defaults_zero(self):
         from selfsuvis.pipeline.training.distill import DistillConfig
+
         self.assertEqual(DistillConfig().lambda_caption_anchor, 0.0)
 
     def test_lambda_caption_anchor_is_settable(self):
         from selfsuvis.pipeline.training.distill import DistillConfig
+
         self.assertEqual(DistillConfig(lambda_caption_anchor=0.5).lambda_caption_anchor, 0.5)
 
 
 # ── KnowledgeDistiller._load_student ─────────────────────────────────────────
 
-class TestLoadStudentEfficientViT(unittest.TestCase):
 
+class TestLoadStudentEfficientViT(unittest.TestCase):
     def _distiller_shell(self, student_model: str):
         from selfsuvis.pipeline.training.distill import DistillConfig, KnowledgeDistiller
+
         d = KnowledgeDistiller.__new__(KnowledgeDistiller)
         d.config = DistillConfig(device="cpu", student_model=student_model)
         d.device = "cpu"
@@ -122,8 +128,8 @@ class TestLoadStudentEfficientViT(unittest.TestCase):
 
 # ── run_distillation_efficientvit ─────────────────────────────────────────────
 
-class TestRunDistillationEfficientViTConfig(unittest.TestCase):
 
+class TestRunDistillationEfficientViTConfig(unittest.TestCase):
     def test_forces_rkd_a_zero_even_when_caller_sets_nonzero(self):
         """Passing lambda_rkd_a=99 must be silently overridden to 0.0."""
         from selfsuvis.pipeline.training.distill import DistillConfig, run_distillation_efficientvit
@@ -141,9 +147,13 @@ class TestRunDistillationEfficientViTConfig(unittest.TestCase):
 
             def distill(self, frame_paths, ckpt_dir):
                 return {
-                    "best_path": "", "best_loss": 0.1, "best_recall": 0.9,
-                    "compression_ratio": 2.0, "elapsed": 0.1,
-                    "student_model": "efficientvit_b1", "student_dim": 384,
+                    "best_path": "",
+                    "best_loss": 0.1,
+                    "best_recall": 0.9,
+                    "compression_ratio": 2.0,
+                    "elapsed": 0.1,
+                    "student_model": "efficientvit_b1",
+                    "student_dim": 384,
                 }
 
             def student_backbone(self):
@@ -169,8 +179,8 @@ class TestRunDistillationEfficientViTConfig(unittest.TestCase):
 
 # ── export_efficientvit_onnx ──────────────────────────────────────────────────
 
-class TestExportEfficientViTOnnx(unittest.TestCase):
 
+class TestExportEfficientViTOnnx(unittest.TestCase):
     def _export(self, backbone, out_path):
         from selfsuvis.pipeline.training.edge_inference import export_efficientvit_onnx
 
@@ -215,8 +225,8 @@ class TestExportEfficientViTOnnx(unittest.TestCase):
 
 # ── step_distill_stage2 ───────────────────────────────────────────────────────
 
-class TestStepDistillStage2(unittest.TestCase):
 
+class TestStepDistillStage2(unittest.TestCase):
     def _run(self, backbone, ckpt_path="", distill_exc=None):
         """Call step_distill_stage2 with standard mocks; return result dict."""
         from selfsuvis.pipeline.workflows.local.steps_distill import step_distill_stage2
@@ -231,13 +241,20 @@ class TestStepDistillStage2(unittest.TestCase):
                     return_value=stats,
                     side_effect=distill_exc,
                 ),
-                patch("selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
-                      return_value=str(video_dir / "edge_models" / "efficientvit_local.onnx")),
+                patch(
+                    "selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
+                    return_value=str(video_dir / "edge_models" / "efficientvit_local.onnx"),
+                ),
                 patch("selfsuvis.pipeline.workflows.local.steps_report.write_distill_stats_md"),
             ):
                 result = step_distill_stage2(
-                    backbone, [("f.jpg", 0.0)], "vid", video_dir, "cpu",
-                    distill_epochs=1, batch_size=4,
+                    backbone,
+                    [("f.jpg", 0.0)],
+                    "vid",
+                    video_dir,
+                    "cpu",
+                    distill_epochs=1,
+                    batch_size=4,
                 )
         return result
 
@@ -255,15 +272,24 @@ class TestStepDistillStage2(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             video_dir = Path(tmp)
             with (
-                patch("selfsuvis.pipeline.training.distill.run_distillation_efficientvit",
-                      side_effect=_fake_run),
-                patch("selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
-                      return_value=str(video_dir / "edge_models" / "efficientvit_local.onnx")),
+                patch(
+                    "selfsuvis.pipeline.training.distill.run_distillation_efficientvit",
+                    side_effect=_fake_run,
+                ),
+                patch(
+                    "selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
+                    return_value=str(video_dir / "edge_models" / "efficientvit_local.onnx"),
+                ),
                 patch("selfsuvis.pipeline.workflows.local.steps_report.write_distill_stats_md"),
             ):
                 result = step_distill_stage2(
-                    backbone, [("f.jpg", 0.0)], "vid", video_dir, "cpu",
-                    distill_epochs=1, batch_size=4,
+                    backbone,
+                    [("f.jpg", 0.0)],
+                    "vid",
+                    video_dir,
+                    "cpu",
+                    distill_epochs=1,
+                    batch_size=4,
                 )
         return result, captured.get("cfg")
 
@@ -335,15 +361,24 @@ class TestStepDistillStage2(unittest.TestCase):
             stats = _fake_distiller_stats(ckpt_path)
             with tempfile.TemporaryDirectory() as tmp:
                 with (
-                    patch("selfsuvis.pipeline.training.distill.run_distillation_efficientvit",
-                          return_value=stats),
-                    patch("selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
-                          side_effect=RuntimeError("ONNX failed")),
+                    patch(
+                        "selfsuvis.pipeline.training.distill.run_distillation_efficientvit",
+                        return_value=stats,
+                    ),
+                    patch(
+                        "selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
+                        side_effect=RuntimeError("ONNX failed"),
+                    ),
                     patch("selfsuvis.pipeline.workflows.local.steps_report.write_distill_stats_md"),
                 ):
                     result = step_distill_stage2(
-                        _AnyModel(), [("f.jpg", 0.0)], "vid", Path(tmp), "cpu",
-                        distill_epochs=1, batch_size=4,
+                        _AnyModel(),
+                        [("f.jpg", 0.0)],
+                        "vid",
+                        Path(tmp),
+                        "cpu",
+                        distill_epochs=1,
+                        batch_size=4,
                     )
             self.assertFalse(result["skipped"])
             self.assertFalse(result["onnx_exported"])

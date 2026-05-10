@@ -17,6 +17,7 @@ def _unit(values):
 
 # --- empty index ---
 
+
 def test_max_cosine_empty_returns_minus_one():
     """max_cosine on an empty index returns -1.0."""
     idx = RecentEmbeddingIndex(dim=DIM, max_size=100, ttl_sec=60.0)
@@ -25,6 +26,7 @@ def test_max_cosine_empty_returns_minus_one():
 
 
 # --- basic add + max_cosine ---
+
 
 def test_max_cosine_identical_vector_returns_one():
     """A query identical to the stored vector returns cosine ~1.0."""
@@ -70,15 +72,19 @@ def test_max_cosine_returns_max_among_multiple():
 def test_add_multiple_vectors_at_once():
     """add accepts a 2-D array of multiple vectors."""
     idx = RecentEmbeddingIndex(dim=DIM, max_size=100, ttl_sec=60.0)
-    vecs = np.array([
-        [1.0, 0.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0, 0.0],
-    ], dtype=np.float32)
+    vecs = np.array(
+        [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+        ],
+        dtype=np.float32,
+    )
     idx.add(vecs)
     assert len(idx.vectors) == 2
 
 
 # --- TTL pruning ---
+
 
 def test_ttl_expired_vectors_pruned():
     """Vectors older than ttl_sec are pruned and max_cosine returns -1.0."""
@@ -117,6 +123,7 @@ def test_ttl_within_window_vectors_kept():
 
 
 # --- max_size eviction ---
+
 
 def test_max_size_evicts_oldest_vectors():
     """When more than max_size vectors are added, oldest are evicted."""

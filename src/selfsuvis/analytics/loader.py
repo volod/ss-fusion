@@ -1,6 +1,5 @@
 """Load and aggregate all artifacts produced by a local pipeline run."""
 
-
 import json
 import math
 import re
@@ -65,12 +64,16 @@ class LocalRunLoader:
         map_stats = self._build_map_stats(map_data)
         artifact_inventory = self._build_artifact_inventory()
 
-        video_name = frames_meta.get("video_id", self.run_dir.name) if frames_meta else self.run_dir.name
+        video_name = (
+            frames_meta.get("video_id", self.run_dir.name) if frames_meta else self.run_dir.name
+        )
         n_frames = frames_meta.get("frame_count", len(frames)) if frames_meta else len(frames)
         duration = frames_meta.get("duration_sec", 0.0) if frames_meta else 0.0
         fps = frames_meta.get("fps", 0.0) if frames_meta else 0.0
 
-        run_health = self._build_run_health(frames, n_frames, tracking_stats, map_stats, runtime_metrics)
+        run_health = self._build_run_health(
+            frames, n_frames, tracking_stats, map_stats, runtime_metrics
+        )
         diagnostics = self._build_diagnostics(
             frames=frames,
             n_frames=n_frames,
@@ -144,17 +147,21 @@ class LocalRunLoader:
         modality_completeness = _clamp01(sum(coverage_terms) / len(coverage_terms))
 
         detection_density = float(detection_stats.mean_per_frame) if detection_stats else 0.0
-        detection_cv = _coefficient_of_variation(detection_stats.per_frame_counts) if detection_stats else 0.0
+        detection_cv = (
+            _coefficient_of_variation(detection_stats.per_frame_counts) if detection_stats else 0.0
+        )
         detection_entropy = (
             _normalised_entropy(detection_stats.by_class)
-            if detection_stats and detection_stats.by_class else 0.0
+            if detection_stats and detection_stats.by_class
+            else 0.0
         )
 
         surprise_scores = temporal_stats.surprise_scores if temporal_stats else []
         surprise_std = _stddev(surprise_scores)
         surprise_peak_rate = (
             len(temporal_stats.peak_frames) / max(temporal_stats.n_frames, 1)
-            if temporal_stats else 0.0
+            if temporal_stats
+            else 0.0
         )
         surprise_detection_overlap = 0.0
         if temporal_stats and temporal_stats.peak_frames:
@@ -170,7 +177,9 @@ class LocalRunLoader:
         tracking_fragmentation = 0.0
         track_persistence = 0.0
         if tracking_stats and tracking_stats.total_detections > 0:
-            tracking_fragmentation = tracking_stats.unique_track_ids / max(tracking_stats.total_detections, 1)
+            tracking_fragmentation = tracking_stats.unique_track_ids / max(
+                tracking_stats.total_detections, 1
+            )
             track_persistence = _clamp01(tracking_stats.mean_track_length_frames / denom)
 
         map_points_per_pose = 0.0
@@ -183,11 +192,13 @@ class LocalRunLoader:
         adaptation_efficiency = 0.0
         if training_stats and training_stats.distill_best_r1 > 0:
             # Retained retrieval quality per compression factor; higher is better.
-            adaptation_efficiency = training_stats.distill_best_r1 / max(training_stats.distill_compression, 1.0)
+            adaptation_efficiency = training_stats.distill_best_r1 / max(
+                training_stats.distill_compression, 1.0
+            )
 
         artifact_density = artifact_inventory.total_files / denom
-        artifact_mb_per_min = (
-            (artifact_inventory.total_bytes / (1024 * 1024)) / max(duration_sec / 60.0, 1e-6)
+        artifact_mb_per_min = (artifact_inventory.total_bytes / (1024 * 1024)) / max(
+            duration_sec / 60.0, 1e-6
         )
 
         map_quality = 0.0
@@ -203,7 +214,9 @@ class LocalRunLoader:
             map_quality = 0.6 * point_score + 0.3 * pose_score + 0.1 * anchor_score
         tracking_quality = 0.0
         if tracking_stats and tracking_stats.total_detections > 0:
-            tracking_quality = _clamp01(0.7 * track_persistence + 0.3 * (1.0 - tracking_fragmentation))
+            tracking_quality = _clamp01(
+                0.7 * track_persistence + 0.3 * (1.0 - tracking_fragmentation)
+            )
         training_quality = 1.0 if has_edge_model else 0.0
         if training_stats and training_stats.distill_best_r1 > 0:
             training_quality = _clamp01(training_stats.distill_best_r1)
@@ -369,7 +382,9 @@ class LocalRunLoader:
             unique_track_ids=int(tracking.get("n_unique_track_ids", 0) or 0),
             sam_masks_total=int(tracking.get("sam_masks_total", 0) or 0),
             mean_track_length_frames=float(tracking.get("mean_track_length_frames", 0.0) or 0.0),
-            median_track_length_frames=float(tracking.get("median_track_length_frames", 0.0) or 0.0),
+            median_track_length_frames=float(
+                tracking.get("median_track_length_frames", 0.0) or 0.0
+            ),
             elapsed_sec=float(tracking.get("elapsed_sec", 0.0) or 0.0),
         )
 
@@ -387,9 +402,7 @@ class LocalRunLoader:
     def _build_map_stats(self, map_data: dict | None) -> MapStats | None:
         if not map_data:
             return None
-        points = int(
-            map_data.get("points", map_data.get("point_count", 0)) or 0
-        )
+        points = int(map_data.get("points", map_data.get("point_count", 0)) or 0)
         method = str(map_data.get("method", "") or "")
         sfm_poses = int(map_data.get("sfm_poses", map_data.get("poses", 0)) or 0)
         frame_anchor_count = int(map_data.get("frame_anchor_count", sfm_poses) or sfm_poses)
@@ -467,7 +480,9 @@ class LocalRunLoader:
             and tracking_stats.unique_track_ids > (2 * n_frames)
             and tracking_stats.mean_track_length_frames < 3.0
         ):
-            warnings.append("Gemma-directed tracking appears highly fragmented (too many unique tracks)")
+            warnings.append(
+                "Gemma-directed tracking appears highly fragmented (too many unique tracks)"
+            )
         if self._world_model_failed():
             warnings.append("World model inference failed or produced no usable embeddings")
         if map_stats and map_stats.degraded:
@@ -501,7 +516,9 @@ class LocalRunLoader:
             ocr_coverage=self._estimate_ocr_coverage(),
             world_model_ok=not self._world_model_failed(),
             tracking_ok=bool(tracking_stats and tracking_stats.total_detections > 0),
-            tracking_filter_fallback_used=bool(tracking_stats and tracking_stats.filter_retry_mode != "none"),
+            tracking_filter_fallback_used=bool(
+                tracking_stats and tracking_stats.filter_retry_mode != "none"
+            ),
             florence_runtime_mode=florence_runtime_mode,
             restore_failures=restore_failures,
             vram_wait_time_sec=vram_wait_time,
@@ -625,12 +642,9 @@ class LocalRunLoader:
             if frames_meta_path.exists():
                 try:
                     import json as _json
+
                     meta = _json.loads(frames_meta_path.read_text())
-                    total = int(
-                        meta.get("frame_count", 0)
-                        or len(meta.get("frames", []))
-                        or 0
-                    )
+                    total = int(meta.get("frame_count", 0) or len(meta.get("frames", [])) or 0)
                 except Exception:
                     pass
             if not total:

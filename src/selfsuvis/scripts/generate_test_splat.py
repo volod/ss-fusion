@@ -47,14 +47,17 @@ def generate_splat(
 
     # Neutral opacity (logit ~0 → sigmoid ~0.5) and scale (log-encoded ~1m)
     data["opacity"] = np.zeros(n_gaussians, dtype=np.float32)
-    data["scale_0"] = data["scale_1"] = data["scale_2"] = np.full(n_gaussians, -1.0, dtype=np.float32)
+    data["scale_0"] = data["scale_1"] = data["scale_2"] = np.full(
+        n_gaussians, -1.0, dtype=np.float32
+    )
 
     # Identity quaternion (WXYZ): w=1, x=y=z=0
     data["rot_0"] = 1.0
 
     write_splat(path, data)
-    write_splat_metadata(path, origin_lat, origin_lon, origin_alt,
-                         extra={"n_gaussians": n_gaussians})
+    write_splat_metadata(
+        path, origin_lat, origin_lon, origin_alt, extra={"n_gaussians": n_gaussians}
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:

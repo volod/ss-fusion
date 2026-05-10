@@ -3,6 +3,7 @@
 Tests run against the synthetic test assets in tests/assets/splats/.
 No open3d or GPU required.
 """
+
 import math
 import os
 import tempfile
@@ -15,6 +16,7 @@ _ASSETS = Path(__file__).resolve().parents[3] / "assets" / "splats"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
 
 def _identity_4x4():
     return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
@@ -29,10 +31,10 @@ def _rotation_z_4x4(angle_deg: float):
     a = math.radians(angle_deg)
     c, s = math.cos(a), math.sin(a)
     return [
-        [ c, -s, 0, 0],
-        [ s,  c, 0, 0],
-        [ 0,  0, 1, 0],
-        [ 0,  0, 0, 1],
+        [c, -s, 0, 0],
+        [s, c, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
     ]
 
 
@@ -40,37 +42,42 @@ def _rotation_y_4x4(angle_deg: float):
     a = math.radians(angle_deg)
     c, s = math.cos(a), math.sin(a)
     return [
-        [ c, 0, s, 0],
-        [ 0, 1, 0, 0],
+        [c, 0, s, 0],
+        [0, 1, 0, 0],
         [-s, 0, c, 0],
-        [ 0, 0, 0, 1],
+        [0, 0, 0, 1],
     ]
 
 
 # ── _rot_matrix_to_quat_wxyz ─────────────────────────────────────────────────
 
+
 class TestRotToQuat:
     def test_identity_gives_w1(self):
         from selfsuvis.pipeline.mapping.splat_io import _rot_matrix_to_quat_wxyz
+
         R = np.eye(3)
         q = _rot_matrix_to_quat_wxyz(R)
-        assert abs(q[0] - 1.0) < 1e-5   # w ≈ 1
-        assert abs(q[1]) < 1e-5          # x ≈ 0
+        assert abs(q[0] - 1.0) < 1e-5  # w ≈ 1
+        assert abs(q[1]) < 1e-5  # x ≈ 0
         assert abs(q[2]) < 1e-5
         assert abs(q[3]) < 1e-5
 
     def test_unit_norm(self):
         from selfsuvis.pipeline.mapping.splat_io import _rot_matrix_to_quat_wxyz
+
         for angle in [0, 30, 90, 180, 270]:
             a = math.radians(angle)
-            R = np.array([[math.cos(a), -math.sin(a), 0],
-                          [math.sin(a),  math.cos(a), 0],
-                          [0, 0, 1]], dtype=np.float64)
+            R = np.array(
+                [[math.cos(a), -math.sin(a), 0], [math.sin(a), math.cos(a), 0], [0, 0, 1]],
+                dtype=np.float64,
+            )
             q = _rot_matrix_to_quat_wxyz(R)
             assert abs(np.linalg.norm(q) - 1.0) < 1e-5
 
     def test_180_degree_rotation_around_z(self):
         from selfsuvis.pipeline.mapping.splat_io import _rot_matrix_to_quat_wxyz
+
         R = np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=np.float64)
         q = _rot_matrix_to_quat_wxyz(R)
         # 180° around Z: w≈0, z≈1 (or -1)
@@ -80,9 +87,11 @@ class TestRotToQuat:
 
 # ── _quat_multiply_wxyz ───────────────────────────────────────────────────────
 
+
 class TestQuatMultiply:
     def test_identity_times_identity(self):
         from selfsuvis.pipeline.mapping.splat_io import _quat_multiply_wxyz
+
         q_id = np.array([1, 0, 0, 0], dtype=np.float32)
         q_batch = np.array([[1, 0, 0, 0], [1, 0, 0, 0]], dtype=np.float32)
         result = _quat_multiply_wxyz(q_id, q_batch)
@@ -90,6 +99,7 @@ class TestQuatMultiply:
 
     def test_identity_times_arbitrary(self):
         from selfsuvis.pipeline.mapping.splat_io import _quat_multiply_wxyz
+
         q_id = np.array([1, 0, 0, 0], dtype=np.float32)
         q = np.array([[0.5, 0.5, 0.5, 0.5]], dtype=np.float32)
         result = _quat_multiply_wxyz(q_id, q)
@@ -97,6 +107,7 @@ class TestQuatMultiply:
 
     def test_result_unit_norm(self):
         from selfsuvis.pipeline.mapping.splat_io import _quat_multiply_wxyz
+
         rng = np.random.default_rng(42)
         q1 = rng.standard_normal(4).astype(np.float32)
         q1 /= np.linalg.norm(q1)
@@ -113,21 +124,24 @@ class TestQuatMultiply:
             _quat_multiply_wxyz,
             _rot_matrix_to_quat_wxyz,
         )
+
         R_180z = np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=np.float64)
         q_180 = _rot_matrix_to_quat_wxyz(R_180z)
         q_id = np.array([[1, 0, 0, 0]], dtype=np.float32)
         step1 = _quat_multiply_wxyz(q_180, q_id)
         step2 = _quat_multiply_wxyz(q_180, step1)
         # q² = ±identity (sign can flip but represents same rotation)
-        assert abs(abs(step2[0, 0]) - 1.0) < 1e-4   # w ≈ ±1
+        assert abs(abs(step2[0, 0]) - 1.0) < 1e-4  # w ≈ ±1
         np.testing.assert_allclose(step2[0, 1:], [0, 0, 0], atol=1e-4)
 
 
 # ── apply_transform_to_splat ──────────────────────────────────────────────────
 
+
 class TestApplyTransform:
     def test_identity_transform_leaves_positions_unchanged(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, splat_positions
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -141,6 +155,7 @@ class TestApplyTransform:
 
     def test_pure_translation_shifts_positions(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, splat_positions
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -149,15 +164,16 @@ class TestApplyTransform:
             apply_transform_to_splat(src, T, out)
             orig = splat_positions(src)
             result = splat_positions(out)
-            delta = result - orig                          # (N, 3)
+            delta = result - orig  # (N, 3)
             np.testing.assert_allclose(delta[:, 0], 10.0, atol=1e-4)
-            np.testing.assert_allclose(delta[:, 1],  5.0, atol=1e-4)
+            np.testing.assert_allclose(delta[:, 1], 5.0, atol=1e-4)
             np.testing.assert_allclose(delta[:, 2], -3.0, atol=1e-4)
         finally:
             os.unlink(out)
 
     def test_returns_gaussian_count(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, splat_count
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -169,6 +185,7 @@ class TestApplyTransform:
 
     def test_rotation_rotates_positions(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, splat_positions
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -179,13 +196,14 @@ class TestApplyTransform:
             result = splat_positions(out)
             # 90° around Z: x' ≈ -y, y' ≈ x
             np.testing.assert_allclose(result[:, 0], -orig[:, 1], atol=1e-4)
-            np.testing.assert_allclose(result[:, 1],  orig[:, 0], atol=1e-4)
-            np.testing.assert_allclose(result[:, 2],  orig[:, 2], atol=1e-4)
+            np.testing.assert_allclose(result[:, 1], orig[:, 0], atol=1e-4)
+            np.testing.assert_allclose(result[:, 2], orig[:, 2], atol=1e-4)
         finally:
             os.unlink(out)
 
     def test_rotation_updates_quaternions(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, read_splat
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -195,19 +213,22 @@ class TestApplyTransform:
             orig = read_splat(src)
             result = read_splat(out)
             # Quaternions should be unit-normalised
-            quats = np.column_stack([result["rot_0"], result["rot_1"],
-                                     result["rot_2"], result["rot_3"]])
+            quats = np.column_stack(
+                [result["rot_0"], result["rot_1"], result["rot_2"], result["rot_3"]]
+            )
             norms = np.linalg.norm(quats, axis=1)
             np.testing.assert_allclose(norms, np.ones(len(norms)), atol=1e-5)
             # And they should differ from the originals (rotation was applied)
-            orig_quats = np.column_stack([orig["rot_0"], orig["rot_1"],
-                                          orig["rot_2"], orig["rot_3"]])
+            orig_quats = np.column_stack(
+                [orig["rot_0"], orig["rot_1"], orig["rot_2"], orig["rot_3"]]
+            )
             assert not np.allclose(quats, orig_quats, atol=1e-4)
         finally:
             os.unlink(out)
 
     def test_opacity_and_scales_unchanged(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, read_splat
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -225,6 +246,7 @@ class TestApplyTransform:
 
     def test_sh_dc_unchanged(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, read_splat
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -241,10 +263,13 @@ class TestApplyTransform:
     def test_double_transform_is_additive(self):
         """Applying T1 then T2 should equal applying T1@T2 directly."""
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, splat_positions
+
         src = str(_ASSETS / "scene_a.ply")
-        with (tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f1,
-              tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f2,
-              tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f3):
+        with (
+            tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f1,
+            tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f2,
+            tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f3,
+        ):
             p1, p2, p3 = f1.name, f2.name, f3.name
         try:
             T1 = _translation_4x4(5, 0, 0)
@@ -267,11 +292,13 @@ class TestApplyTransform:
 
     def test_missing_source_raises(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat
+
         with pytest.raises(FileNotFoundError):
             apply_transform_to_splat("/nonexistent/source.ply", _identity_4x4(), "/tmp/out.ply")
 
     def test_output_is_valid_splat(self):
         from selfsuvis.pipeline.mapping.splat_io import apply_transform_to_splat, is_splat_ply
+
         src = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -284,9 +311,11 @@ class TestApplyTransform:
 
 # ── merge_splats ──────────────────────────────────────────────────────────────
 
+
 class TestMergeSplats:
     def test_merged_count_is_sum(self):
         from selfsuvis.pipeline.mapping.splat_io import merge_splats, splat_count
+
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -299,6 +328,7 @@ class TestMergeSplats:
 
     def test_single_path_roundtrip(self):
         from selfsuvis.pipeline.mapping.splat_io import merge_splats, splat_count
+
         a = str(_ASSETS / "scene_a.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -310,6 +340,7 @@ class TestMergeSplats:
 
     def test_three_way_merge(self):
         from selfsuvis.pipeline.mapping.splat_io import merge_splats, splat_count
+
         paths = [str(_ASSETS / f"scene_{s}.ply") for s in ["a", "b", "c"]]
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
             out = f.name
@@ -321,6 +352,7 @@ class TestMergeSplats:
 
     def test_positions_are_concatenated(self):
         from selfsuvis.pipeline.mapping.splat_io import merge_splats, splat_positions
+
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -337,6 +369,7 @@ class TestMergeSplats:
 
     def test_merged_is_valid_splat(self):
         from selfsuvis.pipeline.mapping.splat_io import is_splat_ply, merge_splats
+
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.NamedTemporaryFile(suffix=".ply", delete=False) as f:
@@ -349,26 +382,31 @@ class TestMergeSplats:
 
     def test_empty_paths_raises(self):
         from selfsuvis.pipeline.mapping.splat_io import merge_splats
+
         with pytest.raises(ValueError, match="empty"):
             merge_splats([], "/tmp/out.ply")
 
     def test_missing_path_raises(self):
         from selfsuvis.pipeline.mapping.splat_io import merge_splats
+
         with pytest.raises(FileNotFoundError):
             merge_splats(["/nonexistent.ply"], "/tmp/out.ply")
 
 
 # ── _fuse_splat_files (pipeline/mapper.py) ────────────────────────────────────
 
+
 class TestFuseSplatFiles:
     def test_produces_fused_ply_on_success(self):
         from selfsuvis.pipeline.mapping.mapper import _fuse_splat_files
         from selfsuvis.pipeline.mapping.splat_io import is_splat_ply, splat_count
+
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.TemporaryDirectory() as tmpdir:
             # Copy scene_b into tmpdir so fused.ply lands there
             import shutil
+
             src = shutil.copy(b, os.path.join(tmpdir, "splat.ply"))
             fused_path = _fuse_splat_files(src, a, _identity_4x4(), "m1", "main")
             assert fused_path is not None
@@ -379,6 +417,7 @@ class TestFuseSplatFiles:
 
     def test_returns_none_on_bad_source(self):
         from selfsuvis.pipeline.mapping.mapper import _fuse_splat_files
+
         a = str(_ASSETS / "scene_a.ply")
         result = _fuse_splat_files("/nonexistent.ply", a, _identity_4x4(), "m1", "main")
         assert result is None
@@ -387,6 +426,7 @@ class TestFuseSplatFiles:
         import shutil
 
         from selfsuvis.pipeline.mapping.mapper import _fuse_splat_files
+
         a = str(_ASSETS / "scene_a.ply")
         b = str(_ASSETS / "scene_b.ply")
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -1,6 +1,5 @@
 """Embedding-space analysis from edge_models/gallery.npz."""
 
-
 from pathlib import Path
 
 import numpy as np
@@ -39,9 +38,7 @@ def cosine_similarity_matrix(embeddings: np.ndarray) -> np.ndarray:
     return (normed @ normed.T).astype(np.float32)
 
 
-def nearest_neighbour_recall(
-    embeddings: np.ndarray, k: int = 5
-) -> tuple[float, np.ndarray]:
+def nearest_neighbour_recall(embeddings: np.ndarray, k: int = 5) -> tuple[float, np.ndarray]:
     """Mean cosine similarity to top-k neighbours (excluding self).
 
     Returns (mean_mnn_score, per_frame_scores).

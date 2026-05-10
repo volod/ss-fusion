@@ -139,7 +139,15 @@ def extract_frames_adaptive(
             if t_sec <= 0.0 and fps > 0:
                 t_sec = frame_idx / fps
             small = downsample_gray(frame, 64)
-            if _should_keep_frame(small, last_kept_small, t_sec, last_kept_t, min_interval_sec, max_gap_sec, diff_threshold):
+            if _should_keep_frame(
+                small,
+                last_kept_small,
+                t_sec,
+                last_kept_t,
+                min_interval_sec,
+                max_gap_sec,
+                diff_threshold,
+            ):
                 h, w = frame.shape[:2]
                 out_path = _frame_output_path(out_dir, idx, t_sec)
                 _save_png(frame, out_path)
@@ -181,7 +189,15 @@ def extract_stream_frames(
         for frame_idx, frame in _iter_stepped_frames(cap, step):
             t_sec = frame_idx / fps if fps > 0 else t_sec + 1.0 / max(probe_fps, 1.0)
             small = downsample_gray(frame, 64)
-            if _should_keep_frame(small, last_kept_small, t_sec, last_kept_t, min_interval_sec, max_gap_sec, diff_threshold):
+            if _should_keep_frame(
+                small,
+                last_kept_small,
+                t_sec,
+                last_kept_t,
+                min_interval_sec,
+                max_gap_sec,
+                diff_threshold,
+            ):
                 h, w = frame.shape[:2]
                 out_path = _frame_output_path(out_dir, idx, t_sec)
                 _save_png(frame, out_path)

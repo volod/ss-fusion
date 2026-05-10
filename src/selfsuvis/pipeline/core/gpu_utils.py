@@ -8,6 +8,7 @@ Centralises three patterns that were previously copy-pasted into every model fil
   ``pipeline()`` expects (``-1`` for CPU, ``0`` for CUDA/MPS)
 """
 
+
 def is_cuda_oom(exc: Exception) -> bool:
     """Return True if *exc* is a CUDA out-of-memory error.
 
@@ -43,6 +44,7 @@ def resolve_device(device_cfg: str | None = None) -> str:
     """
     if device_cfg is None:
         from selfsuvis.pipeline.core.config import settings
+
         device_cfg = settings.DEVICE
 
     cfg = device_cfg.lower()

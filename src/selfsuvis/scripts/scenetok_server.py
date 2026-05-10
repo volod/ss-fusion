@@ -8,7 +8,6 @@ The local pipeline client in ``selfsuvis.pipeline.vision.scenetok`` expects
 this exact contract.
 """
 
-
 import asyncio
 import base64
 import gc
@@ -56,7 +55,9 @@ class FramePayload(BaseModel):
 class ProcessRequest(BaseModel):
     frames: list[FramePayload] = Field(default_factory=list)
     checkpoint: str = Field(
-        default_factory=lambda: str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
+        default_factory=lambda: str(
+            getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k"
+        )
     )
     mode: Literal["masks", "rgb"] = Field(
         default_factory=lambda: str(getattr(settings, "SCENETOK_MODE", "masks") or "masks")
@@ -87,7 +88,11 @@ class SceneTokService:
     def _dtype(self):
         import torch
 
-        return torch.float16 if self._device != "cpu" and getattr(settings, "USE_FP16", True) else torch.float32
+        return (
+            torch.float16
+            if self._device != "cpu" and getattr(settings, "USE_FP16", True)
+            else torch.float32
+        )
 
     def _release_locked(self) -> None:
         self._encoder = None
@@ -107,7 +112,11 @@ class SceneTokService:
             pass
 
     def _load_locked(self, checkpoint: str) -> None:
-        if self._encoder is not None and self._decoder is not None and self._checkpoint == checkpoint:
+        if (
+            self._encoder is not None
+            and self._decoder is not None
+            and self._checkpoint == checkpoint
+        ):
             return
 
         ckpt_path = _checkpoint_path(checkpoint)
@@ -128,8 +137,12 @@ class SceneTokService:
             self._release_locked()
 
         dtype = self._dtype()
-        self._encoder = SceneTokEncoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
-        self._decoder = SceneTokDecoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
+        self._encoder = (
+            SceneTokEncoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
+        )
+        self._decoder = (
+            SceneTokDecoder.from_checkpoint(ckpt_path, dtype=dtype).to(self._device).eval()
+        )
         self._checkpoint = checkpoint
 
     def _run_locked(self, req: ProcessRequest) -> dict[str, Any]:
@@ -166,7 +179,9 @@ class SceneTokService:
         }
 
     async def health(self) -> dict[str, Any]:
-        checkpoint = str(getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k")
+        checkpoint = str(
+            getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k"
+        )
         ckpt_path = _checkpoint_path(checkpoint)
         return {
             "status": "ok",
@@ -189,7 +204,9 @@ class SceneTokService:
             except RuntimeError as exc:
                 raise HTTPException(status_code=503, detail=str(exc)) from exc
             except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"SceneTok inference failed: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"SceneTok inference failed: {exc}"
+                ) from exc
 
 
 SERVICE = SceneTokService()

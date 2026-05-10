@@ -31,6 +31,7 @@ Usage (standalone):
         --cvat-xml data/cvat_annotations.xml \\
         --output-dir data/checkpoints/supervised
 """
+
 import glob
 import os
 import random
@@ -70,6 +71,7 @@ VISDRONE_LABELS: list[str] = [
 
 # ── Label taxonomy normalization ──────────────────────────────────────────────
 
+
 def _normalize_labels(
     rows: list[tuple[str, str]],
     mappings: dict[str, str],
@@ -103,7 +105,10 @@ def _normalize_labels(
                 logger.warning(
                     "Label conflict for frame %s: '%s' vs '%s' (after normalization) "
                     "— keeping '%s' (alphabetically first)",
-                    frame_path, prev, canonical, min(prev, canonical),
+                    frame_path,
+                    prev,
+                    canonical,
+                    min(prev, canonical),
                 )
                 # Keep alphabetically first for determinism
                 if canonical < prev:
@@ -115,6 +120,7 @@ def _normalize_labels(
 
 
 # ── CVAT XML parser ────────────────────────────────────────────────────────────
+
 
 class CvatAnnotationParser:
     """Parse a CVAT XML 1.1 annotation file.
@@ -189,7 +195,9 @@ class CvatAnnotationParser:
 
         logger.info(
             "CvatAnnotationParser: xml=%s labels=%s frames=%d",
-            self.xml_path, self.label_names, len(self.frame_labels),
+            self.xml_path,
+            self.label_names,
+            len(self.frame_labels),
         )
 
     def label_to_idx(self) -> dict[str, int]:
@@ -198,6 +206,7 @@ class CvatAnnotationParser:
 
 
 # ── Dataset ────────────────────────────────────────────────────────────────────
+
 
 def _scan_frames(frames_dir: str) -> dict[str, str]:
     """Return {basename: abs_path} for all images under frames_dir."""
@@ -235,7 +244,8 @@ class AnnotatedFrameDataset(Dataset):
             raise ValueError("No annotated frames provided to AnnotatedFrameDataset.")
         logger.info(
             "AnnotatedFrameDataset: %d annotated frames loaded (two_views=%s)",
-            len(self.items), two_views,
+            len(self.items),
+            two_views,
         )
 
     @classmethod
@@ -248,15 +258,14 @@ class AnnotatedFrameDataset(Dataset):
     ) -> "AnnotatedFrameDataset":
         """Build from a CvatAnnotationParser (CVAT XML path)."""
         from selfsuvis.pipeline.core.config import settings as _settings
+
         disk_frames = _scan_frames(frames_dir)
 
         # Apply label taxonomy normalization before building the vocabulary.
         # This ensures labels from different annotation campaigns with
         # different naming conventions map to the same canonical class.
         raw_pairs = [
-            (disk_frames[bn], lbl)
-            for bn, lbl in parser.frame_labels.items()
-            if bn in disk_frames
+            (disk_frames[bn], lbl) for bn, lbl in parser.frame_labels.items() if bn in disk_frames
         ]
         skipped_missing = len(parser.frame_labels) - len(raw_pairs)
         normalized_pairs = _normalize_labels(raw_pairs, _settings.CVAT_LABEL_MAPPINGS)
@@ -360,7 +369,9 @@ class AnnotatedFrameDataset(Dataset):
 
         logger.info(
             "AnnotatedFrameDataset.from_db: %d frames, %d labels (mission_id=%s)",
-            len(items), len(all_labels), mission_id,
+            len(items),
+            len(all_labels),
+            mission_id,
         )
         return cls(items=items, transform=transform, two_views=two_views)
 
@@ -377,6 +388,7 @@ class AnnotatedFrameDataset(Dataset):
 
 # ── Eval gate ──────────────────────────────────────────────────────────────────
 
+
 def _stratified_split(
     items: list[tuple[str, int]],
     eval_fraction: float,
@@ -389,14 +401,13 @@ def _stratified_split(
     - any class has fewer than min_per_class samples in the eval split
     """
     from collections import defaultdict
+
     by_class: dict[int, list[tuple[str, int]]] = defaultdict(list)
     for item in items:
         by_class[item[1]].append(item)
 
     if len(by_class) < 2:
-        raise ValueError(
-            f"Dataset has only {len(by_class)} class(es); SupCon requires ≥2 classes."
-        )
+        raise ValueError(f"Dataset has only {len(by_class)} class(es); SupCon requires ≥2 classes.")
 
     train_items: list[tuple[str, int]] = []
     eval_items: list[tuple[str, int]] = []
@@ -410,7 +421,8 @@ def _stratified_split(
             train_items.extend(shuffled)
             logger.debug(
                 "_stratified_split: class %d has %d samples, skipping eval split",
-                label_idx, len(shuffled),
+                label_idx,
+                len(shuffled),
             )
         else:
             eval_items.extend(shuffled[:n_eval])
@@ -457,14 +469,14 @@ def _eval_accuracy(
     if len(embeddings) < 2:
         return 0.0
 
-    E = torch.stack(embeddings)           # (N, D)
-    lbl = torch.tensor(labels)            # (N,)
+    E = torch.stack(embeddings)  # (N, D)
+    lbl = torch.tensor(labels)  # (N,)
 
     # Cosine similarity matrix; mask self
-    sim = torch.mm(E, E.t())              # (N, N)
+    sim = torch.mm(E, E.t())  # (N, N)
     sim.fill_diagonal_(float("-inf"))
 
-    nn_idx = sim.argmax(dim=1)            # (N,)
+    nn_idx = sim.argmax(dim=1)  # (N,)
     correct = (lbl[nn_idx] == lbl).float().mean().item()
     return correct
 
@@ -521,13 +533,13 @@ def _eval_distribution_shift(
     if len(embeddings) < 4:
         return 0.0
 
-    E = torch.stack(embeddings)       # (N, D)
-    lbl = torch.tensor(labels)        # (N,)
+    E = torch.stack(embeddings)  # (N, D)
+    lbl = torch.tensor(labels)  # (N,)
 
-    sim = torch.mm(E, E.t())          # (N, N) cosine similarities (L2-normalised inputs)
-    sim.fill_diagonal_(0.0)           # exclude self-similarity
+    sim = torch.mm(E, E.t())  # (N, N) cosine similarities (L2-normalised inputs)
+    sim.fill_diagonal_(0.0)  # exclude self-similarity
 
-    same_mask = (lbl.unsqueeze(0) == lbl.unsqueeze(1))  # (N, N) bool
+    same_mask = lbl.unsqueeze(0) == lbl.unsqueeze(1)  # (N, N) bool
     same_mask.fill_diagonal_(False)
     diff_mask = ~same_mask
     diff_mask.fill_diagonal_(False)
@@ -544,12 +556,15 @@ def _eval_distribution_shift(
 
     logger.debug(
         "Distribution shift: intra_mean=%.4f inter_mean=%.4f gap=%.4f",
-        intra_mean, inter_mean, gap,
+        intra_mean,
+        inter_mean,
+        gap,
     )
     return gap
 
 
 # ── Loss ───────────────────────────────────────────────────────────────────────
+
 
 class SupConLoss(nn.Module):
     """Supervised Contrastive Loss (Khosla et al. NeurIPS 2020, eq. 2).
@@ -586,13 +601,13 @@ class SupConLoss(nn.Module):
         sim = torch.mm(z, z.t()) / self.temperature
 
         # Positive mask: same label, excluding self-pairs
-        labels_col = labels.view(-1, 1)           # (B, 1)
+        labels_col = labels.view(-1, 1)  # (B, 1)
         mask_pos = (labels_col == labels_col.t()).float()  # (B, B)
         mask_self = torch.eye(B, device=device)
         mask_pos = mask_pos - mask_self
 
         # Anchors with at least one positive
-        n_pos = mask_pos.sum(dim=1)               # (B,)
+        n_pos = mask_pos.sum(dim=1)  # (B,)
         valid = n_pos > 0
 
         if not valid.any():
@@ -604,7 +619,7 @@ class SupConLoss(nn.Module):
         log_denom = torch.logsumexp(sim_no_self, dim=1, keepdim=True)  # (B, 1)
 
         # Log probabilities for each pair
-        log_probs = sim - log_denom              # (B, B)
+        log_probs = sim - log_denom  # (B, B)
 
         # Mean log-prob over positives per anchor
         loss_per_anchor = -(mask_pos * log_probs).sum(dim=1) / (n_pos + 1e-8)  # (B,)
@@ -613,6 +628,7 @@ class SupConLoss(nn.Module):
 
 
 # ── Model ──────────────────────────────────────────────────────────────────────
+
 
 class SupervisedFineTuner:
     """DINOv3/DINOv2 backbone wrapped for supervised contrastive fine-tuning.
@@ -647,6 +663,7 @@ class SupervisedFineTuner:
         self.model_name = model_name
 
         from selfsuvis.models.dino_model import hub_load_dino
+
         self.backbone = hub_load_dino(model_name, pretrained=True)
         self.backbone = self.backbone.to(device)
 
@@ -667,7 +684,9 @@ class SupervisedFineTuner:
         trainable = sum(p.numel() for p in self._all_params() if p.requires_grad)
         logger.info(
             "SupervisedFineTuner: model=%s freeze_blocks=%d trainable_params=%d",
-            model_name, freeze_blocks, trainable,
+            model_name,
+            freeze_blocks,
+            trainable,
         )
 
     def _freeze_blocks(self, n: int) -> None:
@@ -697,8 +716,8 @@ class SupervisedFineTuner:
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """backbone CLS token → projection head → L2-normalised vector."""
-        feats = self.backbone(x)          # (B, embed_dim)
-        proj = self.head(feats)           # (B, proj_out_dim)
+        feats = self.backbone(x)  # (B, embed_dim)
+        proj = self.head(feats)  # (B, proj_out_dim)
         return F.normalize(proj, dim=-1)  # L2-normalised
 
     def save_checkpoint(self, path: str) -> None:
@@ -708,6 +727,7 @@ class SupervisedFineTuner:
 
 
 # ── Config ─────────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class SupervisedFinetuneConfig:
@@ -720,23 +740,24 @@ class SupervisedFinetuneConfig:
     lr: float = 1e-5
     weight_decay: float = 0.04
     temperature: float = 0.07
-    freeze_blocks: int = 8       # fewer frozen blocks than SSL (more fine-tuning freedom)
+    freeze_blocks: int = 8  # fewer frozen blocks than SSL (more fine-tuning freedom)
     embed_dim: int = 768
     proj_out_dim: int = 128
     num_workers: int = 4
     save_every: int = 1
     device: str = "cpu"
     seed: int = 42
-    ssl_checkpoint: str | None = None   # warm-start from SSL backbone if set
-    eval_fraction: float = 0.1             # fraction of data held out for eval gate
-    min_per_class_eval: int = 2            # min eval samples per class
+    ssl_checkpoint: str | None = None  # warm-start from SSL backbone if set
+    eval_fraction: float = 0.1  # fraction of data held out for eval gate
+    min_per_class_eval: int = 2  # min eval samples per class
     overfitting_shift_threshold: float = 0.9  # gap > this logs an overfitting warning
-    min_eval_gate_frames: int = 20         # reject dataset smaller than this
-    eval_gate_threshold: float = 0.6       # min 1-NN accuracy to accept checkpoint
-    mission_id: str | None = None       # when using from_db(), filter by mission
+    min_eval_gate_frames: int = 20  # reject dataset smaller than this
+    eval_gate_threshold: float = 0.6  # min 1-NN accuracy to accept checkpoint
+    mission_id: str | None = None  # when using from_db(), filter by mission
 
 
 # ── Training loop ──────────────────────────────────────────────────────────────
+
 
 def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
     """Run supervised contrastive fine-tuning on CVAT-annotated frames.
@@ -767,11 +788,16 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
             raise ValueError(f"No labels found in CVAT XML: {cfg.cvat_xml_path}")
         logger.info(
             "Supervised fine-tuning (XML): labels=%s total_annotated=%d",
-            parser.label_names, len(parser.frame_labels),
+            parser.label_names,
+            len(parser.frame_labels),
         )
-        full_dataset = AnnotatedFrameDataset.from_xml(cfg.frames_dir, parser, transform, two_views=True)
+        full_dataset = AnnotatedFrameDataset.from_xml(
+            cfg.frames_dir, parser, transform, two_views=True
+        )
     else:
-        full_dataset = AnnotatedFrameDataset.from_db(transform, two_views=True, mission_id=cfg.mission_id)
+        full_dataset = AnnotatedFrameDataset.from_db(
+            transform, two_views=True, mission_id=cfg.mission_id
+        )
 
     all_items = full_dataset.items
 
@@ -779,9 +805,16 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
     if len(all_items) < cfg.min_eval_gate_frames:
         logger.warning(
             "Dataset too small for eval gate: %d frames < min=%d. Rejecting.",
-            len(all_items), cfg.min_eval_gate_frames,
+            len(all_items),
+            cfg.min_eval_gate_frames,
         )
-        return {"path": "", "best_accuracy": 0.0, "epochs": 0, "accepted": False, "distribution_shift": 0.0}
+        return {
+            "path": "",
+            "best_accuracy": 0.0,
+            "epochs": 0,
+            "accepted": False,
+            "distribution_shift": 0.0,
+        }
 
     # Stratified train/eval split (raises ValueError on single-class dataset)
     try:
@@ -792,11 +825,21 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
         )
     except ValueError as exc:
         logger.warning("Stratified split failed: %s. Rejecting dataset.", exc)
-        return {"path": "", "best_accuracy": 0.0, "epochs": 0, "accepted": False, "distribution_shift": 0.0}
+        return {
+            "path": "",
+            "best_accuracy": 0.0,
+            "epochs": 0,
+            "accepted": False,
+            "distribution_shift": 0.0,
+        }
 
     logger.info(
         "Dataset: %d train | %d eval | epochs=%d | batch=%d | device=%s",
-        len(train_items), len(eval_items), cfg.epochs, cfg.batch_size, cfg.device,
+        len(train_items),
+        len(eval_items),
+        cfg.epochs,
+        cfg.batch_size,
+        cfg.device,
     )
 
     train_dataset = AnnotatedFrameDataset(items=train_items, transform=transform, two_views=True)
@@ -824,9 +867,7 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
     optimizer = torch.optim.AdamW(
         tuner.trainable_params(), lr=cfg.lr, weight_decay=cfg.weight_decay
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=cfg.epochs
-    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs)
     loss_fn = SupConLoss(temperature=cfg.temperature)
 
     best_loss = float("inf")
@@ -845,8 +886,8 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
             # Shape: (2B, proj_out_dim) with labels repeated
             z1 = tuner.forward(v1)
             z2 = tuner.forward(v2)
-            z = torch.cat([z1, z2], dim=0)                     # (2B, D)
-            labels_2x = torch.cat([labels, labels], dim=0)     # (2B,)
+            z = torch.cat([z1, z2], dim=0)  # (2B, D)
+            labels_2x = torch.cat([labels, labels], dim=0)  # (2B,)
 
             loss = loss_fn(z, labels_2x)
 
@@ -864,7 +905,10 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
         avg_loss = float(np.mean(epoch_losses)) if epoch_losses else float("inf")
         logger.info(
             "Epoch %d/%d  loss=%.4f  lr=%.2e",
-            epoch, cfg.epochs, avg_loss, scheduler.get_last_lr()[0],
+            epoch,
+            cfg.epochs,
+            avg_loss,
+            scheduler.get_last_lr()[0],
         )
 
         if epoch % cfg.save_every == 0:
@@ -887,14 +931,19 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
         logger.warning(
             "Potential overfitting: distribution_shift=%.4f > threshold=%.2f  "
             "(intra-class clustering is very tight — may indicate memorisation on small dataset)",
-            distribution_shift, cfg.overfitting_shift_threshold,
+            distribution_shift,
+            cfg.overfitting_shift_threshold,
         )
 
     logger.info(
         "Supervised fine-tuning complete. best_loss=%.4f  eval_accuracy=%.4f  "
         "gate=%.2f  accepted=%s  distribution_shift=%.4f  checkpoint=%s",
-        best_loss, best_accuracy, cfg.eval_gate_threshold, accepted,
-        distribution_shift, best_path,
+        best_loss,
+        best_accuracy,
+        cfg.eval_gate_threshold,
+        accepted,
+        distribution_shift,
+        best_path,
     )
     return {
         "path": best_path if accepted else "",
@@ -907,29 +956,33 @@ def run_supervised_finetune(cfg: SupervisedFinetuneConfig) -> dict[str, Any]:
 
 # ── Augmentation (shared with ssl_finetune) ────────────────────────────────────
 
+
 def _build_augment_transform(image_size: int = 224) -> transforms.Compose:
     """Strong random augmentation matching SimCLR / ssl_finetune conventions."""
-    return transforms.Compose([
-        transforms.RandomResizedCrop(
-            image_size, scale=(0.2, 1.0),
-            interpolation=transforms.InterpolationMode.BICUBIC,
-        ),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomApply([
-            transforms.ColorJitter(brightness=0.4, contrast=0.4,
-                                   saturation=0.2, hue=0.1)
-        ], p=0.8),
-        transforms.RandomGrayscale(p=0.2),
-        transforms.RandomApply([
-            transforms.GaussianBlur(kernel_size=23, sigma=(0.1, 2.0))
-        ], p=0.5),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225]),
-    ])
+    return transforms.Compose(
+        [
+            transforms.RandomResizedCrop(
+                image_size,
+                scale=(0.2, 1.0),
+                interpolation=transforms.InterpolationMode.BICUBIC,
+            ),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomApply(
+                [transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.2, hue=0.1)],
+                p=0.8,
+            ),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply(
+                [transforms.GaussianBlur(kernel_size=23, sigma=(0.1, 2.0))], p=0.5
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
 
 # ── Config from environment ────────────────────────────────────────────────────
+
 
 def config_from_settings(
     frames_dir: str,

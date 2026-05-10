@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 
 _EFFICIENTVIT_INPUT_SIZE = 224
 _EFFICIENTVIT_MEAN = (0.485, 0.456, 0.406)
-_EFFICIENTVIT_STD  = (0.229, 0.224, 0.225)
+_EFFICIENTVIT_STD = (0.229, 0.224, 0.225)
 
 
 class EfficientViTEmbedder:
@@ -66,9 +66,7 @@ class EfficientViTEmbedder:
             ) from exc
 
         try:
-            self._model = timm.create_model(
-                "efficientvit_b1", pretrained=pretrained, num_classes=0
-            )
+            self._model = timm.create_model("efficientvit_b1", pretrained=pretrained, num_classes=0)
         except RuntimeError as exc:
             if "out of memory" in str(exc).lower() or "CUDA out of memory" in str(exc):
                 free_gb = 0.0
@@ -89,12 +87,21 @@ class EfficientViTEmbedder:
 
         # Resolve output dimension via a dummy forward pass
         import torch
+
         with torch.no_grad():
-            _dummy = torch.zeros(1, 3, _EFFICIENTVIT_INPUT_SIZE, _EFFICIENTVIT_INPUT_SIZE,
-                                 device=device, dtype=torch.float16 if self._use_fp16 else torch.float32)
+            _dummy = torch.zeros(
+                1,
+                3,
+                _EFFICIENTVIT_INPUT_SIZE,
+                _EFFICIENTVIT_INPUT_SIZE,
+                device=device,
+                dtype=torch.float16 if self._use_fp16 else torch.float32,
+            )
             self._dim: int = int(self._model(_dummy).shape[-1])
 
-        logger.info("EfficientViTEmbedder ready on %s (dim=%d, fp16=%s)", device, self._dim, self._use_fp16)
+        logger.info(
+            "EfficientViTEmbedder ready on %s (dim=%d, fp16=%s)", device, self._dim, self._use_fp16
+        )
 
     def image_dim(self) -> int:
         """Return the embedding dimensionality (384 for EfficientViT-B1)."""
@@ -141,8 +148,7 @@ class EfficientViTEmbedder:
                     except Exception:
                         pass
                     raise RuntimeError(
-                        f"EfficientViT Stage 1→2 requires ≥8GB VRAM; "
-                        f"detected {free_gb:.1f}GB free."
+                        f"EfficientViT Stage 1→2 requires ≥8GB VRAM; detected {free_gb:.1f}GB free."
                     ) from exc
                 raise
 

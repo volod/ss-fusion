@@ -160,12 +160,12 @@ def hub_load_dino(model_name: str, pretrained: bool = True) -> torch.nn.Module:
     """
     source, repo_or_dir, actual_name = _resolve_dino_hub(model_name)
     try:
-        return torch.hub.load(repo_or_dir, actual_name,
-                              pretrained=pretrained, source=source)
+        return torch.hub.load(repo_or_dir, actual_name, pretrained=pretrained, source=source)
     except Exception as hub_exc:
         _logger.warning(
             "torch.hub load failed (%s: %s) — trying Hugging Face fallback …",
-            type(hub_exc).__name__, hub_exc,
+            type(hub_exc).__name__,
+            hub_exc,
         )
         try:
             model = _load_dino_from_hf(model_name)
@@ -222,10 +222,16 @@ class DINOEmbedder:
                 import urllib.request as _req
 
                 from tqdm import tqdm as _tqdm
+
                 with _req.urlopen(url) as resp:
                     total = int(resp.headers.get("Content-Length", 0))
-                bar = _tqdm(total=total, unit="B", unit_scale=True,
-                            desc=f"  {os.path.basename(dst)}", leave=False)
+                bar = _tqdm(
+                    total=total,
+                    unit="B",
+                    unit_scale=True,
+                    desc=f"  {os.path.basename(dst)}",
+                    leave=False,
+                )
 
                 def _hook(count, block_size, total_size):
                     if total_size > 0:
@@ -258,6 +264,7 @@ class DINOEmbedder:
                 # otherwise a float32 dummy against fp16 weights raises a
                 # dtype mismatch before xformers is even reached.
                 import torch as _pt
+
                 _probe_dtype = (
                     _pt.float16
                     if (settings.USE_FP16 and str(self.device).startswith("cuda"))
@@ -327,6 +334,7 @@ class DINOEmbedder:
         ckpt = settings.DINO_CHECKPOINT
         if not ckpt:
             from pathlib import Path
+
             active_txt = Path(settings.SUP_CHECKPOINT_DIR) / "active_checkpoint.txt"
             if active_txt.exists():
                 ckpt = active_txt.read_text().strip()
@@ -335,6 +343,7 @@ class DINOEmbedder:
 
         if ckpt and os.path.isfile(ckpt):
             import torch as _torch
+
             state = _torch.load(ckpt, map_location=self.device)
             model.load_state_dict(state)
             self.logger.info("DINO: loaded fine-tuned checkpoint %s", ckpt)
@@ -362,6 +371,7 @@ class DINOEmbedder:
         Raises RuntimeError on any load failure (caller's model is unchanged).
         """
         import torch as _torch
+
         state = _torch.load(path, map_location=self.device)
         self.model.load_state_dict(state)
         _set_dino_xformers_enabled(str(self.device).startswith("cuda"))
@@ -402,7 +412,12 @@ class DINOEmbedder:
                 if not is_cuda_oom(exc) or not str(actual_device).startswith("cuda"):
                     raise
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
-                log_oom_banner(self.logger, "DINOv3 image encoding", "moving backbone to CPU for remaining batches")
+
+                log_oom_banner(
+                    self.logger,
+                    "DINOv3 image encoding",
+                    "moving backbone to CPU for remaining batches",
+                )
                 self.model.cpu()
                 _set_dino_xformers_enabled(False)
                 actual_device = torch.device("cpu")
@@ -419,5 +434,3 @@ class DINOEmbedder:
 
     def image_dim(self) -> int:
         return self._embed_dim
-
-

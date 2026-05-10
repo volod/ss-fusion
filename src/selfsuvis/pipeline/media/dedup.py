@@ -56,9 +56,7 @@ def _resize(img: np.ndarray, w: int, h: int) -> np.ndarray:
 
     from PIL import Image
 
-    return np.asarray(
-        Image.fromarray(img).resize((w, h), resample=Image.Resampling.BOX)
-    )
+    return np.asarray(Image.fromarray(img).resize((w, h), resample=Image.Resampling.BOX))
 
 
 def _hamming(a: int, b: int) -> int:

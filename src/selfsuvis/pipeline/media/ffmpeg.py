@@ -26,11 +26,16 @@ def extract_frames(video_path: str, video_id: str) -> list[tuple[str, float]]:
     cmd = [
         "ffmpeg",
         "-y",
-        "-loglevel", "error",       # suppress info/warnings; keep real errors
-        "-i", video_path,
-        "-vf", f"fps={fps},format=yuv420p",  # explicit format avoids deprecated yuvj420p auto-select
-        "-color_range", "2",        # full (pc) range — required for MJPEG/JPEG output
-        "-q:v", "2",
+        "-loglevel",
+        "error",  # suppress info/warnings; keep real errors
+        "-i",
+        video_path,
+        "-vf",
+        f"fps={fps},format=yuv420p",  # explicit format avoids deprecated yuvj420p auto-select
+        "-color_range",
+        "2",  # full (pc) range — required for MJPEG/JPEG output
+        "-q:v",
+        "2",
         pattern,
     ]
     logger.info("Running ffmpeg for video_id=%s", video_id)

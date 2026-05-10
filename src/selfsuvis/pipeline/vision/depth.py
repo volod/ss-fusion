@@ -55,7 +55,9 @@ def _resolve_model_id() -> str:
         # Local pipeline stores only 5-bucket normalized depth percentiles, so
         # a compact model is a better default than DepthPro's higher-cost metric depth.
         return "depth-anything/Depth-Anything-V2-Base-hf"
-    return resolve_model_id(settings.DEPTH_MODEL, "depth", "depth-anything/Depth-Anything-V2-Small-hf")
+    return resolve_model_id(
+        settings.DEPTH_MODEL, "depth", "depth-anything/Depth-Anything-V2-Small-hf"
+    )
 
 
 def _prepare_depth_image(image: Image.Image) -> Image.Image:
@@ -140,7 +142,9 @@ class DepthModel(_HFPipeMixin):
             if is_cuda_oom(exc) and self._device == "cuda":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
 
-                log_oom_banner(logger, f"Depth/{self.model_id}", "dense depth OOM — falling back to CPU")
+                log_oom_banner(
+                    logger, f"Depth/{self.model_id}", "dense depth OOM — falling back to CPU"
+                )
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     return self.estimate_dense(image)
@@ -160,7 +164,10 @@ class DepthModel(_HFPipeMixin):
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
-                log_oom_banner(logger, f"Depth/{self.model_id}", "falling back to CPU for remaining frames")
+
+                log_oom_banner(
+                    logger, f"Depth/{self.model_id}", "falling back to CPU for remaining frames"
+                )
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     try:
@@ -185,11 +192,14 @@ class DepthModel(_HFPipeMixin):
         except Exception as exc:
             if is_cuda_oom(exc) and self._device == "cuda":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
+
                 log_oom_banner(logger, f"Depth/{self.model_id}", "batch OOM — falling back to CPU")
                 cpu_pipe = self._fallback_to_cpu()
                 if cpu_pipe is not None:
                     return self._estimate_many(images, cpu_pipe)
-            logger.debug("Depth batch inference failed; falling back to per-image processing", exc_info=True)
+            logger.debug(
+                "Depth batch inference failed; falling back to per-image processing", exc_info=True
+            )
         return [self._estimate_one(image, pipe) for image in images]
 
     def _normalise_depth_output(self, output: Any) -> dict[str, Any]:
@@ -225,7 +235,9 @@ class DepthModel(_HFPipeMixin):
                 "model": self.model_id,
             },
             "depth": {
-                "percentiles": [round(p, 4) for p in np.percentile(depth_arr, [10, 25, 50, 75, 90]).tolist()],
+                "percentiles": [
+                    round(p, 4) for p in np.percentile(depth_arr, [10, 25, 50, 75, 90]).tolist()
+                ],
                 "model": self.model_id,
             },
         }
@@ -240,7 +252,10 @@ class DepthModel(_HFPipeMixin):
         try:
             import torch
             from transformers import pipeline as hf_pipeline
-            torch_dtype = torch.float16 if settings.USE_FP16 and target_device != "cpu" else torch.float32
+
+            torch_dtype = (
+                torch.float16 if settings.USE_FP16 and target_device != "cpu" else torch.float32
+            )
             self._release_pipe()
             with suppress_runtime_noise(
                 r".*Loading weights.*",
@@ -261,18 +276,23 @@ class DepthModel(_HFPipeMixin):
         except Exception as exc:
             if is_cuda_oom(exc) and target_device == "cuda" and force_device != "cpu":
                 from selfsuvis.pipeline.core.gpu_utils import log_oom_banner
-                log_oom_banner(logger, f"Depth/{self.model_id}", "load OOM on CUDA — retrying on CPU")
+
+                log_oom_banner(
+                    logger, f"Depth/{self.model_id}", "load OOM on CUDA — retrying on CPU"
+                )
                 self._release_pipe()
                 self._load_failed = False
                 return self._get_pipe(force_device="cpu")
             logger.warning(
                 "Failed to load depth model %s — run: python scripts/prepare_models.py --depth",
-                self.model_id, exc_info=True,
+                self.model_id,
+                exc_info=True,
             )
             self._pipe = None
             self._device = None
             self._load_failed = True
         return self._pipe
+
 
 def _get_device() -> str:
     return resolve_device()

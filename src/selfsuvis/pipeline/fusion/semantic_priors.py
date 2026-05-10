@@ -25,53 +25,54 @@ logger = get_logger(__name__)
 # ── Scene-type → process noise scale ─────────────────────────────────────────
 # Higher value = more dynamic scene (starts/stops) → inflate Q.
 _SCENE_PROCESS_NOISE: dict[str, float] = {
-    "highway":        0.60,   # mostly constant velocity, low noise
-    "motorway":       0.60,
-    "rural_road":     0.80,
-    "rural_terrain":  1.00,
-    "aerial":         0.70,   # drone: smooth flight
-    "waterway":       0.70,
-    "urban_street":   1.60,   # stops at lights, lane changes
-    "urban_road":     1.60,
-    "intersection":   2.00,   # highest dynamic uncertainty
-    "parking":        1.80,
-    "construction":   1.40,
-    "industrial":     1.20,
-    "indoor":         1.50,
-    "other":          1.00,
-    "unknown":        1.00,
+    "highway": 0.60,  # mostly constant velocity, low noise
+    "motorway": 0.60,
+    "rural_road": 0.80,
+    "rural_terrain": 1.00,
+    "aerial": 0.70,  # drone: smooth flight
+    "waterway": 0.70,
+    "urban_street": 1.60,  # stops at lights, lane changes
+    "urban_road": 1.60,
+    "intersection": 2.00,  # highest dynamic uncertainty
+    "parking": 1.80,
+    "construction": 1.40,
+    "industrial": 1.20,
+    "indoor": 1.50,
+    "other": 1.00,
+    "unknown": 1.00,
 }
 
 # ── Object category → maximum plausible speed (m/s) ──────────────────────────
 # Used as a hard-clamp on the velocity state post-update.
 _OBJECT_SPEED_PRIORS: dict[str, float] = {
-    "person":       3.5,
-    "pedestrian":   3.5,
-    "child":        3.0,
-    "worker":       2.5,
-    "bicycle":      10.0,
-    "motorbike":    30.0,
-    "motorcycle":   30.0,
-    "car":          40.0,
-    "van":          35.0,
-    "truck":        30.0,
-    "bus":          25.0,
-    "train":        60.0,
-    "boat":         20.0,
-    "airplane":     250.0,
-    "vehicle":      40.0,   # generic fallback
-    "animal":       15.0,
+    "person": 3.5,
+    "pedestrian": 3.5,
+    "child": 3.0,
+    "worker": 2.5,
+    "bicycle": 10.0,
+    "motorbike": 30.0,
+    "motorcycle": 30.0,
+    "car": 40.0,
+    "van": 35.0,
+    "truck": 30.0,
+    "bus": 25.0,
+    "train": 60.0,
+    "boat": 20.0,
+    "airplane": 250.0,
+    "vehicle": 40.0,  # generic fallback
+    "animal": 15.0,
 }
 
 # ── GPS multipath inflation factors ──────────────────────────────────────────
 # When objects suggesting "urban canyon" are prominent, GPS is less reliable.
 _URBAN_CANYON_OBJECTS = frozenset({"building", "skyscraper", "wall", "overpass", "tunnel"})
-_GPS_MULTIPATH_SCALE = 2.5   # inflate GPS noise by this factor in urban canyons
+_GPS_MULTIPATH_SCALE = 2.5  # inflate GPS noise by this factor in urban canyons
 
 
 @dataclass
 class SemanticPrior:
     """Noise-adaptive parameters derived from VLM scene analysis."""
+
     scene_type: str = "unknown"
 
     # Multiplicative scales for Kalman noise matrices
@@ -108,11 +109,7 @@ def build_semantic_prior(
 
     # ── Parse Gemma analysis ──────────────────────────────────────────────────
     if gemma_analysis:
-        raw_scene = (
-            gemma_analysis.get("scene_type")
-            or gemma_analysis.get("top_category")
-            or ""
-        )
+        raw_scene = gemma_analysis.get("scene_type") or gemma_analysis.get("top_category") or ""
         scene_type = _normalise_scene_type(str(raw_scene))
 
         # Dominant objects from Gemma structured output
@@ -143,6 +140,7 @@ def build_semantic_prior(
         if road_surfaces:
             # Most frequent surface type
             from collections import Counter
+
             most_common = Counter(road_surfaces).most_common(1)[0][0]
             scene_type = _normalise_scene_type(most_common)
 
@@ -173,7 +171,11 @@ def build_semantic_prior(
     logger.info(
         "Semantic prior: scene=%s proc_scale=%.2f gps_scale=%.2f "
         "temporal_scale=%.2f urban_canyon=%s",
-        scene_type, combined_proc, gps_scale, temporal_scale, urban_canyon_detected,
+        scene_type,
+        combined_proc,
+        gps_scale,
+        temporal_scale,
+        urban_canyon_detected,
     )
 
     return SemanticPrior(

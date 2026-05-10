@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -67,6 +66,7 @@ class PlatformFusionResult:
 @dataclass
 class FullFusionResult:
     """Composite result from all four fusion layers."""
+
     platform: PlatformFusionResult
     object_state: "ObjectFusionResult"
     map_state: "MapFusionResult"

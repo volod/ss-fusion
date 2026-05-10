@@ -24,7 +24,6 @@ def test_model_run_advisor_recommends_stronger_qwen_for_parse_errors():
     assert advisor["recommended_env_updates"]["REASONING_MODEL"] == "qwen3:14b"
     assert advisor["recommended_env_updates"]["UNIDRIVE_ENABLED"] == "true"
     assert any(
-        finding["code"] == "qwen_structured_captioning_degraded"
-        for finding in advisor["findings"]
+        finding["code"] == "qwen_structured_captioning_degraded" for finding in advisor["findings"]
     )
     assert any(finding["code"] == "sfm_pose_recovery_degraded" for finding in advisor["findings"])

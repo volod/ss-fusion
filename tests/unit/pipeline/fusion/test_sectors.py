@@ -2,7 +2,6 @@ import unittest
 
 
 class TestSectors(unittest.TestCase):
-
     def test_nearby_positions_share_overlapping_sector_ids(self):
         from selfsuvis.pipeline.fusion.sectors import (
             sectorize_global_positions,

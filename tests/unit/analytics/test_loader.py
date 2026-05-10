@@ -137,8 +137,13 @@ def test_local_run_loader_parses_key_artifacts(tmp_path):
             ]
         ),
     )
-    _write(run_dir / "multimodal_features.md", "OCR: 1/2 frames have text\nWorld model unavailable\n")
-    _write(run_dir / "3d_map" / "map_stats.json", json.dumps({"method": "sfm", "points": 10, "poses": 5}))
+    _write(
+        run_dir / "multimodal_features.md", "OCR: 1/2 frames have text\nWorld model unavailable\n"
+    )
+    _write(
+        run_dir / "3d_map" / "map_stats.json",
+        json.dumps({"method": "sfm", "points": 10, "poses": 5}),
+    )
     _write(run_dir / "3d_map" / "gaussian_splat.ply", "ply")
     _write(run_dir / "edge_models" / "dino_local.onnx", "onnx")
     np.savez(run_dir / "edge_models" / "gallery.npz", embeddings=np.ones((2, 4), dtype=np.float32))
@@ -250,10 +255,7 @@ def test_local_run_loader_does_not_treat_pca_anchors_as_sfm_pose_coverage(tmp_pa
                 "fps": 2.0,
                 "frame_count": 4,
                 "duration_sec": 2.0,
-                "frames": [
-                    {"path": f"frame_{idx}.jpg", "t_sec": idx * 0.5}
-                    for idx in range(4)
-                ],
+                "frames": [{"path": f"frame_{idx}.jpg", "t_sec": idx * 0.5} for idx in range(4)],
             }
         ),
     )
@@ -278,10 +280,7 @@ def test_local_run_loader_does_not_treat_pca_anchors_as_sfm_pose_coverage(tmp_pa
     assert summary.map_stats.sfm_poses == 0
     assert summary.diagnostics.map_pose_coverage == 0.0
     assert summary.diagnostics.map_points_per_pose == 0.0
-    assert any(
-        "0 SfM poses, 4 frame anchors" in warning
-        for warning in summary.run_health.warnings
-    )
+    assert any("0 SfM poses, 4 frame anchors" in warning for warning in summary.run_health.warnings)
 
 
 def test_targeted_coverage_score_saturates_sparse_expert_passes():
