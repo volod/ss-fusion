@@ -38,6 +38,19 @@ def load_layered_env(
             os.environ[key] = value if value is not None else ""
 
 
+def load_script_env(*, anchor_file: str, default_app_env: str = "prod") -> None:
+    """Load layered env for CLI/script entrypoints.
+
+    This keeps a single canonical behavior across scripts:
+    - If APP_ENV is set, honor it.
+    - Otherwise default to *default_app_env* (prod by default).
+    """
+    load_layered_env(
+        anchor_file=anchor_file,
+        app_env=os.getenv("APP_ENV", default_app_env),
+    )
+
+
 def env_str(key: str, default: str) -> str:
     return os.getenv(key, default)
 

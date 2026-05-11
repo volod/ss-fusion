@@ -12,7 +12,6 @@ import hmac
 import json
 
 import httpx
-import redis.asyncio as aioredis
 
 from selfsuvis.pipeline.core import get_logger, settings
 
@@ -25,6 +24,13 @@ _BRPOP_TIMEOUT = 5
 
 async def run_webhook_retry() -> None:
     """Main retry worker loop. Called as asyncio.create_task from app lifespan."""
+    try:
+        import redis.asyncio as aioredis  # pylint: disable=import-outside-toplevel
+    except ImportError as exc:
+        raise RuntimeError(
+            "Webhook retry requires the 'redis' package. Install with: pip install redis"
+        ) from exc
+
     redis_client = aioredis.from_url(settings.WEBHOOK_REDIS_URL)
 
     async with httpx.AsyncClient(timeout=5.0) as client:

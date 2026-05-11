@@ -6,7 +6,7 @@ summary that captures relative depth distribution without storing a full map.
 
 Disabled by default (``DEPTH_ENABLED=false``).  Enable with:
 
-    DEPTH_ENABLED=true DEPTH_MODEL=auto python worker/main.py
+    DEPTH_ENABLED=true DEPTH_MODEL=auto python -m selfsuvis.worker
 
 Top-10 depth models (small → large, override with ``DEPTH_MODEL``):
 
@@ -284,7 +284,7 @@ class DepthModel(_HFPipeMixin):
                 self._load_failed = False
                 return self._get_pipe(force_device="cpu")
             logger.warning(
-                "Failed to load depth model %s — run: python scripts/prepare_models.py --depth",
+                "Failed to load depth model %s - run: python -m selfsuvis.scripts.prepare_models --depth",
                 self.model_id,
                 exc_info=True,
             )

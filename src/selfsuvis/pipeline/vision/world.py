@@ -372,7 +372,7 @@ class WorldModel:
                     )
                     continue
                 logger.warning(
-                    "Failed to load world model %s — run: python scripts/prepare_models.py --world-model",
+                    "Failed to load world model %s - run: python -m selfsuvis.scripts.prepare_models --world-model",
                     candidate_id,
                     exc_info=True,
                 )

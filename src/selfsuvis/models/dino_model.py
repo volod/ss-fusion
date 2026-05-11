@@ -122,7 +122,7 @@ def _load_dino_from_hf(model_name: str) -> torch.nn.Module:
                 f"  1. Open  https://huggingface.co/{hf_repo}\n"
                 f"  2. Click 'Agree and access repository'\n"
                 f"  3. Log in:  huggingface-cli login\n"
-                f"  4. Re-run:  python scripts/prepare_models.py --dino --source hf"
+                f"  4. Re-run:  python -m selfsuvis.scripts.prepare_models --dino --source hf"
             ) from exc
         raise
 
@@ -176,7 +176,7 @@ def hub_load_dino(model_name: str, pretrained: bool = True) -> torch.nn.Module:
                 f"All DINO load attempts failed.\n"
                 f"  torch.hub: {hub_exc}\n"
                 f"  Hugging Face: {hf_exc}\n"
-                f"To pre-download offline: python scripts/prepare_models.py --dino"
+                f"To pre-download offline: python -m selfsuvis.scripts.prepare_models --dino"
             ) from hf_exc
 
 

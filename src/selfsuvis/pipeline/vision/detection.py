@@ -7,7 +7,7 @@ Bounding boxes are normalised to [0, 1] relative to image width/height.
 
 Disabled by default (``DETECTION_ENABLED=false``).  Enable with:
 
-    DETECTION_ENABLED=true DETECTION_MODEL=auto python worker/main.py
+    DETECTION_ENABLED=true DETECTION_MODEL=auto python -m selfsuvis.worker
 
 Top-10 detection models (small → large, override with ``DETECTION_MODEL``):
 
@@ -228,7 +228,7 @@ class DetectionModel(_HFPipeMixin):
                 self._load_failed = False
                 return self._get_pipe(force_device="cpu")
             logger.warning(
-                "Failed to load detection model %s — run: python scripts/prepare_models.py --detection",
+                "Failed to load detection model %s - run: python -m selfsuvis.scripts.prepare_models --detection",
                 self.model_id,
                 exc_info=True,
             )

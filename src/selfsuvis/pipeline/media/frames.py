@@ -1,11 +1,12 @@
 import os
 from collections.abc import Generator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-import cv2
 import numpy as np
 
 from selfsuvis.pipeline.core import get_logger
+from selfsuvis.pipeline.core.optional_deps import require_cv2
 from selfsuvis.pipeline.media.fs_common import ensure_parent_dir
 from selfsuvis.pipeline.media.heuristics import (
     downsample_gray,
@@ -25,6 +26,7 @@ class FrameRecord:
 
 
 def _save_png(frame_bgr: np.ndarray, out_path: str) -> None:
+    cv2 = require_cv2()
     ensure_parent_dir(out_path)
     cv2.imwrite(out_path, frame_bgr, [cv2.IMWRITE_PNG_COMPRESSION, 3])
 
@@ -63,7 +65,7 @@ def _should_keep_frame(
 
 
 def _iter_stepped_frames(
-    cap: cv2.VideoCapture, step: int
+    cap: "cv2.VideoCapture", step: int
 ) -> Generator[tuple[int, np.ndarray], None, None]:
     """Yield (frame_idx, frame_bgr) for every `step`-th decoded frame."""
     frame_idx = 0
@@ -76,6 +78,10 @@ def _iter_stepped_frames(
         frame_idx += 1
 
 
+if TYPE_CHECKING:
+    import cv2  # pragma: no cover
+
+
 def extract_frames_fixed(
     video_path: str,
     out_dir: str,
@@ -83,6 +89,7 @@ def extract_frames_fixed(
     max_frames: int | None = None,
 ) -> list[FrameRecord]:
     logger = get_logger(__name__)
+    cv2 = require_cv2()
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"failed to open video: {video_path}")
@@ -121,6 +128,7 @@ def extract_frames_adaptive(
     probe_fps: float = 5.0,
 ) -> list[FrameRecord]:
     logger = get_logger(__name__)
+    cv2 = require_cv2()
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"failed to open video: {video_path}")
@@ -172,6 +180,7 @@ def extract_stream_frames(
     max_frames: int | None = None,
 ) -> list[FrameRecord]:
     logger = get_logger(__name__)
+    cv2 = require_cv2()
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
         raise RuntimeError(f"failed to open stream source: {source}")

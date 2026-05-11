@@ -31,9 +31,9 @@ Top-10 ASR models (small → large, override with ``ASR_MODEL`` env var):
 
 CLI override examples::
 
-    ASR_MODEL=openai/whisper-tiny python worker/main.py
-    ASR_MODEL=openai/whisper-large-v3 ASR_LANGUAGE=en python worker/main.py
-    ASR_MODEL=distil-whisper/distil-large-v3 ASR_BATCH_SIZE=4 python worker/main.py
+    ASR_MODEL=openai/whisper-tiny python -m selfsuvis.worker
+    ASR_MODEL=openai/whisper-large-v3 ASR_LANGUAGE=en python -m selfsuvis.worker
+    ASR_MODEL=distil-whisper/distil-large-v3 ASR_BATCH_SIZE=4 python -m selfsuvis.worker
 """
 
 import contextlib

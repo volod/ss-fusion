@@ -5,7 +5,7 @@ and produces per-frame signal metrics stored in ``frame_facts_json["rf_signal"]`
 
 Disabled by default (``RF_ENABLED=false``).  Enable with::
 
-    RF_ENABLED=true RF_SAMPLE_RATE=1000000 python worker/main.py
+    RF_ENABLED=true RF_SAMPLE_RATE=1000000 python -m selfsuvis.worker
 
 IQ data sources (checked in order for each video):
   1. ``<video_basename>.iq``         — raw interleaved float32 I/Q samples

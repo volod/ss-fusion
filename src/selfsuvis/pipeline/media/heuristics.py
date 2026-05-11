@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 
 try:
@@ -7,6 +6,7 @@ except (ImportError, ModuleNotFoundError):
     ssim = None
 
 from selfsuvis.pipeline.core import settings
+from selfsuvis.pipeline.core.optional_deps import require_cv2
 
 HIST_BINS = 64
 TILE_RESIZE = 64
@@ -15,11 +15,13 @@ CANNY_HIGH_THRESHOLD = 200
 
 
 def downsample_gray(img: np.ndarray, size: int = TILE_RESIZE) -> np.ndarray:
+    cv2 = require_cv2()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return cv2.resize(gray, (size, size), interpolation=cv2.INTER_AREA)
 
 
 def blur_laplacian_var(gray: np.ndarray) -> float:
+    cv2 = require_cv2()
     return cv2.Laplacian(gray, cv2.CV_64F).var()
 
 
@@ -28,6 +30,7 @@ def mean_intensity(gray: np.ndarray) -> float:
 
 
 def histogram_diff(a: np.ndarray, b: np.ndarray) -> float:
+    cv2 = require_cv2()
     hist_a = cv2.calcHist([a], [0], None, [HIST_BINS], [0, 256])
     hist_b = cv2.calcHist([b], [0], None, [HIST_BINS], [0, 256])
     cv2.normalize(hist_a, hist_a)
@@ -50,6 +53,7 @@ def ssim_diff(a: np.ndarray, b: np.ndarray) -> float:
 def phase_corr_align(
     prev_small: np.ndarray, curr_small: np.ndarray
 ) -> tuple[np.ndarray, float, float, float]:
+    cv2 = require_cv2()
     shift, response = cv2.phaseCorrelate(prev_small, curr_small)
     dx, dy = shift
     if response < settings.PHASECORR_MIN_RESPONSE:
@@ -68,6 +72,7 @@ def phase_corr_align(
 
 
 def frame_quality_ok(frame_bgr: np.ndarray) -> bool:
+    cv2 = require_cv2()
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     if blur_laplacian_var(gray) < settings.BLUR_LAPL_VAR_MIN_FRAME:
         return False
@@ -78,6 +83,7 @@ def frame_quality_ok(frame_bgr: np.ndarray) -> bool:
 
 
 def tile_quality_ok(tile_bgr: np.ndarray) -> bool:
+    cv2 = require_cv2()
     gray = cv2.cvtColor(tile_bgr, cv2.COLOR_BGR2GRAY)
     if blur_laplacian_var(gray) < settings.BLUR_LAPL_VAR_MIN_TILE:
         return False
@@ -94,6 +100,7 @@ def tile_quality_ok(tile_bgr: np.ndarray) -> bool:
 
 
 def sky_haze_suppress(tile_bgr: np.ndarray, gray: np.ndarray) -> bool:
+    cv2 = require_cv2()
     b, g, r = cv2.split(tile_bgr)
     blue_ratio = float(np.mean((b > 1.15 * r) & (b > 1.15 * g)))
     edges = cv2.Canny(gray, CANNY_LOW_THRESHOLD, CANNY_HIGH_THRESHOLD)
@@ -102,11 +109,13 @@ def sky_haze_suppress(tile_bgr: np.ndarray, gray: np.ndarray) -> bool:
 
 
 def tile_std(gray: np.ndarray) -> float:
+    cv2 = require_cv2()
     small = cv2.resize(gray, (TILE_RESIZE, TILE_RESIZE), interpolation=cv2.INTER_AREA)
     return float(np.std(small))
 
 
 def tile_entropy(gray: np.ndarray) -> float:
+    cv2 = require_cv2()
     hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).flatten()
     hist = hist / (hist.sum() + 1e-8)
     ent = -np.sum(hist * np.log2(hist + 1e-8))
@@ -114,6 +123,7 @@ def tile_entropy(gray: np.ndarray) -> float:
 
 
 def edge_density(gray: np.ndarray) -> float:
+    cv2 = require_cv2()
     edges = cv2.Canny(gray, CANNY_LOW_THRESHOLD, CANNY_HIGH_THRESHOLD)
     return float(np.mean(edges > 0))
 

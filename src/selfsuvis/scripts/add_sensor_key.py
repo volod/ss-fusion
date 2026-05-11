@@ -14,15 +14,12 @@ import hashlib
 import os
 import secrets
 import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 import asyncpg
 
-from selfsuvis.pipeline.core.env import env_str, load_layered_env
+from selfsuvis.pipeline.core.env import env_str, load_script_env
 
-load_layered_env(anchor_file=__file__, app_env=os.getenv("APP_ENV", "prod"))
+load_script_env(anchor_file=__file__)
 
 DATABASE_URL = env_str(
     "DATABASE_URL",

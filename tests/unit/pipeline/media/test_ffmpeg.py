@@ -1,8 +1,8 @@
-"""Unit tests for pipeline.ffmpeg_utils."""
+"""Unit tests for pipeline.media.ffmpeg."""
 
 from unittest.mock import MagicMock, patch
 
-from selfsuvis.pipeline.ffmpeg_utils import extract_frames
+from selfsuvis.pipeline.media.ffmpeg import extract_frames
 
 
 def test_extract_frames_uses_timeout(tmp_path, monkeypatch):

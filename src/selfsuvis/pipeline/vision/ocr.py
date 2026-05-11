@@ -32,9 +32,9 @@ Top-10 OCR models (small → large, override with ``OCR_MODEL``):
 
 CLI override examples::
 
-    OCR_ENABLED=true OCR_MODEL=ucaslcl/GOT-OCR2_0 python worker/main.py
-    OCR_ENABLED=true OCR_API_URL=http://localhost:8010/v1 python worker/main.py
-    OCR_ENABLED=true OCR_MODEL=auto python worker/main.py   # GPU auto-select
+    OCR_ENABLED=true OCR_MODEL=ucaslcl/GOT-OCR2_0 python -m selfsuvis.worker
+    OCR_ENABLED=true OCR_API_URL=http://localhost:8010/v1 python -m selfsuvis.worker
+    OCR_ENABLED=true OCR_MODEL=auto python -m selfsuvis.worker   # GPU auto-select
 """
 
 import base64
@@ -302,7 +302,7 @@ class OCRModel:
             logger.info("GOT-OCR2 loaded: %s on %s", self.model_id, device)
         except Exception:
             logger.warning(
-                "Failed to load GOT-OCR2 model %s — run: python scripts/prepare_models.py --ocr",
+                "Failed to load GOT-OCR2 model %s - run: python -m selfsuvis.scripts.prepare_models --ocr",
                 self.model_id,
                 exc_info=True,
             )
@@ -345,7 +345,7 @@ class OCRModel:
             logger.info("TrOCR loaded: %s on %s", self.model_id, device)
         except Exception:
             logger.warning(
-                "Failed to load TrOCR model %s — run: python scripts/prepare_models.py --ocr",
+                "Failed to load TrOCR model %s - run: python -m selfsuvis.scripts.prepare_models --ocr",
                 self.model_id,
                 exc_info=True,
             )
@@ -495,7 +495,7 @@ class OCRModel:
             logger.info("VLM OCR loaded: %s on %s", self.model_id, device)
         except Exception:
             logger.warning(
-                "Failed to load VLM OCR model %s — run: python scripts/prepare_models.py --ocr",
+                "Failed to load VLM OCR model %s - run: python -m selfsuvis.scripts.prepare_models --ocr",
                 self.model_id,
                 exc_info=True,
             )
@@ -548,7 +548,7 @@ class OCRModel:
             logger.info("Florence OCR loaded: %s", self.model_id)
         except Exception:
             logger.warning(
-                "Failed to load Florence OCR model %s — run: python scripts/prepare_models.py --ocr",
+                "Failed to load Florence OCR model %s - run: python -m selfsuvis.scripts.prepare_models --ocr",
                 self.model_id,
                 exc_info=True,
             )

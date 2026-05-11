@@ -2,12 +2,12 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-import cv2
 import numpy as np
 from PIL import Image
 
 from selfsuvis.models.openclip_model import OpenCLIPEmbedder
 from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.pipeline.core.optional_deps import require_cv2
 
 from .labels import load_labels
 
@@ -80,6 +80,7 @@ class SAMSegmenter:
 
     def segment(self, frame_bgr: np.ndarray) -> list[dict[str, Any]]:
         self._init()
+        cv2 = require_cv2()
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         return self._mask_generator.generate(rgb)
 
@@ -106,6 +107,7 @@ def mask_to_segments(
     for i, mask in enumerate(sorted(masks, key=lambda m: m.get("area", 0), reverse=True)):
         if i >= max_masks:
             break
+        cv2 = require_cv2()
         seg_mask = mask["segmentation"].astype(np.uint8)
         x, y, w, h = mask["bbox"]
         x, y, w, h = int(x), int(y), int(w), int(h)

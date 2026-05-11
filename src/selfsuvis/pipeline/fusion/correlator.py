@@ -17,15 +17,14 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import redis.asyncio as aioredis
-
 from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.pipeline.core.env import project_roots
 from selfsuvis.pipeline.fusion.utils import probability_union
 
 logger = get_logger(__name__)
 
 _POLL_INTERVAL_S = 5.0
-_SEED_YAML = Path(__file__).parents[4] / "docs" / "seed" / "fusion_rules.yaml"
+_SEED_YAML = project_roots(__file__)[1] / "docs" / "seed" / "fusion_rules.yaml"
 
 
 def _risk_level(confidence: float) -> str:
@@ -232,6 +231,13 @@ async def run_correlator(app) -> None:
     """Main correlator loop. Called as asyncio.create_task from app lifespan."""
     pool = app.state.db_pool
     sse_subscribers: dict = app.state.sse_subscribers
+
+    try:
+        import redis.asyncio as aioredis  # pylint: disable=import-outside-toplevel
+    except ImportError as exc:
+        raise RuntimeError(
+            "Correlator requires the 'redis' package. Install with: pip install redis"
+        ) from exc
 
     redis_client = aioredis.from_url(settings.CORRELATOR_REDIS_URL)
 
