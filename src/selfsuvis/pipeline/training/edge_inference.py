@@ -494,6 +494,7 @@ def build_gallery(
             raise ImportError("torchvision is required when using a PyTorch backbone.") from exc
 
         _device = next(backbone.parameters()).device
+        _dtype = next(backbone.parameters()).dtype
         transform = T.Compose(
             [
                 T.Resize(image_size, interpolation=T.InterpolationMode.BICUBIC),
@@ -506,7 +507,7 @@ def build_gallery(
 
         def _embed_fn(img: Image.Image) -> np.ndarray:
             img_rgb = img.convert("RGB")
-            x = transform(img_rgb).unsqueeze(0).to(_device)
+            x = transform(img_rgb).unsqueeze(0).to(device=_device, dtype=_dtype)
             with torch.no_grad():
                 out = backbone_eval(x)  # (1, D)
             out = F.normalize(out, dim=-1)
