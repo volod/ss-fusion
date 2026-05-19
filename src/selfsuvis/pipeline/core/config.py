@@ -65,7 +65,7 @@ def get_dino_model_name(model_name: str) -> str | None:
 
 class Settings:
     APP_ENV = _env("APP_ENV", "dev").strip().lower()
-    DATA_DIR = _env("DATA_DIR", "./data")
+    DATA_DIR = _env("DATA_DIR", "./.data")
     FRAMES_DIR = _env("FRAMES_DIR", os.path.join(DATA_DIR, "frames"))
     TILES_DIR = _env("TILES_DIR", os.path.join(DATA_DIR, "tiles"))
     VIDEOS_DIR = _env("VIDEOS_DIR", os.path.join(DATA_DIR, "videos"))
