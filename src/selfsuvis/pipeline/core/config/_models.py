@@ -94,7 +94,7 @@ class _ModelSettings:
     RFDETR_MODEL = _env("RFDETR_MODEL", "base")
     RFDETR_CONFIDENCE = _env_float("RFDETR_CONFIDENCE", 0.35)
 
-    _data_dir = _env("DATA_DIR", "./data")
+    _data_dir = _env("DATA_DIR", "./.data")
     LABELS_FILE = _env("LABELS_FILE", os.path.join(_data_dir, "labels", "openclip_rich.txt"))
 
     # -- Florence-2 captioning -------------------------------------------------

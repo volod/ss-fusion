@@ -56,7 +56,7 @@ class _ServiceSettings:
     MEDIAMTX_PUBLIC_RTSP_BASE_URL = _env("MEDIAMTX_PUBLIC_RTSP_BASE_URL", "rtsp://localhost:8554")
 
     # -- Reports and maps output directories -----------------------------------
-    _data_dir = _env("DATA_DIR", "./data")
+    _data_dir = _env("DATA_DIR", "./.data")
     REPORTS_DIR = _env("REPORTS_DIR", os.path.join(_data_dir, "reports"))
     MAPS_DIR = _env("MAPS_DIR", os.path.join(_data_dir, "maps"))
 

@@ -6,7 +6,7 @@ from ._helpers import _env, _env_float, _env_int
 
 
 class _TrainingSettings:
-    _data_dir = _env("DATA_DIR", "./data")
+    _data_dir = _env("DATA_DIR", "./.data")
 
     # -- Self-supervised DINOv3 domain adaptation ------------------------------
     SSL_CHECKPOINT_DIR = _env("SSL_CHECKPOINT_DIR", os.path.join(_data_dir, "checkpoints"))
