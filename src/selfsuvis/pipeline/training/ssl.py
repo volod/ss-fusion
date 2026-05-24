@@ -20,7 +20,7 @@ Loading the fine-tuned model:
   DINOEmbedder will load the weights automatically.
 
 Usage (standalone):
-    python scripts/finetune_dino.py --frames-dir data/frames --output-dir data/checkpoints
+    python scripts/finetune_dino.py --frames-dir .data/frames --output-dir .data/checkpoints
 """
 
 import glob

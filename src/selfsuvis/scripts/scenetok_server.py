@@ -42,7 +42,8 @@ def _encode_png_b64(arr: np.ndarray) -> str:
 
 
 def _checkpoint_path(name: str) -> Path:
-    cache_dir = Path.home() / ".cache" / "selfsuvis" / "scenetok"
+    data_dir = Path(getattr(settings, "DATA_DIR", "./.data"))
+    cache_dir = Path(os.getenv("CACHE_DIR", str(data_dir / ".cache"))) / "selfsuvis" / "scenetok"
     ckpt = name if name.endswith(".ckpt") else f"{name}.ckpt"
     return cache_dir / ckpt
 

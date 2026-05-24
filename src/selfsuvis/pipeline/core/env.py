@@ -21,9 +21,9 @@ def load_layered_env(
     anchor_file: str,
     app_env: str | None = None,
     package_env_dir: str = "env",
-    root_env_filename: str = ".env",
+    root_env_filename: str = ".data/.env",
 ) -> None:
-    """Load packaged and repo-root env files without overriding existing vars."""
+    """Load packaged defaults and repo-local .data env without overriding existing vars."""
     env_name = app_env or os.getenv("APP_ENV", "dev")
     package_root, repo_root = project_roots(anchor_file)
     package_env = package_root / package_env_dir / f"{env_name}.env"

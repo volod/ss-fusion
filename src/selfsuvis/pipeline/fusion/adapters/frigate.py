@@ -2,7 +2,7 @@
 
 Full sensor integration is deferred to Phase 0 customer pairing.
 This stub emits synthetic events sufficient to exercise the correlator in Phase 3A.
-Uses COOP_FRIGATE_API_URL from coop_pilot.config (no duplicate env var added).
+Uses COOP_FRIGATE_API_URL from coop.config (no duplicate env var added).
 """
 
 import asyncio

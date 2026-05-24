@@ -20,7 +20,7 @@ to DINOv3 contrastive embeddings.  At inference, reconstruction MSE of a full fr
 against its own reconstruction serves as a per-frame anomaly score.
 
 Usage (standalone):
-    python scripts/finetune_dae.py --frames-dir data/frames --output-dir data/checkpoints
+    python scripts/finetune_dae.py --frames-dir .data/frames --output-dir .data/checkpoints
 """
 
 import glob

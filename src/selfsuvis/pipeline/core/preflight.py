@@ -1,6 +1,7 @@
 """Startup preflight checks for local and production runs."""
 
 import importlib.util
+import shlex
 import socket
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -67,6 +68,14 @@ def _check_cached(report: PreflightReport, label: str, check_fn: Any, *, hint: s
         report.add_check(f"cached: {label}")
     else:
         report.add_error(f"missing cached artifact for {label} ({hint})")
+
+
+def _prepare_hint(*args: str) -> str:
+    command = " ".join(
+        ["python", "-m", "selfsuvis.scripts.prepare_models"]
+        + [shlex.quote(arg) for arg in args if arg]
+    )
+    return f"run `{command}`"
 
 
 def _check_tcp_service(
@@ -157,13 +166,13 @@ def run_local_preflight(args: Any) -> PreflightReport:
         lambda: model_prep._is_openclip_cached(
             settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED
         ),
-        hint="run `python -m selfsuvis.scripts.prepare_models --clip`",
+        hint=_prepare_hint("--clip"),
     )
     _check_cached(
         report,
         "DINOv2/v3 torch hub archive",
         lambda: model_prep._is_dino_hub_cached("dinov3_vitb14"),
-        hint="run `python -m selfsuvis.scripts.prepare_models --dino`",
+        hint=_prepare_hint("--dino"),
     )
 
     if getattr(args, "asr", False):
@@ -172,7 +181,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
             report,
             f"ASR {asr_model}",
             lambda model=asr_model: model_prep._is_hf_cached(model),
-            hint="run `python -m selfsuvis.scripts.prepare_models --whisper`",
+            hint=_prepare_hint("--whisper", "--whisper-model", asr_model),
         )
 
     if getattr(args, "ocr", False) and not settings.OCR_API_URL:
@@ -182,7 +191,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 f"OCR {ocr_model}",
                 lambda model=ocr_model: model_prep._is_hf_cached(model),
-                hint="run `python -m selfsuvis.scripts.prepare_models --ocr`",
+                hint=_prepare_hint("--ocr", "--ocr-model", ocr_model),
             )
 
     if getattr(args, "depth", False):
@@ -194,7 +203,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 f"Depth {depth_model}",
                 lambda model=depth_model: model_prep._is_hf_cached(model),
-                hint="run `python -m selfsuvis.scripts.prepare_models --depth`",
+                hint=_prepare_hint("--depth", "--depth-model", depth_model),
             )
 
     if getattr(args, "detection", False):
@@ -207,7 +216,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 f"Detection {detection_model}",
                 lambda model=detection_model: model_prep._is_hf_cached(model),
-                hint="run `python -m selfsuvis.scripts.prepare_models --detection`",
+                hint=_prepare_hint("--detection", "--detection-model", detection_model),
             )
         if settings.YOLO_ENABLED:
             _check_module(
@@ -217,7 +226,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 "YOLO11 weights",
                 lambda: model_prep._is_yolo_cached(settings.YOLO_MODEL),
-                hint="run `python -m selfsuvis.scripts.prepare_models --yolo`",
+                hint=_prepare_hint("--yolo", "--yolo-model", settings.YOLO_MODEL),
             )
         if settings.SAM_ENABLED:
             sam_model = (
@@ -230,7 +239,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                     model_prep._is_hf_cached(model)
                     or model_prep._is_hf_cached("facebook/sam2-hiera-large")
                 ),
-                hint="run `python -m selfsuvis.scripts.prepare_models --sam`",
+                hint=_prepare_hint("--sam", "--sam-model", sam_model),
             )
 
     if getattr(args, "world_model", False):
@@ -243,7 +252,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 f"World model {world_model}",
                 lambda model=world_model: model_prep._is_hf_cached(model),
-                hint="run `python -m selfsuvis.scripts.prepare_models --world-model`",
+                hint=_prepare_hint("--world-model", "--world-model-id", world_model),
             )
 
     qwen_enabled = getattr(args, "qwen", False) or bool(settings.QWEN_API_URL)
@@ -365,7 +374,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
             report,
             "YOLOv8n training weights",
             lambda: model_prep._is_yolo_cached("yolov8n"),
-            hint="place yolov8n.pt in ~/.cache/ultralytics or warm it once before the run",
+            hint="place yolov8n.pt in .data/.cache/ultralytics or warm it once before the run",
         )
         drone_cache = Path(args.output_dir).resolve() / "_drone_detection_cache"
         if not (drone_cache / "train_images").exists():
@@ -402,21 +411,21 @@ def run_production_preflight(component: str) -> PreflightReport:
             lambda: model_prep._is_openclip_cached(
                 settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED
             ),
-            hint="run `python -m selfsuvis.scripts.prepare_models --clip`",
+            hint=_prepare_hint("--clip"),
         )
     elif settings.MODEL_NAME in {"dinov2", "dinov3"}:
         _check_cached(
             report,
             "DINOv2/v3 torch hub archive",
             lambda: model_prep._is_dino_hub_cached(settings.MODEL_NAME),
-            hint="run `python -m selfsuvis.scripts.prepare_models --dino`",
+            hint=_prepare_hint("--dino"),
         )
     elif settings.MODEL_NAME == "gemma":
         _check_cached(
             report,
             f"Gemma {settings.GEMMA_MODEL_ID}",
             lambda: model_prep._is_gemma_cached(settings.GEMMA_MODEL_ID),
-            hint="run `python -m selfsuvis.scripts.prepare_models --gemma`",
+            hint=_prepare_hint("--gemma", "--gemma-model", settings.GEMMA_MODEL_ID),
         )
 
     if settings.QDRANT_HOST and settings.QDRANT_PORT:

@@ -36,6 +36,7 @@ Output schema per detection:
 """
 
 import gc
+import os
 from pathlib import Path
 from typing import Any
 
@@ -374,7 +375,7 @@ class YOLODetector:
             try:
                 from ultralytics.utils import SETTINGS as _UL_SETTINGS
 
-                _cache = str(Path.home() / ".cache" / "ultralytics")
+                _cache = str(_ultralytics_cache_dir())
                 if _UL_SETTINGS.get("weights_dir") != _cache:
                     _UL_SETTINGS.update({"weights_dir": _cache})
             except Exception:
@@ -382,7 +383,7 @@ class YOLODetector:
             device = _get_device()
             logger.info("Loading YOLO model: %s on %s", self.model_id, device)
             model_file = self.model_id if self.model_id.endswith(".pt") else f"{self.model_id}.pt"
-            cached = Path.home() / ".cache" / "ultralytics" / model_file
+            cached = _ultralytics_cache_dir() / model_file
             model_arg = str(cached) if cached.exists() else model_file
             self._model = YOLO(model_arg)
             if device == "cuda":
@@ -402,3 +403,8 @@ class YOLODetector:
 
 def _get_device() -> str:
     return resolve_device()
+
+
+def _ultralytics_cache_dir() -> Path:
+    data_dir = Path(getattr(settings, "DATA_DIR", "./.data"))
+    return Path(os.getenv("CACHE_DIR", str(data_dir / ".cache"))) / "ultralytics"

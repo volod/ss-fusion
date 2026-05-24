@@ -223,16 +223,6 @@ def _rfdetr_weights_path(variant: str) -> str:
     cache_dir.mkdir(parents=True, exist_ok=True)
     dst = cache_dir / name
 
-    # Backward-compat migration: older rfdetr versions download into the current
-    # working directory using a bare filename. Move that shared weight once.
-    legacy = Path.cwd() / name
-    if not dst.exists() and legacy.exists():
-        try:
-            legacy.replace(dst)
-            logger.info("RFDETRTracker: moved legacy checkpoint %s → %s", legacy, dst)
-        except Exception:
-            pass
-
     # Pre-download if still missing.  rfdetr.download_pretrain_weights() does an
     # exact-match lookup by bare filename, so it silently skips absolute paths.
     # We look up the asset ourselves and call _download_file with our target path.

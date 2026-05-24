@@ -27,9 +27,9 @@ Label convention:
 
 Usage (standalone):
     python scripts/supervised_finetune_dino.py \\
-        --frames-dir data/frames \\
-        --cvat-xml data/cvat_annotations.xml \\
-        --output-dir data/checkpoints/supervised
+        --frames-dir .data/frames \\
+        --cvat-xml .data/cvat_annotations.xml \\
+        --output-dir .data/checkpoints/supervised
 """
 
 import glob

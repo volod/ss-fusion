@@ -20,6 +20,7 @@ import base64
 import gc
 import importlib
 import io
+import os
 from pathlib import Path
 from typing import Any
 
@@ -174,7 +175,10 @@ class SceneTokModel:
             checkpoint = str(
                 getattr(settings, "SCENETOK_CHECKPOINT", "va-videodc_re10k") or "va-videodc_re10k"
             )
-            cache_dir = Path.home() / ".cache" / "selfsuvis" / "scenetok"
+            data_dir = Path(getattr(settings, "DATA_DIR", "./.data"))
+            cache_dir = (
+                Path(os.getenv("CACHE_DIR", str(data_dir / ".cache"))) / "selfsuvis" / "scenetok"
+            )
             ckpt_path = cache_dir / f"{checkpoint}.ckpt"
             if not ckpt_path.exists():
                 logger.warning(
