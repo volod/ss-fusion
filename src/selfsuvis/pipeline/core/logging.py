@@ -50,7 +50,6 @@ def configure_logging() -> None:
     sink = logging.StreamHandler(sys.stderr)
     _sink = sink
     sink.setFormatter(fmt)
-    sink.addFilter(_ANALYTICS_FILTER)
 
     # QueueHandler serialises records from all threads through a single consumer.
     log_queue: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
@@ -58,6 +57,10 @@ def configure_logging() -> None:
     _queue_listener = logging.handlers.QueueListener(log_queue, sink, respect_handler_level=True)
     _queue_listener.start()
     atexit.register(_stop_listener)
+
+    # Analytics filter runs synchronously on the QueueHandler (calling thread)
+    # so snapshot() sees counts immediately after log calls.
+    queue_handler.addFilter(_ANALYTICS_FILTER)
 
     root.addHandler(queue_handler)
     root.setLevel(level)

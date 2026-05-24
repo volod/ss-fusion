@@ -7,7 +7,7 @@ from selfsuvis.pipeline.workflows.local_env import apply_local_env
 def _make_args(**overrides):
     base = dict(
         mode="local",
-        output_dir="data/test-local-env",
+        output_dir=".data/test-local-env",
         device="cuda",
         fps=2.0,
         asr=None,

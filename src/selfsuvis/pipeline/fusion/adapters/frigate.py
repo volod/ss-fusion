@@ -22,7 +22,7 @@ class FrigateAdapter(SensorAdapter):
     def __init__(self) -> None:
         super().__init__()
         try:
-            from selfsuvis.coop_pilot.config import settings as coop_settings
+            from selfsuvis.coop.config import settings as coop_settings
 
             self._frigate_url = coop_settings.frigate_api_url
         except Exception:

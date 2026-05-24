@@ -54,12 +54,9 @@ def test_get_logger_same_name_returns_same_instance():
 
 
 def test_configure_logging_respects_log_level_env(monkeypatch):
-    """configure_logging passes the LOG_LEVEL env var to basicConfig."""
-    from unittest.mock import patch
+    """configure_logging sets the root logger level from LOG_LEVEL env var."""
+    import logging
 
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-    with patch("logging.basicConfig") as mock_basic:
-        configure_logging()
-    mock_basic.assert_called_once()
-    _, kwargs = mock_basic.call_args
-    assert kwargs.get("level") == "DEBUG"
+    configure_logging()
+    assert logging.getLogger().level == logging.DEBUG

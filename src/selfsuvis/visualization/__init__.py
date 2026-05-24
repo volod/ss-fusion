@@ -5,10 +5,10 @@ Typical usage::
     from selfsuvis.analytics import LocalRunLoader
     from selfsuvis.visualization import plot_timeline, plot_detections, generate_report
 
-    summary = LocalRunLoader("data/local_runs/drone_mission").load()
+    summary = LocalRunLoader(".data/local_runs/drone_mission").load()
     plot_timeline(summary, out_path="timeline.png")
     plot_detections(summary, out_path="detections.png")
-    generate_report(summary, out_dir="data/local_runs/drone_mission")
+    generate_report(summary, out_dir=".data/local_runs/drone_mission")
 """
 
 from .detections import plot_detections

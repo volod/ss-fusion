@@ -4,7 +4,7 @@ Typical usage::
 
     from selfsuvis.analytics import LocalRunLoader, RunSummary
 
-    loader = LocalRunLoader("data/local_runs/drone_mission")
+    loader = LocalRunLoader(".data/local_runs/drone_mission")
     summary = loader.load()
     print(summary.detection_stats)
 """
