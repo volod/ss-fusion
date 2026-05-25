@@ -66,9 +66,11 @@ def configure_logging() -> None:
     root.setLevel(level)
 
     # Print the full date+time once so relative mm:ss timestamps are anchored.
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sink.stream.write(f"Pipeline started: {now}\n")
-    sink.stream.flush()
+    # Skip when the process is only printing --help (argparse will sys.exit immediately).
+    if "--help" not in sys.argv and "-h" not in sys.argv:
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sink.stream.write(f"Pipeline started: {now}\n")
+        sink.stream.flush()
 
     _CONFIGURED = True
 

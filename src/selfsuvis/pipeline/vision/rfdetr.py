@@ -229,7 +229,11 @@ def _rfdetr_weights_path(variant: str) -> str:
     if not dst.exists():
         try:
             from rfdetr.assets.model_weights import ModelWeights  # type: ignore[import]
-            from rfdetr.util.files import _download_file  # type: ignore[import]
+
+            try:
+                from rfdetr.utilities.files import _download_file  # type: ignore[import]
+            except ImportError:
+                from rfdetr.util.files import _download_file  # type: ignore[import]
 
             asset = ModelWeights.from_filename(name)
             if asset is not None:

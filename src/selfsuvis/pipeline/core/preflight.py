@@ -72,7 +72,7 @@ def _check_cached(report: PreflightReport, label: str, check_fn: Any, *, hint: s
 
 def _prepare_hint(*args: str) -> str:
     command = " ".join(
-        ["python", "-m", "selfsuvis.scripts.prepare_models"]
+        ["selfsuvis-models"]
         + [shlex.quote(arg) for arg in args if arg]
     )
     return f"run `{command}`"
@@ -127,7 +127,7 @@ def _check_ollama_sidecar_model(
         report,
         f"{label} Ollama model {model_name}",
         lambda: model_prep._is_ollama_model_cached(model_name),
-        hint="run `python -m selfsuvis.scripts.prepare_models --reasoning/--unidrive` or `ollama pull`",
+        hint="run `selfsuvis-models --reasoning/--unidrive` or `ollama pull`",
     )
 
 
@@ -149,7 +149,7 @@ def _check_vllm_sidecar_model(
         report,
         f"{label} vLLM model {model_name}",
         lambda: model_prep._is_hf_cached(model_name),
-        hint="run `python -m selfsuvis.scripts.prepare_models --all` or cache the model manually",
+        hint="run `selfsuvis-models --all` or cache the model manually",
     )
 
 
@@ -321,7 +321,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 f"UniDrive {unidrive_model}",
                 lambda model=unidrive_model: model_prep._is_hf_cached(model),
-                hint="run `python -m selfsuvis.scripts.prepare_models --unidrive`",
+                hint="run `selfsuvis-models --unidrive`",
             )
 
     if getattr(args, "scenetok", False) or settings.SCENETOK_ENABLED:
@@ -359,7 +359,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                     report,
                     f"SceneTok {settings.SCENETOK_CHECKPOINT}",
                     lambda: model_prep._is_scenetok_cached(settings.SCENETOK_CHECKPOINT),
-                    hint="run `python -m selfsuvis.scripts.prepare_models --scenetok`",
+                    hint="run `selfsuvis-models --scenetok`",
                 )
 
     if getattr(args, "drone_detection", False):

@@ -23,17 +23,23 @@ def load_layered_env(
     package_env_dir: str = "env",
     root_env_filename: str = ".data/.env",
 ) -> None:
-    """Load packaged defaults and repo-local .data env without overriding existing vars."""
+    """Load packaged defaults and repo-local .env files without overriding existing vars.
+
+    Load order (later entries win over earlier, os.environ always wins):
+      1. {package}/env/{app_env}.env  — packaged defaults
+      2. {repo_root}/.env             — top-level user overrides (HF_TOKEN, etc.)
+      3. {repo_root}/.data/.env       — runtime data env (highest precedence)
+    """
     env_name = app_env or os.getenv("APP_ENV", "dev")
     package_root, repo_root = project_roots(anchor_file)
     package_env = package_root / package_env_dir / f"{env_name}.env"
-    root_env = repo_root / root_env_filename
+    root_dotenv = repo_root / ".env"
+    data_env = repo_root / root_env_filename
 
-    packaged_values: dict[str, str | None] = (
-        dotenv_values(package_env) if package_env.exists() else {}
-    )
-    root_values: dict[str, str | None] = dotenv_values(root_env) if root_env.exists() else {}
-    for key, value in {**packaged_values, **root_values}.items():
+    pkg_vals: dict[str, str | None] = dotenv_values(package_env) if package_env.exists() else {}
+    root_vals: dict[str, str | None] = dotenv_values(root_dotenv) if root_dotenv.exists() else {}
+    data_vals: dict[str, str | None] = dotenv_values(data_env) if data_env.exists() else {}
+    for key, value in {**pkg_vals, **root_vals, **data_vals}.items():
         if key not in os.environ:
             os.environ[key] = value if value is not None else ""
 

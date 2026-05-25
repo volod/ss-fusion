@@ -370,6 +370,11 @@ class SAMPredictor:
             logger.info("  SAM2 loaded from %s on %s", model_id, device)
             return ("sam2", predictor)
         except Exception as exc:
+            if not settings.SAM_CHECKPOINT:
+                raise RuntimeError(
+                    f"SAM2 not available ({exc}). "
+                    "Install the sam2 package or set SAM_CHECKPOINT for SAM1 fallback."
+                ) from exc
             logger.debug("SAM2 load failed: %s — falling back to SAM1", exc)
             self._backend = _BACKEND_SAM1
             return self._load_sam1(device)
