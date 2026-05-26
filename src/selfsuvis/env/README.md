@@ -13,7 +13,7 @@ For local overrides, create `.env` in the project root; it is loaded after the s
 Generate a resource-aware root `.env` with:
 
 ```bash
-selfsuvis-env --env dev
-selfsuvis-env --env prod --profile full
-selfsuvis-env --interactive
+ssv-env --env dev
+ssv-env --env prod --profile full
+ssv-env --interactive
 ```
