@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import torch
 
 from selfsuvis.pipeline.vision import unidrive
-from selfsuvis.pipeline.workflows.local import steps_caption as sc
+from ssv_vdp.steps import caption as sc
 
 
 class _FakeBackbone:

@@ -1,4 +1,4 @@
-from selfsuvis.pipeline.workflows.local import runner
+from ssv_vdp.pipeline import runner
 
 
 def test_is_simple_agentic_audit_returns_true_for_low_branching_video():

@@ -11,7 +11,7 @@ import pytest
 
 
 def _import_r1():
-    from selfsuvis.scripts.validate_ssl_improvement import recall_at_1
+    from ssv_vdp.scripts.validate_ssl_improvement import recall_at_1
 
     return recall_at_1
 
@@ -73,7 +73,7 @@ def test_recall_at_1_output_is_float():
 
 
 def _import_collect():
-    from selfsuvis.scripts.validate_ssl_improvement import _collect_frames
+    from ssv_vdp.scripts.validate_ssl_improvement import _collect_frames
 
     return _collect_frames
 
@@ -132,7 +132,7 @@ def test_collect_frames_sorted(tmp_path):
 
 def test_gate_passes_when_two_of_three_pass():
     """Gate passes when ΔR@1 > 0.02 on ≥2/3 videos."""
-    from selfsuvis.scripts.validate_ssl_improvement import _GATE_VIDEOS
+    from ssv_vdp.scripts.validate_ssl_improvement import _GATE_VIDEOS
 
     video_results = {
         "video_a": {"delta_median": 0.05, "gate_passed": True},
@@ -144,7 +144,7 @@ def test_gate_passes_when_two_of_three_pass():
 
 
 def test_gate_fails_when_only_one_passes():
-    from selfsuvis.scripts.validate_ssl_improvement import _GATE_VIDEOS
+    from ssv_vdp.scripts.validate_ssl_improvement import _GATE_VIDEOS
 
     video_results = {
         "video_a": {"delta_median": 0.05, "gate_passed": True},
@@ -157,7 +157,7 @@ def test_gate_fails_when_only_one_passes():
 
 def test_gate_threshold():
     """delta exactly at the boundary does NOT pass the gate (strict >)."""
-    from selfsuvis.scripts.validate_ssl_improvement import _GATE_DELTA
+    from ssv_vdp.scripts.validate_ssl_improvement import _GATE_DELTA
 
     assert _GATE_DELTA == pytest.approx(0.02)
     delta = 0.02  # equal, not strictly greater

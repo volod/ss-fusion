@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from selfsuvis.pipeline.fusion import run_platform_state_fusion
-from selfsuvis.pipeline.workflows.local._common import VideoKnowledge
+from ssv_vdp.steps.common import VideoKnowledge
 
 
 def test_platform_fusion_runs_with_gps_only(tmp_path):

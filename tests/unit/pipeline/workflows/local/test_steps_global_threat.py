@@ -11,7 +11,7 @@ def _write_json(path: Path, payload):
 
 class TestGlobalThreatAggregation(unittest.TestCase):
     def test_batch_aggregator_merges_shared_sectors(self):
-        from selfsuvis.pipeline.workflows.local.steps_global_threat import step_global_threat
+        from ssv_vdp.steps.global_threat import step_global_threat
 
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp)

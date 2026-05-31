@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssv_vdp"
+version = "0.1.0"
+description = "Local video-data pipeline — offline analysis, SSL fine-tune, distillation and threat reporting"
+requires-python = ">=3.10"
+dependencies = [
+    # Shared selfsuvis pipeline infrastructure (core, vision, mapping, fusion, etc.)
+    "selfsuvis>=0.1.0",
+    # LangGraph orchestration (local pipeline only)
+    "langgraph>=0.2",
+    "langchain-core>=0.3",
+    "langsmith>=0.1",
+]
+
+[project.optional-dependencies]
+# Full vision stack — mirrors selfsuvis[vision]; install both together:
+#   pip install 'ssv_vdp[vision]'
+vision = [
+    "torchvision>=0.16",
+    "open-clip-torch>=2.24",
+    "opencv-python>=4.10",
+    "einops>=0.8",
+    "ultralytics>=8.3",
+    "xformers>=0.0.35",
+    "sam3",
+    "sam2",
+    "segment-anything>=1.0",
+    "rfdetr>=1.1",
+    "gsplat>=1.4",
+    "faiss-cpu>=1.8",
+    "pycolmap>=4.0",
+    "ninja>=1.13",
+]
+audio = [
+    "datasets>=2.18",
+    "soundfile>=0.12",
+    "sounddevice>=0.4",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+ssv                    = "ssv_vdp.cli:main"
+ssv-export             = "ssv_vdp.scripts.export_onnx:main"
+ssv-gallery            = "ssv_vdp.scripts.build_gallery:main"
+ssv-split-audio        = "ssv_vdp.scripts.split_drone_audio_data:main"
+ssv-play-drone         = "ssv_vdp.scripts.play_drone_sound:main"
+ssv-prepare-audio      = "ssv_vdp.scripts.prepare_audio_data:main"
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["ssv_vdp*"]
+
+[tool.setuptools.package-data]
+"ssv_vdp" = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["../../tests"]
+pythonpath = [".."]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+src = [".."]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]

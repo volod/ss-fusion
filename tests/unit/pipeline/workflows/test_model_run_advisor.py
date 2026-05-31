@@ -1,4 +1,4 @@
-from selfsuvis.pipeline.workflows.local.steps_model_advisor import build_model_run_advisor
+from ssv_vdp.steps.model_advisor import build_model_run_advisor
 
 
 def test_model_run_advisor_recommends_stronger_qwen_for_parse_errors():

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from PIL import Image
 
 from selfsuvis.pipeline.vision.unidrive import UniDriveVLAModel, _parse_unidrive_response
-from selfsuvis.pipeline.workflows.local.steps_report import write_multi_model_comparison_md
+from ssv_vdp.steps.report import write_multi_model_comparison_md
 
 
 def test_parse_unidrive_response_normalizes_schema():

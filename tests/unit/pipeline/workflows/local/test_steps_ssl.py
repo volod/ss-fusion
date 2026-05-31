@@ -3,7 +3,7 @@ import unittest
 
 class TestMultimodalPairMining(unittest.TestCase):
     def test_pair_mining_adds_auxiliary_pairs_deterministically(self):
-        from selfsuvis.pipeline.workflows.local.steps_ssl import _build_multimodal_pair_mining
+        from ssv_vdp.steps.ssl import _build_multimodal_pair_mining
 
         frame_list = [
             ("/tmp/frame_0000.jpg", 0.0),

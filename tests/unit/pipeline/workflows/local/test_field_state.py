@@ -12,7 +12,7 @@ def _make_frame(path: Path) -> None:
 
 class TestFieldStateStep(unittest.TestCase):
     def test_field_state_summary_contains_visibility(self):
-        from selfsuvis.pipeline.workflows.local.steps_field_state import step_field_state
+        from ssv_vdp.steps.field_state import step_field_state
 
         with tempfile.TemporaryDirectory() as tmp:
             video_dir = Path(tmp) / "video"
@@ -67,7 +67,7 @@ class TestFieldStateStep(unittest.TestCase):
 
 class TestThreatPrimitivesFieldIntegration(unittest.TestCase):
     def test_field_state_enriches_visibility_and_rf_primitives(self):
-        from selfsuvis.pipeline.workflows.local.steps_threat_primitives import (
+        from ssv_vdp.steps.threat_primitives import (
             step_threat_primitives,
         )
 

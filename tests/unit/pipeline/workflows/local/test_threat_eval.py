@@ -11,7 +11,7 @@ def _write_json(path: Path, payload) -> None:
 
 class TestThreatEvaluationArtifacts(unittest.TestCase):
     def test_calibration_and_eval_outputs_are_written(self):
-        from selfsuvis.pipeline.workflows.local.steps_threat_eval import (
+        from ssv_vdp.steps.threat_eval import (
             write_threat_calibration,
             write_threat_eval_summary,
         )

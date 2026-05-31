@@ -54,7 +54,7 @@ def _write_frame(path: Path, color=(100, 200, 100)) -> None:
 
 
 def test_analyze_caption_sequence_detects_boundary():
-    from selfsuvis.pipeline.workflows.local._common import _analyze_caption_sequence
+    from ssv_vdp.steps.common import _analyze_caption_sequence
 
     # Frames 0-2 "road", frames 3-5 "forest" — one boundary at index 3
     results = [
@@ -80,7 +80,7 @@ def test_analyze_caption_sequence_detects_boundary():
 
 
 def test_analyze_caption_sequence_no_change():
-    from selfsuvis.pipeline.workflows.local._common import _analyze_caption_sequence
+    from ssv_vdp.steps.common import _analyze_caption_sequence
 
     results = _make_caption_results(4)  # all same caption → one segment
     enriched = _analyze_caption_sequence(results, new_segment_threshold=0.45)
@@ -91,7 +91,7 @@ def test_analyze_caption_sequence_no_change():
 
 
 def test_select_segment_boundary_pairs_prefers_strongest_boundaries():
-    from selfsuvis.pipeline.workflows.local.steps_caption import _select_segment_boundary_pairs
+    from ssv_vdp.steps.caption import _select_segment_boundary_pairs
 
     enriched = [
         {"t_sec": 0.0, "is_new_segment": True, "similarity": None, "segment_id": 0},
@@ -109,7 +109,7 @@ def test_select_segment_boundary_pairs_prefers_strongest_boundaries():
 
 
 def test_select_ocr_candidate_frames_prefers_text_like_images(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _select_ocr_candidate_frames
+    from ssv_vdp.steps.caption import _select_ocr_candidate_frames
 
     text_img = tmp_path / "text_like.jpg"
     scene_img = tmp_path / "scene_like.jpg"
@@ -155,7 +155,7 @@ def test_select_ocr_candidate_frames_prefers_text_like_images(tmp_path):
 
 
 def test_write_gemma_segment_captions_md(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_report import write_gemma_segment_captions_md
+    from ssv_vdp.steps.report import write_gemma_segment_captions_md
 
     boundary_diffs = [
         {
@@ -181,7 +181,7 @@ def test_write_gemma_segment_captions_md(tmp_path):
 
 
 def test_write_gemma_segment_captions_md_empty(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_report import write_gemma_segment_captions_md
+    from ssv_vdp.steps.report import write_gemma_segment_captions_md
 
     out = tmp_path / "gemma_segment_captions.md"
     write_gemma_segment_captions_md(out, "vid", "gemma4:e4b", [])
@@ -193,7 +193,7 @@ def test_write_gemma_segment_captions_md_empty(tmp_path):
 
 
 def test_gemma_diff_returns_content_from_openai_compat(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_diff_two_frames_via_api
+    from ssv_vdp.steps.caption import _gemma_diff_two_frames_via_api
 
     fp_a = tmp_path / "before.jpg"
     fp_b = tmp_path / "after.jpg"
@@ -215,7 +215,7 @@ def test_gemma_diff_returns_content_from_openai_compat(tmp_path):
 
 
 def test_gemma_diff_falls_back_to_ollama_when_content_empty(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_diff_two_frames_via_api
+    from ssv_vdp.steps.caption import _gemma_diff_two_frames_via_api
 
     fp_a = tmp_path / "before.jpg"
     fp_b = tmp_path / "after.jpg"
@@ -240,7 +240,7 @@ def test_gemma_diff_falls_back_to_ollama_when_content_empty(tmp_path):
 
 
 def test_gemma_diff_returns_empty_on_missing_frames(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_diff_two_frames_via_api
+    from ssv_vdp.steps.caption import _gemma_diff_two_frames_via_api
 
     result = _gemma_diff_two_frames_via_api(
         "/missing/before.jpg", "/missing/after.jpg", "http://localhost:11434/v1", "gemma4:e4b", 30.0
@@ -251,9 +251,9 @@ def test_gemma_diff_returns_empty_on_missing_frames(tmp_path):
 # ── Tests for step_gemma_segment_captions ────────────────────────────────────
 
 
-@patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
+@patch("ssv_vdp.steps.caption.settings")
 def test_step_gemma_segment_captions_skips_when_no_api_url(mock_settings, tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import step_gemma_segment_captions
+    from ssv_vdp.steps.caption import step_gemma_segment_captions
 
     mock_settings.GEMMA_API_URL = ""
     mock_settings.GEMMA_API_MODEL = "gemma4:e4b"
@@ -266,9 +266,9 @@ def test_step_gemma_segment_captions_skips_when_no_api_url(mock_settings, tmp_pa
     assert "GEMMA_API_URL" in result["reason"]
 
 
-@patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
+@patch("ssv_vdp.steps.caption.settings")
 def test_step_gemma_segment_captions_skips_when_no_captions(mock_settings, tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import step_gemma_segment_captions
+    from ssv_vdp.steps.caption import step_gemma_segment_captions
 
     mock_settings.GEMMA_API_URL = ""
     mock_settings.GEMMA_API_MODEL = "gemma4:e4b"
@@ -281,10 +281,10 @@ def test_step_gemma_segment_captions_skips_when_no_captions(mock_settings, tmp_p
     assert "no caption" in result["reason"]
 
 
-@patch("selfsuvis.pipeline.workflows.local.steps_caption._gemma_diff_two_frames_via_api")
-@patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
+@patch("ssv_vdp.steps.caption._gemma_diff_two_frames_via_api")
+@patch("ssv_vdp.steps.caption.settings")
 def test_step_gemma_segment_captions_writes_md(mock_settings, mock_diff, tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import step_gemma_segment_captions
+    from ssv_vdp.steps.caption import step_gemma_segment_captions
 
     mock_settings.GEMMA_API_URL = ""
     mock_settings.GEMMA_API_MODEL = "gemma4:e4b"
@@ -310,10 +310,10 @@ def test_step_gemma_segment_captions_writes_md(mock_settings, mock_diff, tmp_pat
     assert mock_diff.called
 
 
-@patch("selfsuvis.pipeline.workflows.local.steps_caption._gemma_diff_two_frames_via_api")
-@patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
+@patch("ssv_vdp.steps.caption._gemma_diff_two_frames_via_api")
+@patch("ssv_vdp.steps.caption.settings")
 def test_step_gemma_segment_captions_no_boundaries(mock_settings, mock_diff, tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import step_gemma_segment_captions
+    from ssv_vdp.steps.caption import step_gemma_segment_captions
 
     mock_settings.GEMMA_API_URL = ""
     mock_settings.GEMMA_API_MODEL = "gemma4:e4b"
@@ -338,7 +338,7 @@ def test_step_gemma_segment_captions_no_boundaries(mock_settings, mock_diff, tmp
 
 
 def test_gemma_extract_frame_structured_parses_json(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_extract_frame_structured
+    from ssv_vdp.steps.caption import _gemma_extract_frame_structured
 
     fp = tmp_path / "frame.jpg"
     _write_frame(fp)
@@ -377,7 +377,7 @@ def test_gemma_extract_frame_structured_parses_json(tmp_path):
 
 
 def test_gemma_extract_frame_structured_returns_parse_error_on_bad_json(tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import _gemma_extract_frame_structured
+    from ssv_vdp.steps.caption import _gemma_extract_frame_structured
 
     fp = tmp_path / "frame.jpg"
     _write_frame(fp)
@@ -402,10 +402,10 @@ def test_gemma_extract_frame_structured_returns_parse_error_on_bad_json(tmp_path
 # ── Tests for _step_qwen_captioning_gemma_fallback ───────────────────────────
 
 
-@patch("selfsuvis.pipeline.workflows.local.steps_caption._gemma_extract_frame_structured")
-@patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
+@patch("ssv_vdp.steps.caption._gemma_extract_frame_structured")
+@patch("ssv_vdp.steps.caption.settings")
 def test_qwen_gemma_fallback_returns_structured_results(mock_settings, mock_extract, tmp_path):
-    from selfsuvis.pipeline.workflows.local.steps_caption import (
+    from ssv_vdp.steps.caption import (
         _step_qwen_captioning_gemma_fallback,
     )
 
@@ -432,10 +432,10 @@ def test_qwen_gemma_fallback_returns_structured_results(mock_settings, mock_extr
     assert (tmp_path / "detailed_captions.md").exists()
 
 
-@patch("selfsuvis.pipeline.workflows.local.steps_caption.settings")
+@patch("ssv_vdp.steps.caption.settings")
 def test_step_qwen_captioning_uses_gemma_fallback_when_qwen_disabled(mock_settings, tmp_path):
     """step_qwen_captioning falls back to Gemma when Qwen disabled + GEMMA_API_URL set."""
-    from selfsuvis.pipeline.workflows.local.steps_caption import step_qwen_captioning
+    from ssv_vdp.steps.caption import step_qwen_captioning
 
     mock_settings.QWEN_API_URL = ""
     mock_settings.GEMMA_API_URL = "http://localhost:11434/v1"
@@ -451,7 +451,7 @@ def test_step_qwen_captioning_uses_gemma_fallback_when_qwen_disabled(mock_settin
     frame_list = [("/frames/f0.jpg", 0.0)]
     with (
         patch(
-            "selfsuvis.pipeline.workflows.local.steps_caption._step_qwen_captioning_gemma_fallback",
+            "ssv_vdp.steps.caption._step_qwen_captioning_gemma_fallback",
             return_value=fallback_result,
         ) as mock_fallback,
         patch.dict(

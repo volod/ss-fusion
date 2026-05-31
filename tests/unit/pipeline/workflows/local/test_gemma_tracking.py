@@ -19,20 +19,20 @@ def _write_frame(path: Path, color: tuple[int, int, int]) -> None:
 
 
 _STUB_MODULE_NAMES = [
-    "selfsuvis.pipeline.workflows.local.steps_gemma_tracking",
+    "ssv_vdp.steps.gemma_tracking",
     "pipeline",
     "selfsuvis.pipeline.core",
     "selfsuvis.pipeline.vision",
     "selfsuvis.pipeline.vision.rfdetr",
     "selfsuvis.pipeline.workflows",
     "selfsuvis.pipeline.workflows.local",
-    "selfsuvis.pipeline.workflows.local._common",
+    "ssv_vdp.steps.common",
 ]
 
 
 def _load_steps_module():
-    module_name = "selfsuvis.pipeline.workflows.local.steps_gemma_tracking"
-    module_path = ROOT / "src/selfsuvis/pipeline/workflows/local/steps_gemma_tracking.py"
+    module_name = "ssv_vdp.steps.gemma_tracking"
+    module_path = ROOT / "src/ssv_vdp/steps/gemma_tracking.py"
 
     # Save originals so we can restore them after loading (prevent contamination
     # of later tests that import real pipeline.core).
@@ -102,12 +102,12 @@ def _load_steps_module():
     local_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline/workflows/local")]
     sys.modules["selfsuvis.pipeline.workflows.local"] = local_pkg
 
-    common_mod = types.ModuleType("selfsuvis.pipeline.workflows.local._common")
+    common_mod = types.ModuleType("ssv_vdp.steps.common")
     common_mod._log = types.SimpleNamespace(
         info=lambda *a, **k: None, debug=lambda *a, **k: None, warning=lambda *a, **k: None
     )
     common_mod._open_frame_image = lambda frame_path: Image.open(frame_path).convert("RGB")
-    sys.modules["selfsuvis.pipeline.workflows.local._common"] = common_mod
+    sys.modules["ssv_vdp.steps.common"] = common_mod
 
     spec = importlib.util.spec_from_file_location(module_name, module_path)
     assert spec is not None and spec.loader is not None

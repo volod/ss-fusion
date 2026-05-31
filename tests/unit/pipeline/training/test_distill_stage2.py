@@ -229,7 +229,7 @@ class TestExportEfficientViTOnnx(unittest.TestCase):
 class TestStepDistillStage2(unittest.TestCase):
     def _run(self, backbone, ckpt_path="", distill_exc=None):
         """Call step_distill_stage2 with standard mocks; return result dict."""
-        from selfsuvis.pipeline.workflows.local.steps_distill import step_distill_stage2
+        from ssv_vdp.steps.distill import step_distill_stage2
 
         stats = _fake_distiller_stats(ckpt_path) if distill_exc is None else None
 
@@ -245,7 +245,7 @@ class TestStepDistillStage2(unittest.TestCase):
                     "selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
                     return_value=str(video_dir / "edge_models" / "efficientvit_local.onnx"),
                 ),
-                patch("selfsuvis.pipeline.workflows.local.steps_report.write_distill_stats_md"),
+                patch("ssv_vdp.steps.report.write_distill_stats_md"),
             ):
                 result = step_distill_stage2(
                     backbone,
@@ -260,7 +260,7 @@ class TestStepDistillStage2(unittest.TestCase):
 
     def _run_capturing_config(self, backbone, ckpt_path):
         """Return (result, captured_config) to check what DistillConfig was passed."""
-        from selfsuvis.pipeline.workflows.local.steps_distill import step_distill_stage2
+        from ssv_vdp.steps.distill import step_distill_stage2
 
         stats = _fake_distiller_stats(ckpt_path)
         captured = {}
@@ -280,7 +280,7 @@ class TestStepDistillStage2(unittest.TestCase):
                     "selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
                     return_value=str(video_dir / "edge_models" / "efficientvit_local.onnx"),
                 ),
-                patch("selfsuvis.pipeline.workflows.local.steps_report.write_distill_stats_md"),
+                patch("ssv_vdp.steps.report.write_distill_stats_md"),
             ):
                 result = step_distill_stage2(
                     backbone,
@@ -294,7 +294,7 @@ class TestStepDistillStage2(unittest.TestCase):
         return result, captured.get("cfg")
 
     def test_skips_when_backbone_is_none(self):
-        from selfsuvis.pipeline.workflows.local.steps_distill import step_distill_stage2
+        from ssv_vdp.steps.distill import step_distill_stage2
 
         with tempfile.TemporaryDirectory() as tmp:
             result = step_distill_stage2(
@@ -353,7 +353,7 @@ class TestStepDistillStage2(unittest.TestCase):
 
     def test_onnx_export_failure_not_skipped(self):
         """ONNX failure must leave skipped=False and onnx_exported=False."""
-        from selfsuvis.pipeline.workflows.local.steps_distill import step_distill_stage2
+        from ssv_vdp.steps.distill import step_distill_stage2
 
         with tempfile.NamedTemporaryFile(suffix=".pt", delete=False) as f:
             ckpt_path = f.name
@@ -369,7 +369,7 @@ class TestStepDistillStage2(unittest.TestCase):
                         "selfsuvis.pipeline.training.edge_inference.export_efficientvit_onnx",
                         side_effect=RuntimeError("ONNX failed"),
                     ),
-                    patch("selfsuvis.pipeline.workflows.local.steps_report.write_distill_stats_md"),
+                    patch("ssv_vdp.steps.report.write_distill_stats_md"),
                 ):
                     result = step_distill_stage2(
                         _AnyModel(),
