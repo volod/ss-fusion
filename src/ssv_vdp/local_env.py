@@ -124,6 +124,15 @@ def _phase1_force_cli_env(args: Any) -> None:
     if getattr(args, "scenetok_checkpoint", ""):
         os.environ["SCENETOK_CHECKPOINT"] = args.scenetok_checkpoint
 
+    # ── Cosmos3 sidecar / local ───────────────────────────────────────────────
+    _cosmos3 = getattr(args, "cosmos3", None)
+    if _cosmos3 is not None:
+        os.environ["COSMOS3_ENABLED"] = "true" if _cosmos3 else "false"
+    if getattr(args, "cosmos3_api_url", ""):
+        os.environ["COSMOS3_API_URL"] = args.cosmos3_api_url
+    if getattr(args, "cosmos3_model", ""):
+        os.environ["COSMOS3_MODEL"] = args.cosmos3_model
+
 
 def apply_local_env(args: Any) -> None:
     """Set environment variables for local full-analysis mode.
@@ -194,6 +203,8 @@ def apply_local_env(args: Any) -> None:
     os.environ.setdefault("UNIDRIVE_MODEL", "")
     os.environ.setdefault("UNIDRIVE_BACKEND", "")
     os.environ.setdefault("SCENETOK_API_URL", "")
+    os.environ.setdefault("COSMOS3_API_URL", "")
+    os.environ.setdefault("COSMOS3_MODEL", "auto")
     os.environ.setdefault("REASONING_API_URL", "")
 
     if args.unidrive and not os.environ.get("UNIDRIVE_BACKEND"):

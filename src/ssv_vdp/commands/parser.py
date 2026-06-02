@@ -412,6 +412,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="[local] SceneTok checkpoint variant (va-videodc_re10k, va-videodc_dl3dv, va-wan_dl3dv)",
     )
     parser.add_argument(
+        "--cosmos3",
+        dest="cosmos3",
+        action="store_const",
+        const=True,
+        default=None,
+        help=(
+            "[local] Enable Cosmos3 Step 15 — omnimodal world-model inference "
+            "(nvidia/Cosmos3-Nano, ~32 GB BF16; auto-selects layerwise offload "
+            "when free VRAM is 18-40 GB; requires COSMOS3_API_URL for sidecar mode)"
+        ),
+    )
+    parser.add_argument(
+        "--no-cosmos3",
+        dest="cosmos3",
+        action="store_const",
+        const=False,
+        help="[local] Disable Cosmos3 world-model inference",
+    )
+    parser.add_argument(
+        "--cosmos3-api-url",
+        default="",
+        help="[local] vLLM-Omni endpoint for Cosmos3 (e.g. http://localhost:8000); skips local load",
+    )
+    parser.add_argument(
+        "--cosmos3-model",
+        default="",
+        help="[local] Cosmos3 model ID override; empty = auto (nvidia/Cosmos3-Nano based on VRAM)",
+    )
+    parser.add_argument(
         "--gemma-api-url",
         default="",
         help="[local] Gemma vLLM/ollama endpoint (e.g. http://localhost:11434/v1)",

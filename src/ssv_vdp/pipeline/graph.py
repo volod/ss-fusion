@@ -10,7 +10,7 @@ Graph topology (see plan for full ASCII diagram):
   Phase 2: gemma_analysis → [parallel: florence/asr/ocr/depth/detection]
            → merge_parallel → platform_fusion → yolo_sam → gemma_tracking
            → map_3d_submit → world_model → qwen_caption → unidrive
-           → scenetok → base_search → map_3d_join → full_fusion
+           → scenetok → cosmos3 → base_search → map_3d_join → full_fusion
   Phase 3: ssl_finetune → [ssl_gate] → distill → onnx_export → ft_search → compare
   Phase 4: multi_model_compare → synthesis → audit → emit_analytics → END
 
@@ -84,6 +84,7 @@ def build_graph(use_checkpoints: bool = True):
     sg.add_node("p2_qwen_caption", phase2_serial.node_p2_qwen_caption)
     sg.add_node("p2_unidrive", phase2_serial.node_p2_unidrive)
     sg.add_node("p2_scenetok", phase2_serial.node_p2_scenetok)
+    sg.add_node("p2_cosmos3", phase2_serial.node_p2_cosmos3)
     sg.add_node("p2_base_search", phase2_serial.node_p2_base_search)
     sg.add_node("p2_map_3d_join", phase2_map.node_p2_map_3d_join)
     sg.add_node("p2_full_fusion", phase2_serial.node_p2_full_fusion)
@@ -129,7 +130,8 @@ def build_graph(use_checkpoints: bool = True):
     sg.add_edge("p2_world_model", "p2_qwen_caption")
     sg.add_edge("p2_qwen_caption", "p2_unidrive")
     sg.add_edge("p2_unidrive", "p2_scenetok")
-    sg.add_edge("p2_scenetok", "p2_base_search")
+    sg.add_edge("p2_scenetok", "p2_cosmos3")
+    sg.add_edge("p2_cosmos3", "p2_base_search")
     sg.add_edge("p2_base_search", "p2_map_3d_join")
     sg.add_edge("p2_map_3d_join", "p2_full_fusion")
 

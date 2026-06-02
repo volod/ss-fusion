@@ -1,5 +1,5 @@
 """Phase 2 serial nodes: gemma_analysis, merge_parallel, platform_fusion,
-world_model, qwen_caption (agentic), unidrive (agentic), scenetok,
+world_model, qwen_caption (agentic), unidrive (agentic), scenetok, cosmos3,
 base_search, full_fusion.
 """
 
@@ -586,7 +586,66 @@ def node_p2_scenetok(state: PipelineState) -> dict[str, Any]:
     }
 
 
-# -- Step 15: Base model search ------------------------------------------------
+# -- Step 15: Cosmos3 world-model inference ------------------------------------
+
+
+def node_p2_cosmos3(state: PipelineState) -> dict[str, Any]:
+    from ...steps.cosmos3 import step_cosmos3_inference
+
+    args = state["args"]
+    cosmos3_result: dict[str, Any] = {"skipped": True, "clips": [], "n_clips": 0}
+    t0 = time.monotonic()
+
+    if getattr(args, "cosmos3", None):
+        from ..steps_caption import _prep_vram_for_step  # type: ignore[attr-defined]
+
+        _prep_vram_for_step(state["models"], state["device"])
+        cosmos3_result = step_cosmos3_inference(
+            state["frame_list"],
+            state["video_name"],
+            Path(state["video_dir"]),
+            device=state["device"],
+        )
+
+    video_context = dict(state.get("video_context", {}))
+    if not cosmos3_result.get("skipped"):
+        video_context["cosmos3_analysis"] = cosmos3_result.get("clips", [])
+
+    agentic_trace = list(state.get("agentic_trace", []))
+    _append_agentic_step(
+        agentic_trace,
+        step_id="15",
+        title="Cosmos3 world-model inference",
+        description=(
+            "Run nvidia/Cosmos3-Nano (or vLLM-Omni sidecar) on sampled video clips to produce "
+            "an omnimodal scene understanding narrative."
+        ),
+        status="skipped" if cosmos3_result.get("skipped") else "ok",
+        context_inputs=["sampled frame clips", "physical-AI analysis prompt"],
+        context_outputs=[
+            f"{cosmos3_result.get('n_clips', 0)} clip analyses",
+            f"scene_type={cosmos3_result.get('scene_type', '')}",
+        ]
+        if not cosmos3_result.get("skipped")
+        else ["no Cosmos3 world-model context"],
+        risks=[
+            "omnimodal model may hallucinate entity interactions not present in frames",
+            "~32 GB VRAM required for full local load; layerwise offload degrades throughput",
+        ],
+        artifacts=["cosmos3_inference.json"] if not cosmos3_result.get("skipped") else [],
+    )
+
+    stats = dict(state.get("stats", {}))
+    stats.setdefault("timings", {})["S_cosmos3"] = time.monotonic() - t0
+    return {
+        "cosmos3_result": cosmos3_result,
+        "video_context": video_context,
+        "agentic_trace": agentic_trace,
+        "stats": stats,
+    }
+
+
+# -- Step 16: Base model search ------------------------------------------------
 
 
 def node_p2_base_search(state: PipelineState) -> dict[str, Any]:
