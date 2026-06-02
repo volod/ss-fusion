@@ -178,7 +178,12 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
 
     try:
         _log.info("Downloading %s from HuggingFace (this may take a while) …", _HF_REPO)
+        # Use decode=False to avoid the torchcodec hard-dependency introduced in
+        # datasets ≥ 3.x for audio column decoding; we decode the raw bytes with
+        # soundfile instead (already installed as part of the sensor extras).
+        from datasets import Audio  # type: ignore[import]
         ds = load_dataset(_HF_REPO, cache_dir=str(cache_dir / "_hf_cache"))
+        ds = {split: sd.cast_column("audio", Audio(decode=False)) for split, sd in ds.items()}
     except Exception as exc:
         _log.warning("HuggingFace dataset download failed: %s", exc)
         return False
@@ -186,7 +191,8 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
     # Figure out the label mapping (ClassLabel or plain int)
     label_names: list[str] = []
     try:
-        label_feature = ds[list(ds.keys())[0]].features.get("label")
+        first_split = list(ds.keys())[0]
+        label_feature = ds[first_split].features.get("label")
         if hasattr(label_feature, "names"):
             label_names = label_feature.names
     except Exception:
@@ -199,6 +205,9 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
             return "drone" if "drone" in name else "no_drone"
         return "drone" if lbl == 1 else "no_drone"
 
+    import io as _io
+
+    import soundfile as _sf
     from scipy.io import wavfile
 
     written = 0
@@ -208,8 +217,15 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
             label = sample.get("label", 0)
             if audio is None:
                 continue
-            arr = np.array(audio["array"], dtype=np.float32)
-            sr_in = int(audio["sampling_rate"])
+            # decode=False gives {"bytes": <raw_bytes>, "path": ...}
+            raw = audio.get("bytes") or audio.get("array")
+            if isinstance(raw, (bytes, bytearray)):
+                arr, sr_in = _sf.read(_io.BytesIO(raw), dtype="float32", always_2d=False)
+            else:
+                arr = np.array(raw, dtype=np.float32)
+                sr_in = int(audio.get("sampling_rate", _SR))
+            arr = arr.astype(np.float32)
+            sr_in = int(sr_in)
             if sr_in != _SR:
                 n_out = int(len(arr) * _SR / sr_in)
                 arr = np.interp(

@@ -9,6 +9,7 @@ All heavy logic lives in the runner_helpers/ submodule:
   runner_helpers/_pipeline.py    — per-video orchestrator (run_video_pipeline)
 """
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -22,6 +23,7 @@ from ..steps.common import (
     _banner,
     _configure_logging,
     _configure_warnings,
+    _step,
 )
 
 # -- Re-exports: keep every previously-public symbol importable from runner --

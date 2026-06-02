@@ -25,13 +25,16 @@ warnings.filterwarnings(
 
 
 def _validate_local_inputs(args) -> None:
-    videos_dir = Path(getattr(args, "videos_dir", ".data/videos"))
+    # args.videos_dir is already expanded by apply_local_env (step 3a) when
+    # DATA_DIR is set; use it directly.
+    data_dir = os.environ.get("DATA_DIR", ".data")
+    videos_dir = Path(getattr(args, "videos_dir", f"{data_dir}/videos"))
     if videos_dir.is_dir():
         return
     parser_error = (
         f"Videos directory does not exist: {videos_dir}\n"
-        "Use the local data directory:  --videos-dir .data/videos\n"
-        "Create it with:  mkdir -p .data/videos"
+        f"Use the local data directory:  --videos-dir {data_dir}/videos\n"
+        f"Create it with:  mkdir -p {data_dir}/videos"
     )
     raise SystemExit(parser_error)
 

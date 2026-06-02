@@ -151,9 +151,36 @@ def apply_local_env(args: Any) -> None:
     # Step 3 — import and run layered .env loader.
     # load_layered_env uses "if key not in os.environ" so it cannot override
     # anything we set in phase 1.
+    # Use selfsuvis core env.py as anchor so project_roots() resolves the correct
+    # repo root regardless of ssv_vdp's shallower nesting depth.
+    import selfsuvis.pipeline.core.env as _selfsuvis_env  # noqa: PLC0415
     from selfsuvis.pipeline.core.env import load_layered_env  # noqa: PLC0415
 
-    load_layered_env(anchor_file=__file__)
+    load_layered_env(anchor_file=_selfsuvis_env.__file__)
+
+    # Step 3a — expand any .data/ default paths against the loaded DATA_DIR.
+    # This handles the case where DATA_DIR is an absolute path on an external
+    # drive (e.g. /media/vola/vola-2tp/.data) while CLI defaults still say .data/.
+    _data_dir = os.environ.get("DATA_DIR", "")
+    if _data_dir:
+        for _attr in ("videos_dir", "output_dir"):
+            _val = getattr(args, _attr, "")
+            if _val and not Path(_val).is_absolute():
+                _rel = str(_val)
+                if _rel.startswith(".data/") or _rel == ".data":
+                    _suffix = _rel[len(".data/"):] if _rel.startswith(".data/") else ""
+                    setattr(args, _attr, os.path.join(_data_dir, _suffix) if _suffix else _data_dir)
+
+    # Step 3b — align model-cache dirs with DATA_DIR so preflight checks and
+    # lazy model loads find artefacts on the external drive rather than ~/.cache.
+    if _data_dir:
+        _cache_dir = os.environ.get("CACHE_DIR", os.path.join(_data_dir, ".cache"))
+        os.environ.setdefault("CACHE_DIR", _cache_dir)
+        os.environ.setdefault("HF_HOME", os.path.join(_cache_dir, "huggingface"))
+        os.environ.setdefault("TORCH_HOME", os.path.join(_cache_dir, "torch"))
+        os.environ.setdefault("CLIP_CACHE", os.path.join(_cache_dir, "clip"))
+        os.environ.setdefault("OPENCLIP_CACHE_DIR", os.path.join(_cache_dir, "open_clip"))
+        os.environ.setdefault("XDG_CACHE_HOME", _cache_dir)
 
     # Step 4 — resolve SceneTok tri-state from .env if still None after phase 1.
     if getattr(args, "scenetok", None) is None:
@@ -175,7 +202,9 @@ def apply_local_env(args: Any) -> None:
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    os.environ.setdefault("DATA_DIR", str(output_dir))
+    # DATA_DIR is already loaded from .env by load_layered_env; only fall back
+    # to the resolved output_dir when it was not set at all.
+    os.environ.setdefault("DATA_DIR", str(output_dir.parent))
     os.environ.setdefault("MODEL_NAME", "gemma")
     os.environ.setdefault("GEMMA_MODEL_ID", "google/gemma-4-it-2b")
     os.environ.setdefault("GEMMA_USE_BF16", "true" if args.device != "cpu" else "false")
