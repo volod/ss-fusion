@@ -20,7 +20,7 @@ _MAP_FUTURES: dict[str, tuple] = {}  # video_id → (_cf.ThreadPoolExecutor, _cf
 
 def node_p2_map_3d_submit(state: PipelineState) -> dict[str, Any]:
     """Submit step_create_3d_map to a background thread and register the future."""
-    from ..steps_map import step_create_3d_map
+    from ...steps.perception.map import step_create_3d_map
 
     args = state["args"]
     video_id = state["video_id"]
@@ -59,8 +59,8 @@ def node_p2_map_3d_submit(state: PipelineState) -> dict[str, Any]:
 
 def node_p2_map_3d_join(state: PipelineState) -> dict[str, Any]:
     """Join the 3D-map background thread, then run advisor and semantic graph."""
-    from ..steps_map import step_advise_3d_map_quality
-    from ..steps_semantic_graph import step_build_semantic_environment_graph
+    from ...steps.perception.map import step_advise_3d_map_quality
+    from ...steps.perception.semantic_graph import step_build_semantic_environment_graph
 
     video_id = state["video_id"]
     t0 = time.monotonic()

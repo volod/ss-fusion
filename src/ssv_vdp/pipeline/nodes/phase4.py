@@ -89,7 +89,7 @@ def node_p4_synthesis(state: PipelineState) -> dict[str, Any]:
     stats = dict(state.get("stats", {}))
     agentic_trace = list(state.get("agentic_trace", []))
 
-    from ..steps_caption import _offload_models_to_cpu
+    from ...steps.caption import _offload_models_to_cpu
 
     device = state["device"]
     clip_dino_on_gpu = state.get("clip_dino_on_gpu", False)
@@ -255,7 +255,7 @@ def node_p4_audit(state: PipelineState) -> dict[str, Any]:
 
     # Evict all sidecars from VRAM now that the pipeline is complete.
     if state["device"] == "cuda":
-        from ..steps_caption import _unload_known_sidecars
+        from ...steps.caption import _unload_known_sidecars
 
         _qwen_url = getattr(args, "qwen_api_url", "") or settings.QWEN_API_URL
         _qwen_model = getattr(args, "qwen_model", "") or settings.QWEN_MODEL
@@ -357,7 +357,7 @@ def _audit_reflection(
 
 def node_p4_emit_analytics(state: PipelineState) -> dict[str, Any]:
     from ..runner import _emit_local_run_analytics
-    from ..steps_caption import get_runtime_telemetry
+    from ...steps.caption import get_runtime_telemetry
 
     video_dir = Path(state["video_dir"])
     stats = dict(state.get("stats", {}))

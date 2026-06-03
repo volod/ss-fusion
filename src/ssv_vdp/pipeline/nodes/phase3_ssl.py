@@ -19,8 +19,8 @@ _SSL_GATE_MAX_LOSS = 10.0
 
 
 def node_p3_ssl_finetune(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _guard_min_free_vram, _prep_vram_for_step
-    from ..steps_ssl import step_ssl_finetune
+    from ...steps.caption import _guard_min_free_vram, _prep_vram_for_step
+    from ...steps.adaptation.ssl import step_ssl_finetune
 
     args = state["args"]
     models = state["models"]
@@ -149,8 +149,8 @@ def ssl_gate_router(state: PipelineState) -> str:
 
 
 def node_p3_distill(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _restore_models_to_gpu
-    from ..steps_distill import step_distill
+    from ...steps.caption import _restore_models_to_gpu
+    from ...steps.adaptation.distill import step_distill
 
     args = state["args"]
     models = state["models"]
@@ -251,8 +251,8 @@ def node_p3_distill(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p3_onnx_export(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _models_on_device, _restore_models_to_gpu
-    from ..steps_distill import step_export_model
+    from ...steps.caption import _models_on_device, _restore_models_to_gpu
+    from ...steps.adaptation.distill import step_export_model
 
     args = state["args"]
     device = state["device"]
@@ -305,7 +305,7 @@ def node_p3_onnx_export(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p3_ft_search(state: PipelineState) -> dict[str, Any]:
-    from ..steps_embed import step_finetuned_model_search_test
+    from ...steps.perception.embed import step_finetuned_model_search_test
 
     args = state["args"]
     stats = dict(state.get("stats", {}))
@@ -357,7 +357,7 @@ def node_p3_dae_finetune(state: PipelineState) -> dict[str, Any]:
     the SSL gate did not pass (no point training a second model if the first
     did not converge).
     """
-    from ..steps_ssl import step_dae_finetune
+    from ...steps.adaptation.ssl import step_dae_finetune
 
     args = state["args"]
     device = state["device"]

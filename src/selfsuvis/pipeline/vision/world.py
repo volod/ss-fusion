@@ -265,22 +265,13 @@ class WorldModel:
         for candidate_id in candidate_ids:
             source = _resolve_local_world_model_path(candidate_id)
             source_label = str(source) if isinstance(source, Path) else candidate_id
-            # Incomplete-cache check: look for any preprocessor/feature-extractor
-            # config, not just preprocessor_config.json — VideoMAE-based models
-            # (e.g. InternVideo2) may only have feature_extractor_type.json or
-            # store it inside config.json.
+            # Incomplete-cache check: config.json is required by AutoConfig.from_pretrained.
+            # A directory that only has preprocessor_config.json (partial download) is not
+            # usable — fall back to the hub repo id so HF re-downloads the full snapshot.
             if isinstance(source, Path):
-                _has_preprocessor = any(
-                    (source / f).exists()
-                    for f in (
-                        "preprocessor_config.json",
-                        "feature_extractor_config.json",
-                        "config.json",
-                    )
-                )
-                if not _has_preprocessor:
+                if not (source / "config.json").exists():
                     logger.info(
-                        "World model cache for %s is incomplete; retrying from repo id.",
+                        "World model cache for %s is incomplete (missing config.json); retrying from repo id.",
                         candidate_id,
                     )
                     source = candidate_id

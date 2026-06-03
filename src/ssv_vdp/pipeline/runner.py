@@ -338,8 +338,8 @@ def run_local(args: Any) -> None:
             stats_path = output_dir / "final_stats.md"
             from selfsuvis.pipeline.fusion import persist_threat_memory
 
-            from ..steps.global_threat import step_global_threat
-            from ..steps.threat_eval import write_threat_calibration, write_threat_eval_summary
+            from ..steps.threat.global_threat import step_global_threat
+            from ..steps.threat.threat_eval import write_threat_calibration, write_threat_eval_summary
 
             global_threat_result = step_global_threat(output_dir, per_video_stats)
             persist_threat_memory(output_dir, per_video_stats, global_threat_result)
@@ -359,9 +359,9 @@ def run_local(args: Any) -> None:
     stats_path = output_dir / "final_stats.md"
     from selfsuvis.pipeline.fusion import persist_threat_memory
 
-    from ..steps.global_threat import step_global_threat
+    from ..steps.threat.global_threat import step_global_threat
     from ..steps.model_advisor import write_model_run_advisor
-    from ..steps.threat_eval import write_threat_calibration, write_threat_eval_summary
+    from ..steps.threat.threat_eval import write_threat_calibration, write_threat_eval_summary
 
     global_threat_result = step_global_threat(output_dir, per_video_stats)
     persist_threat_memory(output_dir, per_video_stats, global_threat_result)

@@ -158,18 +158,26 @@ def apply_local_env(args: Any) -> None:
 
     load_layered_env(anchor_file=_selfsuvis_env.__file__)
 
-    # Step 3a — expand any .data/ default paths against the loaded DATA_DIR.
-    # This handles the case where DATA_DIR is an absolute path on an external
-    # drive (e.g. /media/vola/vola-2tp/.data) while CLI defaults still say .data/.
+    # Step 3a — resolve default paths against DATA_DIR.
+    #
+    # Only paths that the user did NOT explicitly supply on the command line are
+    # expanded.  videos_dir has default=None in the parser, so None means "user
+    # did not provide it" → derive from DATA_DIR (or fall back to .data/).
+    # output_dir still has a ".data/…" string default; expand it only when it
+    # matches the parser default and DATA_DIR is set.
     _data_dir = os.environ.get("DATA_DIR", "")
+
+    if getattr(args, "videos_dir", None) is None:
+        # User did not pass --videos-dir: derive from DATA_DIR or fall back.
+        args.videos_dir = os.path.join(_data_dir, "videos") if _data_dir else ".data/videos"
+
     if _data_dir:
-        for _attr in ("videos_dir", "output_dir"):
-            _val = getattr(args, _attr, "")
-            if _val and not Path(_val).is_absolute():
-                _rel = str(_val)
-                if _rel.startswith(".data/") or _rel == ".data":
-                    _suffix = _rel[len(".data/"):] if _rel.startswith(".data/") else ""
-                    setattr(args, _attr, os.path.join(_data_dir, _suffix) if _suffix else _data_dir)
+        _output_val = getattr(args, "output_dir", "")
+        if _output_val and not Path(_output_val).is_absolute():
+            _rel = str(_output_val)
+            if _rel.startswith(".data/") or _rel == ".data":
+                _suffix = _rel[len(".data/"):] if _rel.startswith(".data/") else ""
+                args.output_dir = os.path.join(_data_dir, _suffix) if _suffix else _data_dir
 
     # Step 3b — align model-cache dirs with DATA_DIR so preflight checks and
     # lazy model loads find artefacts on the external drive rather than ~/.cache.

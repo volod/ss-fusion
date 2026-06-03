@@ -15,8 +15,8 @@ _log = get_logger(__name__)
 
 
 def node_p2_yolo_sam(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _prep_vram_for_step
-    from ..steps_yolo_sam import step_yolo_sam_detection
+    from ...steps.caption import _prep_vram_for_step
+    from ...steps.perception.yolo_sam import step_yolo_sam_detection
 
     args = state["args"]
     yolo_sam_result: dict[str, Any] = {"skipped": True, "detection_results": []}
@@ -77,8 +77,8 @@ def node_p2_yolo_sam(state: PipelineState) -> dict[str, Any]:
 
 def node_p2_gemma_tracking(state: PipelineState) -> dict[str, Any]:
     """Step 10: Gemma directed tracking with JSON-guard fallback for empty target_labels."""
-    from ..steps_caption import _prep_vram_for_step
-    from ..steps_gemma_tracking import step_gemma_directed_tracking
+    from ...steps.caption import _prep_vram_for_step
+    from ...steps.perception.gemma_tracking import step_gemma_directed_tracking
 
     args = state["args"]
     gemma_api_url = getattr(args, "gemma_api_url", "") or settings.GEMMA_API_URL

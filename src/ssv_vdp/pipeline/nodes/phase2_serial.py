@@ -25,7 +25,7 @@ _log = get_logger(__name__)
 
 
 def node_p2_gemma_analysis(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _unload_ollama_model, step_gemma_analysis
+    from ...steps.caption import _unload_ollama_model, step_gemma_analysis
 
     args = state["args"]
     gemma_api_url = getattr(args, "gemma_api_url", "") or settings.GEMMA_API_URL
@@ -261,7 +261,7 @@ def node_p2_merge_parallel(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_platform_fusion(state: PipelineState) -> dict[str, Any]:
-    from ..steps_fusion import step_platform_state_fusion
+    from ...steps.state.fusion import step_platform_state_fusion
 
     result = step_platform_state_fusion(
         Path(state["video_path"]),
@@ -287,7 +287,7 @@ def node_p2_platform_fusion(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_world_model(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _prep_vram_for_step, step_world_model_pass
+    from ...steps.caption import _prep_vram_for_step, step_world_model_pass
 
     args = state["args"]
     world_result: dict[str, Any] = {"skipped": True, "world_results": []}
@@ -335,7 +335,7 @@ def node_p2_world_model(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_qwen_caption(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import step_qwen_captioning
+    from ...steps.caption import step_qwen_captioning
 
     args = state["args"]
     asr_result = state.get("asr_result", {})
@@ -405,7 +405,7 @@ def _qwen_retry_parse_errors(
     knowledge: Any,
 ) -> dict[str, Any]:
     """Retry individual Qwen results that had parse_error=True with a simplified prompt."""
-    from ..steps_caption import step_qwen_captioning
+    from ...steps.caption import step_qwen_captioning
 
     results = qwen_result.get("results", [])
     error_indices = [i for i, r in enumerate(results) if r.get("parse_error")]
@@ -450,7 +450,7 @@ def _qwen_retry_parse_errors(
 
 
 def node_p2_unidrive(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import step_unidrive_analysis
+    from ...steps.caption import step_unidrive_analysis
 
     args = state["args"]
     asr_result = state.get("asr_result", {})
@@ -540,7 +540,7 @@ def _score_unidrive_consensus(
 
 
 def node_p2_scenetok(state: PipelineState) -> dict[str, Any]:
-    from ..steps_scenetok import step_scenetok
+    from ...steps.perception.scenetok import step_scenetok
 
     args = state["args"]
     scenetok_result: dict[str, Any] = {"skipped": True}
@@ -590,14 +590,14 @@ def node_p2_scenetok(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_cosmos3(state: PipelineState) -> dict[str, Any]:
-    from ...steps.cosmos3 import step_cosmos3_inference
+    from ...steps.perception.cosmos3 import step_cosmos3_inference
 
     args = state["args"]
     cosmos3_result: dict[str, Any] = {"skipped": True, "clips": [], "n_clips": 0}
     t0 = time.monotonic()
 
     if getattr(args, "cosmos3", None):
-        from ..steps_caption import _prep_vram_for_step  # type: ignore[attr-defined]
+        from ...steps.caption import _prep_vram_for_step  # type: ignore[attr-defined]
 
         _prep_vram_for_step(state["models"], state["device"])
         cosmos3_result = step_cosmos3_inference(
@@ -649,12 +649,12 @@ def node_p2_cosmos3(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_base_search(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import (
+    from ...steps.caption import (
         _models_on_device,
         _prep_vram_for_step,
         _restore_models_to_gpu,
     )
-    from ..steps_embed import step_base_model_search_test
+    from ...steps.perception.embed import step_base_model_search_test
 
     args = state["args"]
     models = state["models"]
@@ -723,7 +723,7 @@ def node_p2_base_search(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_full_fusion(state: PipelineState) -> dict[str, Any]:
-    from ..steps_fusion import step_full_state_fusion
+    from ...steps.state.fusion import step_full_state_fusion
 
     h = state.get("map_result", {})
     gemma_result = state.get("gemma_result", {})

@@ -217,6 +217,10 @@ def step_video_synthesis(
         context_str = context_str[:3000] + "\n[context truncated]"
     endpoint = f"{api_url.rstrip('/')}/chat/completions"
     _synthesis_timeout = _compute_sidecar_timeout(model, api_url, resources)
+    # _compute_sidecar_timeout models cold-load time but not long generation.
+    # Ontology needs ~512 tokens + prompt; narrative up to 1024 tokens.
+    # Floor at 180s so generation completes even on a well-fitting model.
+    _synthesis_timeout = max(_synthesis_timeout, 180.0)
     # Ollama-specific: expand context window so large prompts don't get a 500.
     _ollama_options = {"num_ctx": 8192}
     t0 = time.time()

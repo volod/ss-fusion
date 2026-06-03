@@ -181,7 +181,7 @@ class _ModelSettings:
     OCR_MODEL = _env("OCR_MODEL", "auto")
     OCR_API_URL = _env("OCR_API_URL", "")
     OCR_BATCH_SIZE = _env_int("OCR_BATCH_SIZE", 4)
-    OCR_TIMEOUT_SEC = _env_int("OCR_TIMEOUT_SEC", 30)
+    OCR_TIMEOUT_SEC = _env_int("OCR_TIMEOUT_SEC", 120)
     _ocr_sidecar_concurrency_default = (
         1
         if "11434" in _env("OCR_API_URL", "")

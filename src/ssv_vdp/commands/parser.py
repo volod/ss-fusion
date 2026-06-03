@@ -104,8 +104,8 @@ def build_parser() -> argparse.ArgumentParser:
     # -- Local orchestration args (used when --mode local) ---------------------
     parser.add_argument(
         "--videos-dir",
-        default=".data/videos",
-        help="[local] Directory containing input .mp4/.mov/.mkv files",
+        default=None,
+        help="[local] Directory containing input .mp4/.mov/.mkv files (default: .data/videos, or DATA_DIR/videos when DATA_DIR is set)",
     )
     parser.add_argument(
         "--device",

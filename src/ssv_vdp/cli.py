@@ -25,18 +25,19 @@ warnings.filterwarnings(
 
 
 def _validate_local_inputs(args) -> None:
-    # args.videos_dir is already expanded by apply_local_env (step 3a) when
-    # DATA_DIR is set; use it directly.
-    data_dir = os.environ.get("DATA_DIR", ".data")
-    videos_dir = Path(getattr(args, "videos_dir", f"{data_dir}/videos"))
+    # args.videos_dir is resolved by apply_local_env before this is called:
+    # - None (not supplied)  → DATA_DIR/videos or .data/videos
+    # - explicit value       → used as-is, never rewritten
+    videos_dir = Path(args.videos_dir)
     if videos_dir.is_dir():
         return
-    parser_error = (
+    data_dir = os.environ.get("DATA_DIR", ".data")
+    default_suggestion = os.path.join(data_dir, "videos")
+    raise SystemExit(
         f"Videos directory does not exist: {videos_dir}\n"
-        f"Use the local data directory:  --videos-dir {data_dir}/videos\n"
-        f"Create it with:  mkdir -p {data_dir}/videos"
+        f"Use the local data directory:  --videos-dir {default_suggestion}\n"
+        f"Create it with:  mkdir -p {default_suggestion}"
     )
-    raise SystemExit(parser_error)
 
 
 def _dispatch(args) -> None:

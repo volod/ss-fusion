@@ -20,7 +20,7 @@ _log = get_logger(__name__)
 def node_p2_florence_caption(state: PipelineState) -> dict[str, Any]:
     from selfsuvis.pipeline.core.config import settings
 
-    from ..steps_caption import step_scene_captioning
+    from ...steps.caption import step_scene_captioning
 
     args = state["args"]
     caption_results = []
@@ -48,7 +48,7 @@ def node_p2_florence_caption(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_asr(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _prep_vram_for_step, step_asr_transcription
+    from ...steps.caption import _prep_vram_for_step, step_asr_transcription
 
     args = state["args"]
     asr_result: dict[str, Any] = {"skipped": True, "subtitle_map": {}, "segments": []}
@@ -69,7 +69,7 @@ def node_p2_asr(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_ocr(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _prep_vram_for_step, step_ocr_extraction
+    from ...steps.caption import _prep_vram_for_step, step_ocr_extraction
 
     args = state["args"]
     ocr_result: dict[str, Any] = {"skipped": True, "ocr_results": []}
@@ -90,7 +90,7 @@ def node_p2_ocr(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_depth(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _prep_vram_for_step, step_depth_estimation
+    from ...steps.caption import _prep_vram_for_step, step_depth_estimation
 
     args = state["args"]
     depth_result: dict[str, Any] = {"skipped": True, "depth_results": []}
@@ -110,7 +110,7 @@ def node_p2_depth(state: PipelineState) -> dict[str, Any]:
 
 
 def node_p2_detection(state: PipelineState) -> dict[str, Any]:
-    from ..steps_caption import _prep_vram_for_step, step_object_detection
+    from ...steps.caption import _prep_vram_for_step, step_object_detection
 
     args = state["args"]
     det_result: dict[str, Any] = {"skipped": True, "detection_results": []}

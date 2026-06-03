@@ -182,21 +182,46 @@ def _parse_qwen_response(raw_text: str) -> dict[str, Any]:
     Strips markdown code fences, parses JSON, validates top-level structure,
     and returns a normalised dict. On any error returns a parse_error dict.
     """
+    import re as _re
+
     text = raw_text.strip()
+
+    # Strip <think>...</think> blocks produced by reasoning models.
+    text = _re.sub(r"<think>.*?</think>", "", text, flags=_re.DOTALL).strip()
 
     # Strip markdown code fences: ```json...``` or ```...```
     if text.startswith("```"):
         lines = text.splitlines()
-        # Drop first line (```json or ```) and last line (```)
         inner_lines = lines[1:]
         if inner_lines and inner_lines[-1].strip() == "```":
             inner_lines = inner_lines[:-1]
         text = "\n".join(inner_lines).strip()
 
+    data = None
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
+        # Try to extract the first {...} block from surrounding text — small
+        # models sometimes prepend a sentence before the JSON object.
+        m = _re.search(r"\{.*\}", text, _re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group())
+            except json.JSONDecodeError:
+                pass
+
+    if data is None:
         return {"parse_error": True, "raw": raw_text[:500]}
+
+    # Unwrap single-key envelope: {"analysis": {...}} → use inner dict.
+    if isinstance(data, dict) and len(data) == 1:
+        only_val = next(iter(data.values()))
+        if isinstance(only_val, dict):
+            data = only_val
+
+    # Accept first element of a JSON array.
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        data = data[0]
 
     if not isinstance(data, dict):
         return {"parse_error": True, "raw": raw_text[:500]}
