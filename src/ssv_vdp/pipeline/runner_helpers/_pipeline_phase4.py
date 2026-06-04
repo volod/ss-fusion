@@ -11,7 +11,7 @@ from typing import Any
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ...steps.common import _Timer, _step
+from ...steps.common import _step, _Timer
 from ._agentic import _append_agentic_step
 
 _log = get_logger(__name__)
@@ -46,8 +46,11 @@ def run_phase4(
     agentic_trace: list[dict[str, Any]],
 ) -> None:
     """Run Steps 27-34 and collect final stats. Mutates stats in place."""
-    from ...steps.caption import _offload_models_to_cpu, _unload_known_sidecars
-    from ...steps.caption import get_runtime_telemetry
+    from ...steps.caption import (
+        _offload_models_to_cpu,
+        _unload_known_sidecars,
+        get_runtime_telemetry,
+    )
     from ._analytics import _emit_local_run_analytics
     from ._compare import step_multi_model_compare
     from ._synthesis import step_agentic_flow_artifact, step_video_synthesis
@@ -275,7 +278,7 @@ def run_phase4(
             "[ok]" if drone_result.get("model_rknn") else "skipped",
         )
     else:
-        _step(31, _TOTAL_STEPS, "Drone detection training (skipped — pass --drone-detection to enable)")
+        _step(32, _TOTAL_STEPS, "Drone detection training (skipped — pass --drone-detection to enable)")
 
     # Step 33: Drone audio detection model training
     _audio_enabled = getattr(args, "drone_audio", None)
@@ -336,7 +339,7 @@ def run_phase4(
             ),
             status="ok",
             context_inputs=[
-                "drone_audio/drone_audio_cnn.onnx (from step 32)",
+                "drone_audio/drone_audio_cnn.onnx (from step 33)",
                 "synthetic quadcopter audio at 9 distances (1-200 m)",
             ],
             context_outputs=[

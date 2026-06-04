@@ -54,8 +54,24 @@ def _write_wav(path: Path, arr, sr: int) -> None:
 
 def _label_to_dirname(label: int, label_names: list[str]) -> str:
     if label_names and label < len(label_names):
-        name = label_names[label].lower()
-        return "drone" if "drone" in name else "no_drone"
+        name = label_names[label].strip().lower().replace("-", "_").replace(" ", "_")
+        negative_tokens = (
+            "no_drone",
+            "non_drone",
+            "not_drone",
+            "negative",
+            "background",
+            "ambient",
+            "noise",
+            "no_uav",
+            "non_uav",
+        )
+        positive_tokens = ("drone", "uav", "quadcopter", "positive")
+        if any(token in name for token in negative_tokens):
+            return "no_drone"
+        if any(token in name for token in positive_tokens):
+            return "drone"
+        return "no_drone"
     return "drone" if label == 1 else "no_drone"
 
 

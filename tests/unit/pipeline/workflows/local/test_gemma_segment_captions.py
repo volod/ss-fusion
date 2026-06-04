@@ -24,6 +24,7 @@ def _stub_settings(**overrides):
     s = MagicMock()
     s.GEMMA_API_URL = overrides.get("GEMMA_API_URL", "")
     s.GEMMA_API_MODEL = overrides.get("GEMMA_API_MODEL", "gemma4:e4b")
+    s.GEMMA_API_BACKEND = overrides.get("GEMMA_API_BACKEND", "ollama")
     s.GEMMA_API_TIMEOUT_SEC = overrides.get("GEMMA_API_TIMEOUT_SEC", 30.0)
     s.GEMMA_CACHE_RESPONSES = False
     s.GEMMA_SLOW_CALL_SEC = 5.0
@@ -233,10 +234,37 @@ def test_gemma_diff_falls_back_to_ollama_when_content_empty(tmp_path):
 
     with patch("httpx.post", side_effect=[openai_resp, ollama_resp]):
         result = _gemma_diff_two_frames_via_api(
-            str(fp_a), str(fp_b), "http://localhost:11434/v1", "gemma4:e4b", 30.0
+            str(fp_a), str(fp_b), "http://localhost:8000/v1", "gemma4:e4b", 30.0
         )
 
     assert "New objects" in result
+
+
+def test_gemma_diff_uses_ollama_native_first_when_backend_is_ollama(tmp_path):
+    from ssv_vdp.steps.caption import _gemma_diff_two_frames_via_api
+
+    fp_a = tmp_path / "before.jpg"
+    fp_b = tmp_path / "after.jpg"
+    _write_frame(fp_a)
+    _write_frame(fp_b, (50, 50, 50))
+
+    ollama_resp = MagicMock()
+    ollama_resp.raise_for_status = MagicMock()
+    ollama_resp.json.return_value = {"message": {"content": "The road alignment shifted."}}
+
+    with patch("httpx.post", return_value=ollama_resp) as mock_post:
+        result = _gemma_diff_two_frames_via_api(
+            str(fp_a),
+            str(fp_b),
+            "http://localhost:11434/v1",
+            "gemma4:e4b",
+            30.0,
+            backend="ollama",
+        )
+
+    assert result == "The road alignment shifted."
+    assert mock_post.call_count == 1
+    assert mock_post.call_args.args[0] == "http://localhost:11434/api/chat"
 
 
 def test_gemma_diff_returns_empty_on_missing_frames(tmp_path):
@@ -251,7 +279,7 @@ def test_gemma_diff_returns_empty_on_missing_frames(tmp_path):
 # ── Tests for step_gemma_segment_captions ────────────────────────────────────
 
 
-@patch("ssv_vdp.steps.caption.settings")
+@patch("ssv_vdp.steps.caption._florence.settings")
 def test_step_gemma_segment_captions_skips_when_no_api_url(mock_settings, tmp_path):
     from ssv_vdp.steps.caption import step_gemma_segment_captions
 
@@ -266,7 +294,7 @@ def test_step_gemma_segment_captions_skips_when_no_api_url(mock_settings, tmp_pa
     assert "GEMMA_API_URL" in result["reason"]
 
 
-@patch("ssv_vdp.steps.caption.settings")
+@patch("ssv_vdp.steps.caption._florence.settings")
 def test_step_gemma_segment_captions_skips_when_no_captions(mock_settings, tmp_path):
     from ssv_vdp.steps.caption import step_gemma_segment_captions
 
@@ -281,8 +309,8 @@ def test_step_gemma_segment_captions_skips_when_no_captions(mock_settings, tmp_p
     assert "no caption" in result["reason"]
 
 
-@patch("ssv_vdp.steps.caption._gemma_diff_two_frames_via_api")
-@patch("ssv_vdp.steps.caption.settings")
+@patch("ssv_vdp.steps.caption._florence._gemma_diff_two_frames_via_api")
+@patch("ssv_vdp.steps.caption._florence.settings")
 def test_step_gemma_segment_captions_writes_md(mock_settings, mock_diff, tmp_path):
     from ssv_vdp.steps.caption import step_gemma_segment_captions
 
@@ -310,8 +338,8 @@ def test_step_gemma_segment_captions_writes_md(mock_settings, mock_diff, tmp_pat
     assert mock_diff.called
 
 
-@patch("ssv_vdp.steps.caption._gemma_diff_two_frames_via_api")
-@patch("ssv_vdp.steps.caption.settings")
+@patch("ssv_vdp.steps.caption._florence._gemma_diff_two_frames_via_api")
+@patch("ssv_vdp.steps.caption._florence.settings")
 def test_step_gemma_segment_captions_no_boundaries(mock_settings, mock_diff, tmp_path):
     from ssv_vdp.steps.caption import step_gemma_segment_captions
 
@@ -338,7 +366,7 @@ def test_step_gemma_segment_captions_no_boundaries(mock_settings, mock_diff, tmp
 
 
 def test_gemma_extract_frame_structured_parses_json(tmp_path):
-    from ssv_vdp.steps.caption import _gemma_extract_frame_structured
+    from ssv_vdp.steps.caption_helpers.gemma_api import _gemma_extract_frame_structured
 
     fp = tmp_path / "frame.jpg"
     _write_frame(fp)
@@ -377,7 +405,7 @@ def test_gemma_extract_frame_structured_parses_json(tmp_path):
 
 
 def test_gemma_extract_frame_structured_returns_parse_error_on_bad_json(tmp_path):
-    from ssv_vdp.steps.caption import _gemma_extract_frame_structured
+    from ssv_vdp.steps.caption_helpers.gemma_api import _gemma_extract_frame_structured
 
     fp = tmp_path / "frame.jpg"
     _write_frame(fp)
@@ -402,12 +430,10 @@ def test_gemma_extract_frame_structured_returns_parse_error_on_bad_json(tmp_path
 # ── Tests for _step_qwen_captioning_gemma_fallback ───────────────────────────
 
 
-@patch("ssv_vdp.steps.caption._gemma_extract_frame_structured")
+@patch("ssv_vdp.steps.caption_helpers.gemma_api._gemma_extract_frame_structured")
 @patch("ssv_vdp.steps.caption.settings")
 def test_qwen_gemma_fallback_returns_structured_results(mock_settings, mock_extract, tmp_path):
-    from ssv_vdp.steps.caption import (
-        _step_qwen_captioning_gemma_fallback,
-    )
+    from ssv_vdp.steps.caption_helpers.gemma_api import step_qwen_captioning_gemma_fallback
 
     mock_settings.QWEN_MAX_FRAMES = 4
     mock_settings.GEMMA_API_TIMEOUT_SEC = 30.0
@@ -421,7 +447,7 @@ def test_qwen_gemma_fallback_returns_structured_results(mock_settings, mock_extr
     }
 
     frame_list = [("/frames/f0.jpg", 0.0), ("/frames/f1.jpg", 1.0), ("/frames/f2.jpg", 2.0)]
-    result = _step_qwen_captioning_gemma_fallback(
+    result = step_qwen_captioning_gemma_fallback(
         frame_list, "test_video", tmp_path, "http://localhost:11434/v1", "gemma4:e4b"
     )
 
@@ -432,7 +458,7 @@ def test_qwen_gemma_fallback_returns_structured_results(mock_settings, mock_extr
     assert (tmp_path / "detailed_captions.md").exists()
 
 
-@patch("ssv_vdp.steps.caption.settings")
+@patch("ssv_vdp.steps.caption._vlm.settings")
 def test_step_qwen_captioning_uses_gemma_fallback_when_qwen_disabled(mock_settings, tmp_path):
     """step_qwen_captioning falls back to Gemma when Qwen disabled + GEMMA_API_URL set."""
     from ssv_vdp.steps.caption import step_qwen_captioning
@@ -451,7 +477,7 @@ def test_step_qwen_captioning_uses_gemma_fallback_when_qwen_disabled(mock_settin
     frame_list = [("/frames/f0.jpg", 0.0)]
     with (
         patch(
-            "ssv_vdp.steps.caption._step_qwen_captioning_gemma_fallback",
+            "ssv_vdp.steps.caption._vlm.step_qwen_captioning_gemma_fallback",
             return_value=fallback_result,
         ) as mock_fallback,
         patch.dict(

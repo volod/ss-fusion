@@ -3,20 +3,14 @@
 import json
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from PIL import Image
 
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ..common import (
-    _open_frame_image,
-    _run_batched_frame_inference,
-    gemma_frame_cache_key,
-    load_gemma_cache,
-    save_gemma_cache,
-)
+from ..common import gemma_frame_cache_key, load_gemma_cache, save_gemma_cache
 from .frame_selection import _adaptive_sparse_budget
 
 if TYPE_CHECKING:
@@ -361,11 +355,14 @@ def _gemma_diff_two_frames_via_api(
     api_url: str,
     model: str,
     timeout: float,
+    backend: str = "",
 ) -> str:
     """Send two frames to a Gemma sidecar and return a diff description.
 
     Tries OpenAI-compatible /v1/chat/completions with two image_url entries,
     then falls back to Ollama native /api/chat with images:[b64_a, b64_b].
+    When the backend is explicitly Ollama, use the native endpoint first to
+    avoid paying a full OpenAI-compat timeout for every boundary pair.
     Returns "" on any failure.
     """
     import base64
@@ -394,8 +391,9 @@ def _gemma_diff_two_frames_via_api(
     openai_endpoint = f"{base}/chat/completions"
     ollama_base = base[:-3] if base.endswith("/v1") else base
     ollama_endpoint = f"{ollama_base}/api/chat"
+    use_ollama_first = backend.lower() == "ollama" or (not backend and ":11434" in api_url)
 
-    payload = {
+    openai_payload = {
         "model": model,
         "messages": [
             {
@@ -416,21 +414,7 @@ def _gemma_diff_two_frames_via_api(
         "max_tokens": 400,
         "temperature": 0.1,
     }
-    try:
-        resp = httpx.post(openai_endpoint, json=payload, timeout=timeout)
-        resp.raise_for_status()
-        msg = resp.json()["choices"][0]["message"]
-        content = msg.get("content") or ""
-        if isinstance(content, list):
-            content = " ".join(
-                p.get("text", "") if isinstance(p, dict) else str(p) for p in content
-            )
-        if content.strip():
-            return content.strip()
-    except Exception as exc:
-        _log.debug("  [Gemma diff] OpenAI-compat request failed: %s", exc)
 
-    # Ollama native fallback: images array with both frames
     native_payload = {
         "model": model,
         "stream": False,
@@ -442,16 +426,38 @@ def _gemma_diff_two_frames_via_api(
             }
         ],
     }
-    try:
-        resp = httpx.post(ollama_endpoint, json=native_payload, timeout=timeout)
-        resp.raise_for_status()
-        content = resp.json().get("message", {}).get("content", "")
-        if content.strip():
-            return content.strip()
-    except Exception as exc:
-        _log.debug("  [Gemma diff] Ollama native request failed: %s", exc)
 
-    return ""
+    def _request_openai_compat() -> str:
+        try:
+            resp = httpx.post(openai_endpoint, json=openai_payload, timeout=timeout)
+            resp.raise_for_status()
+            msg = resp.json()["choices"][0]["message"]
+            content = msg.get("content") or ""
+            if isinstance(content, list):
+                content = " ".join(
+                    p.get("text", "") if isinstance(p, dict) else str(p) for p in content
+                )
+            if content.strip():
+                return content.strip()
+        except Exception as exc:
+            _log.debug("  [Gemma diff] OpenAI-compat request failed: %s", exc)
+        return ""
+
+    def _request_ollama_native() -> str:
+        try:
+            resp = httpx.post(ollama_endpoint, json=native_payload, timeout=timeout)
+            resp.raise_for_status()
+            content = resp.json().get("message", {}).get("content", "")
+            if content.strip():
+                return content.strip()
+        except Exception as exc:
+            _log.debug("  [Gemma diff] Ollama native request failed: %s", exc)
+        return ""
+
+    if use_ollama_first:
+        return _request_ollama_native() or _request_openai_compat()
+
+    return _request_openai_compat() or _request_ollama_native()
 
 
 def _gemma_extract_frame_structured(

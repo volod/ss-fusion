@@ -2,7 +2,12 @@
 
 Import via the parent runner module, not directly from here.
 """
-from ._agentic import _append_agentic_step, _build_context_prompt  # noqa: F401
+from ._agentic import (  # noqa: F401
+    _append_agentic_step,
+    _build_context_prompt,
+    _is_simple_agentic_audit,
+    _is_valid_agentic_flow_analysis,
+)
 from ._analytics import _emit_local_run_analytics  # noqa: F401
 from ._compare import step_compare_and_describe, step_multi_model_compare  # noqa: F401
 from ._init import find_videos, init_models, init_store, resolve_local_videos, _VIDEO_EXTS  # noqa: F401

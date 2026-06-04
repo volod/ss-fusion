@@ -42,7 +42,7 @@ def test_unload_known_sidecars_counts_successful_unique_unloads(monkeypatch):
         calls.append((url, model))
         return model == "qwen2.5vl:7b"
 
-    monkeypatch.setattr(sc, "_unload_ollama_model", _fake_unload)
+    monkeypatch.setattr("ssv_vdp.steps.caption_helpers.ollama._unload_ollama_model", _fake_unload)
 
     count = sc._unload_known_sidecars(
         [
@@ -85,7 +85,7 @@ def test_guard_min_free_vram_raises_when_headroom_too_low(monkeypatch):
 
 def test_restore_models_to_gpu_skips_when_vram_is_too_low(monkeypatch):
     monkeypatch.setattr(sc, "_flush_cuda_allocator", lambda: None)
-    monkeypatch.setattr(sc, "_detect_free_vram_gb", lambda: 1.5)
+    monkeypatch.setattr("ssv_vdp.steps.caption_helpers.vram._detect_free_vram_gb", lambda: 1.5)
 
     models = {"clip": SimpleNamespace(model=_FakeBackbone()), "dino": None}
 

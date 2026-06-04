@@ -389,15 +389,19 @@ def step_export_model(
                 _log.info("  [ok] ONNX export complete: %.1f MB → %s", onnx_mb, onnx_path)
             else:
                 _log.warning("  ONNX export ran but file not found at %s", onnx_path)
-            for _mod_name, _mod in sys.modules.items():
-                if "dinov2" in _mod_name and hasattr(_mod, "XFORMERS_AVAILABLE"):
-                    _mod.XFORMERS_AVAILABLE = True
+            try:
+                from selfsuvis.models.dino_model import _set_dino_xformers_enabled
+                _set_dino_xformers_enabled(device.startswith("cuda"))
+            except Exception:
+                pass
             backbone_to_export = backbone_to_export.to(device).eval()
         except Exception as exc:
             _log.warning("  ONNX export failed (%s) — skipping", exc)
-            for _mod_name, _mod in sys.modules.items():
-                if "dinov2" in _mod_name and hasattr(_mod, "XFORMERS_AVAILABLE"):
-                    _mod.XFORMERS_AVAILABLE = True
+            try:
+                from selfsuvis.models.dino_model import _set_dino_xformers_enabled
+                _set_dino_xformers_enabled(device.startswith("cuda"))
+            except Exception:
+                pass
             if backbone_to_export is not None:
                 try:
                     backbone_to_export = backbone_to_export.to(device).eval()

@@ -296,6 +296,24 @@ def test_caption_batch_chunk_falls_back_to_single_image_on_square_feature_assert
     assert calls["single"] == 2
 
 
+def test_hide_broken_flash_attn_masks_transformers_availability(monkeypatch):
+    import sys
+
+    import transformers.utils as transformers_utils
+
+    from selfsuvis.pipeline.vision import florence
+
+    monkeypatch.setattr(florence, "_flash_attn_import_error", lambda: "undefined symbol")
+    monkeypatch.setattr(florence, "_FLASH_ATTN_WARNING_LOGGED", False)
+
+    with florence._hide_broken_flash_attn():
+        assert transformers_utils.is_flash_attn_2_available() is False
+        with pytest.raises(ImportError, match="flash_attn disabled"):
+            __import__("flash_attn")
+
+    sys.modules.pop("flash_attn", None)
+
+
 # ── GPU tests ─────────────────────────────────────────────────────────────────
 
 

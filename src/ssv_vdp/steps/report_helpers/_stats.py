@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from ..common import (
-    _RUNNER_LABEL,
     _log,
     write_markdown_artifact,
 )
@@ -33,19 +32,21 @@ _STEP_LABELS: list[tuple[str, str, str]] = [
     ("PS_physical_state", "17 Analyze: Physical scene state",      "CPU fusion"),
     ("PS_field_state",    "18 Analyze: Environmental field state", "CPU fusion"),
     ("PS_threat_primitives", "19 Analyze: Threat primitives",      "CPU fusion"),
-    ("D_finetune",        "20 Adapt: SSL DINOv3 fine-tune",        "GPU train"),
-    ("E_distill",         "21 Adapt: Knowledge distillation",      "GPU train"),
-    ("E_distill_stage2",  "21b Adapt: Stage 2 distillation",       "GPU train"),
-    ("F_export",          "22 Export: ONNX + gallery",             "CPU"),
-    ("G_ft_search",       "23 Eval: Fine-tuned search test",       "GPU embed"),
-    ("H_compare",         "24 Eval: Model comparison",             "GPU embed"),
-    ("T_multimodel",      "25 Audit: Multi-model comparison",      "GPU vision"),
-    ("PS_local_threat",   "26 Analyze: Local threat inference",    "CPU fusion"),
-    ("PS_policy",         "27 Decide: Action policy",              "CPU policy"),
-    ("Z_synthesis",       "28 Synthesize: Ontology+narrative",     "LLM API"),
-    ("AA_agentic",        "29 Audit: Agentic flow",                "LLM API"),
-    ("AC_drone_detection","31 Train: Drone detection",             "GPU train"),
-    ("AB_model_advisor",  "32 Optimize: Model/run advisor",        "CPU analysis"),
+    ("D_finetune",        "21 Adapt: SSL DINOv3 fine-tune",        "GPU train"),
+    ("E_distill",         "22 Adapt: Knowledge distillation",      "GPU train"),
+    ("E_distill_stage2",  "23 Adapt: Stage 2 distillation",        "GPU train"),
+    ("F_export",          "24 Export: ONNX + gallery",             "CPU"),
+    ("G_ft_search",       "25 Eval: Fine-tuned search test",       "GPU embed"),
+    ("H_compare",         "26 Eval: Model comparison",             "GPU embed"),
+    ("T_multimodel",      "27 Audit: Multi-model comparison",      "GPU vision"),
+    ("PS_local_threat",   "28 Analyze: Local threat inference",    "CPU fusion"),
+    ("PS_policy",         "29 Decide: Action policy",              "CPU policy"),
+    ("Z_synthesis",       "30 Synthesize: Ontology+narrative",     "LLM API"),
+    ("AA_agentic",        "31 Audit: Agentic flow",                "LLM API"),
+    ("AC_drone_detection","32 Train: Drone detection",             "GPU train"),
+    ("AC_drone_audio",    "33 Train: Drone audio",                 "GPU train"),
+    ("AC_drau_eval",      "34 Eval: drau range",                   "CPU analysis"),
+    ("AB_model_advisor",  "35 Optimize: Model/run advisor",        "CPU analysis"),
 ]
 
 
@@ -248,7 +249,7 @@ def print_run_stats(
     from ..common import _banner
 
     names = [v.get("name", f"video{i}") for i, v in enumerate(per_video)]
-    LABEL_W = max(34, max((len(l) for _, l, _ in _STEP_LABELS), default=34) + 1)
+    LABEL_W = max(34, max((len(label) for _, label, _ in _STEP_LABELS), default=34) + 1)
     TYPE_W = max(14, max((len(t) for _, _, t in _STEP_LABELS), default=14) + 1)
     DUR_W = max(9, max((len(n) for n in names), default=9) + 1, len(_fmt_sec(total_elapsed)) + 1)
     n_vids = len(per_video)

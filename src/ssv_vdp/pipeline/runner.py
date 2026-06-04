@@ -28,22 +28,24 @@ from ..steps.common import (
 
 # -- Re-exports: keep every previously-public symbol importable from runner --
 from .runner_helpers import (  # noqa: F401
+    _SSL_GATE_MAX_LOSS,
+    _TOTAL_STEPS,
+    _VIDEO_EXTS,
     _append_agentic_step,
     _build_context_prompt,
+    _is_simple_agentic_audit,
+    _is_valid_agentic_flow_analysis,
     _emit_local_run_analytics,
+    _run_video_pipeline_safe,
     find_videos,
     init_models,
     init_store,
     resolve_local_videos,
     run_video_pipeline,
-    _run_video_pipeline_safe,
     step_agentic_flow_artifact,
     step_compare_and_describe,
     step_multi_model_compare,
     step_video_synthesis,
-    _TOTAL_STEPS,
-    _SSL_GATE_MAX_LOSS,
-    _VIDEO_EXTS,
 )
 
 _log = get_logger(__name__)
@@ -339,7 +341,10 @@ def run_local(args: Any) -> None:
             from selfsuvis.pipeline.fusion import persist_threat_memory
 
             from ..steps.threat.global_threat import step_global_threat
-            from ..steps.threat.threat_eval import write_threat_calibration, write_threat_eval_summary
+            from ..steps.threat.threat_eval import (
+                write_threat_calibration,
+                write_threat_eval_summary,
+            )
 
             global_threat_result = step_global_threat(output_dir, per_video_stats)
             persist_threat_memory(output_dir, per_video_stats, global_threat_result)
@@ -359,15 +364,15 @@ def run_local(args: Any) -> None:
     stats_path = output_dir / "final_stats.md"
     from selfsuvis.pipeline.fusion import persist_threat_memory
 
-    from ..steps.threat.global_threat import step_global_threat
     from ..steps.model_advisor import write_model_run_advisor
+    from ..steps.threat.global_threat import step_global_threat
     from ..steps.threat.threat_eval import write_threat_calibration, write_threat_eval_summary
 
     global_threat_result = step_global_threat(output_dir, per_video_stats)
     persist_threat_memory(output_dir, per_video_stats, global_threat_result)
     write_threat_calibration(output_dir, per_video_stats)
     write_threat_eval_summary(output_dir, per_video_stats)
-    _step(33, _TOTAL_STEPS, "Model/run advisor → model_run_advisor.md")
+    _step(35, _TOTAL_STEPS, "Model/run advisor → model_run_advisor.md")
     t_advisor = time.monotonic()
     env_values = {
         key: str(getattr(settings, key, "") or os.getenv(key, ""))
@@ -410,9 +415,9 @@ def run_local(args: Any) -> None:
     _log.info("")
     _log.info("  Next steps:")
     _log.info(
-        "    • Edge inference:  EdgeClassifier('edge_models/dino_local.onnx', 'edge_models/gallery.npz')"
+        "    - Edge inference:  EdgeClassifier('edge_models/dino_local.onnx', 'edge_models/gallery.npz')"
     )
-    _log.info("    • Full stack:      make up")
-    _log.info("    • Fine-tune rerun: DINO_CHECKPOINT=<path> python main.py --mode local")
+    _log.info("    - Full stack:      make up")
+    _log.info("    - Fine-tune rerun: DINO_CHECKPOINT=<path> python main.py --mode local")
     _log.info("")
     log_pipeline_finished(total_elapsed)

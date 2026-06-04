@@ -10,7 +10,7 @@ from typing import Any
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ...steps.common import _Timer, _banner, _step
+from ...steps.common import _banner, _step, _Timer
 from ._agentic import _append_agentic_step
 
 _log = get_logger(__name__)
@@ -41,7 +41,6 @@ def run_phase2(
     """Run Steps 03-20. Returns dict of step results needed by later phases."""
     from ...steps.caption import (
         _models_on_device,
-        _offload_models_to_cpu,
         _prep_vram_for_step,
         _restore_models_to_gpu,
         _unload_ollama_model,
@@ -57,13 +56,13 @@ def run_phase2(
         step_world_model_pass,
     )
     from ...steps.perception.embed import step_base_model_search_test
-    from ...steps.state.fusion import step_full_state_fusion, step_platform_state_fusion
     from ...steps.perception.gemma_tracking import step_gemma_directed_tracking
     from ...steps.perception.map import step_advise_3d_map_quality, step_create_3d_map
-    from ...steps.report import write_multimodal_md
     from ...steps.perception.scenetok import step_scenetok
     from ...steps.perception.semantic_graph import step_build_semantic_environment_graph
     from ...steps.perception.yolo_sam import step_yolo_sam_detection
+    from ...steps.report import write_multimodal_md
+    from ...steps.state.fusion import step_full_state_fusion, step_platform_state_fusion
 
     _banner("Phase 2 — Multimodal analysis (parallel)")
     _map_executor = _cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="sfm-bg")
@@ -189,6 +188,8 @@ def run_phase2(
                 video_dir,
                 gemma_api_url=_gemma_url_4b,
                 gemma_api_model=getattr(args, "gemma_api_model", "") or settings.GEMMA_API_MODEL,
+                gemma_api_backend=getattr(args, "gemma_api_backend", "")
+                or settings.GEMMA_API_BACKEND,
             )
     else:
         T["L_seg_caps"] = 0.0
@@ -844,7 +845,6 @@ def run_phase2(
     )
 
     # Full probabilistic state fusion
-    import numpy as _np
 
     _rssm_mean: float | None = None
     if world_result and not world_result.get("skipped"):

@@ -12,7 +12,7 @@ import numpy as np
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ...steps.common import _Timer, _banner, _step
+from ...steps.common import _banner, _step, _Timer
 from ._agentic import _append_agentic_step
 
 _log = get_logger(__name__)
@@ -52,13 +52,13 @@ def run_phase3(
     knowledge: Any,
 ) -> dict[str, Any]:
     """Run Steps 21-26. Returns dict with ssl_gate_passed, ft_results, clip_dino_on_gpu."""
+    from ...steps.adaptation.distill import step_distill, step_distill_stage2, step_export_model
     from ...steps.caption import (
         _guard_min_free_vram,
         _models_on_device,
         _prep_vram_for_step,
         _restore_models_to_gpu,
     )
-    from ...steps.adaptation.distill import step_distill, step_distill_stage2, step_export_model
     from ...steps.perception.embed import step_finetuned_model_search_test
     from ._compare import step_compare_and_describe
 
@@ -440,7 +440,7 @@ def run_phase3(
 
     # Step 26: Model comparison + description
     if ssl_gate_passed:
-        _step(25, _TOTAL_STEPS, "Model comparison + video description → comparison.md, description.md")
+        _step(26, _TOTAL_STEPS, "Model comparison + video description → comparison.md, description.md")
         with _Timer(T, "H_compare"):
             g = step_compare_and_describe(
                 frame_list, store, is_qdrant, base_results, ft_results, models,

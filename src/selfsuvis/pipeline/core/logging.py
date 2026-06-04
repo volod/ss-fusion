@@ -14,6 +14,33 @@ _queue_listener: "logging.handlers.QueueListener | None" = None
 _queue_stopped = False
 _sink: "logging.StreamHandler | None" = None
 
+_ASCII_REPLACEMENTS = str.maketrans(
+    {
+        "→": "->",
+        "←": "<-",
+        "↔": "<->",
+        "—": "--",
+        "–": "-",
+        "…": "...",
+        "×": "x",
+        "≥": ">=",
+        "≤": "<=",
+        "≈": "~",
+        "·": "-",
+        "•": "-",
+        "✓": "[ok]",
+        "✅": "[ok]",
+        "✗": "[x]",
+        "↓": "down ",
+    }
+)
+
+
+def _ascii_log_text(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    return value.translate(_ASCII_REPLACEMENTS).encode("ascii", "replace").decode("ascii")
+
 
 class _CompactFormatter(logging.Formatter):
     """mm:ss,mmm LEVEL leaf_name   message  (date printed once at startup)."""
@@ -26,6 +53,12 @@ class _CompactFormatter(logging.Formatter):
         # Avoid mutating the original record (it may be reused by other handlers).
         copy = logging.makeLogRecord(record.__dict__)
         copy.name = record.name.split(".")[-1]
+        copy.msg = _ascii_log_text(copy.msg)
+        if copy.args:
+            if isinstance(copy.args, dict):
+                copy.args = {key: _ascii_log_text(value) for key, value in copy.args.items()}
+            else:
+                copy.args = tuple(_ascii_log_text(arg) for arg in copy.args)
         return super().format(copy)
 
 

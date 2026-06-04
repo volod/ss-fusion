@@ -13,7 +13,9 @@ caption_batch() contract:
 """
 
 import logging
+from contextlib import contextmanager
 from pathlib import Path
+from types import ModuleType
 
 import torch
 from PIL import Image
@@ -28,6 +30,7 @@ _MODEL_BASE_NAME = "florence-2-large"
 logger = get_logger(__name__)
 
 _TRANSFORMERS5_PATCHES_APPLIED = False
+_FLASH_ATTN_WARNING_LOGGED = False
 
 
 def _apply_florence2_transformers5_patches() -> None:
@@ -98,6 +101,82 @@ def _best_attn_impl() -> str:
     so sdpa triggers an AttributeError on load.  Eager is the only safe choice.
     """
     return "eager"
+
+
+def _flash_attn_import_error() -> str | None:
+    """Return the import error for flash_attn, or None when it is importable."""
+    try:
+        import flash_attn  # noqa: F401
+    except Exception as exc:
+        return str(exc)
+    return None
+
+
+@contextmanager
+def _hide_broken_flash_attn():
+    """Make transformers trust_remote_code see FlashAttention as unavailable.
+
+    Some Florence-2 cached model code imports flash_attn when transformers'
+    metadata-based availability check returns true. If the installed wheel is
+    ABI-incompatible with the active torch build, that import fails before eager
+    attention can be used. The context only masks FlashAttention when importing
+    it already fails.
+    """
+    flash_error = _flash_attn_import_error()
+    if flash_error is None:
+        yield
+        return
+
+    import importlib.abc
+    import sys
+
+    class _BrokenFlashAttnFinder(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname: str, path: object | None, target: object | None = None):
+            if fullname == "flash_attn" or fullname.startswith("flash_attn."):
+                raise ImportError(f"flash_attn disabled for Florence-2 eager load: {flash_error}")
+            return None
+
+    finder = _BrokenFlashAttnFinder()
+    previous_modules = {
+        name: module
+        for name, module in list(sys.modules.items())
+        if name == "flash_attn" or name.startswith("flash_attn.")
+    }
+    for name in previous_modules:
+        sys.modules.pop(name, None)
+
+    import transformers.utils as transformers_utils
+    import transformers.utils.import_utils as transformers_import_utils
+
+    patched: list[tuple[ModuleType, str, object]] = []
+    for module in (transformers_utils, transformers_import_utils):
+        for attr in ("is_flash_attn_2_available", "is_flash_attn_greater_or_equal_2_10"):
+            if hasattr(module, attr):
+                func = getattr(module, attr)
+                cache_clear = getattr(func, "cache_clear", None)
+                if callable(cache_clear):
+                    cache_clear()
+                patched.append((module, attr, func))
+                setattr(module, attr, lambda *args, **kwargs: False)
+
+    global _FLASH_ATTN_WARNING_LOGGED
+    if not _FLASH_ATTN_WARNING_LOGGED:
+        logger.warning(
+            "flash_attn import failed (%s); loading Florence-2 with eager attention", flash_error
+        )
+        _FLASH_ATTN_WARNING_LOGGED = True
+    sys.meta_path.insert(0, finder)
+    try:
+        yield
+    finally:
+        if finder in sys.meta_path:
+            sys.meta_path.remove(finder)
+        for module, attr, original in patched:
+            setattr(module, attr, original)
+            cache_clear = getattr(original, "cache_clear", None)
+            if callable(cache_clear):
+                cache_clear()
+        sys.modules.update(previous_modules)
 
 
 def _sanitize_model_inputs(inputs: object, *, device: str, dtype: torch.dtype) -> dict:
@@ -246,13 +325,14 @@ class FlorenceModel:
             "local_files_only": isinstance(source, Path),
         }
 
-        with suppress_runtime_noise(
-            r".*Florence2Processor.*image_processor_class = 'CLIPImageProcessor'.*deprecated.*",
-            r".*doesn't directly inherit from `GenerationMixin`.*",
-            r".*will lose the ability to call `generate` and other related functions.*",
-            logger_levels={"transformers": logging.ERROR},
-        ):
-            self._processor = AutoProcessor.from_pretrained(source_label, **load_common_kwargs)
+        with _hide_broken_flash_attn():
+            with suppress_runtime_noise(
+                r".*Florence2Processor.*image_processor_class = 'CLIPImageProcessor'.*deprecated.*",
+                r".*doesn't directly inherit from `GenerationMixin`.*",
+                r".*will lose the ability to call `generate` and other related functions.*",
+                logger_levels={"transformers": logging.ERROR},
+            ):
+                self._processor = AutoProcessor.from_pretrained(source_label, **load_common_kwargs)
         attn_impl = _best_attn_impl()
         # Flash Attention 2.0 requires float16 or bfloat16; fall back to sdpa for float32.
         if attn_impl == "flash_attention_2" and torch_dtype == torch.float32:
@@ -271,12 +351,13 @@ class FlorenceModel:
         if self.device == "cuda":
             load_kwargs["device_map"] = "auto" if torch.cuda.device_count() > 1 else {"": 0}
         try:
-            with suppress_runtime_noise(
-                r".*doesn't directly inherit from `GenerationMixin`.*",
-                r".*will lose the ability to call `generate` and other related functions.*",
-                logger_levels={"transformers": logging.ERROR},
-            ):
-                self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
+            with _hide_broken_flash_attn():
+                with suppress_runtime_noise(
+                    r".*doesn't directly inherit from `GenerationMixin`.*",
+                    r".*will lose the ability to call `generate` and other related functions.*",
+                    logger_levels={"transformers": logging.ERROR},
+                ):
+                    self._model = AutoModelForCausalLM.from_pretrained(source_label, **load_kwargs)
         except TypeError as exc:
             # Older Florence-2 trust_remote_code paths may still reject `dtype`
             # and require the legacy `torch_dtype` kwarg instead.
@@ -287,12 +368,13 @@ class FlorenceModel:
             }
             fallback_kwargs["torch_dtype"] = torch_dtype
             fallback_kwargs["attn_implementation"] = "eager"
-            with suppress_runtime_noise(
-                r".*doesn't directly inherit from `GenerationMixin`.*",
-                r".*will lose the ability to call `generate` and other related functions.*",
-                logger_levels={"transformers": logging.ERROR},
-            ):
-                self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+            with _hide_broken_flash_attn():
+                with suppress_runtime_noise(
+                    r".*doesn't directly inherit from `GenerationMixin`.*",
+                    r".*will lose the ability to call `generate` and other related functions.*",
+                    logger_levels={"transformers": logging.ERROR},
+                ):
+                    self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
         except AttributeError as exc:
             # Florence-2 custom code (trust_remote_code) may lack _supports_sdpa in
             # some transformers versions — retry without attn_implementation.
@@ -301,12 +383,13 @@ class FlorenceModel:
             logger.warning("Florence-2 SDPA check failed (%s) — retrying with eager attention", exc)
             fallback_kwargs = {k: v for k, v in load_kwargs.items() if k != "attn_implementation"}
             fallback_kwargs["attn_implementation"] = "eager"
-            with suppress_runtime_noise(
-                r".*doesn't directly inherit from `GenerationMixin`.*",
-                r".*will lose the ability to call `generate` and other related functions.*",
-                logger_levels={"transformers": logging.ERROR},
-            ):
-                self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+            with _hide_broken_flash_attn():
+                with suppress_runtime_noise(
+                    r".*doesn't directly inherit from `GenerationMixin`.*",
+                    r".*will lose the ability to call `generate` and other related functions.*",
+                    logger_levels={"transformers": logging.ERROR},
+                ):
+                    self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
             self._generation_mode = "eager"
         if self.device != "cuda":
             self._model = self._model.to(self.device)

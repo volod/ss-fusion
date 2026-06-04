@@ -164,6 +164,34 @@ def _collect_split(split_dir: Path) -> list[tuple[Path, int]]:
     return items
 
 
+def _label_name_to_dir(name: str) -> str:
+    """Map dataset class names to the canonical audio directory names."""
+    normalised = name.strip().lower().replace("-", "_").replace(" ", "_")
+    negative_tokens = (
+        "no_drone",
+        "non_drone",
+        "not_drone",
+        "negative",
+        "background",
+        "ambient",
+        "noise",
+        "no_uav",
+        "non_uav",
+    )
+    positive_tokens = ("drone", "uav", "quadcopter", "positive")
+    if any(token in normalised for token in negative_tokens):
+        return "no_drone"
+    if any(token in normalised for token in positive_tokens):
+        return "drone"
+    return "no_drone"
+
+
+def _label_to_dir(lbl: int, label_names: list[str]) -> str:
+    if label_names and 0 <= lbl < len(label_names):
+        return _label_name_to_dir(label_names[lbl])
+    return "drone" if lbl == 1 else "no_drone"
+
+
 def _download_hf_dataset(cache_dir: Path) -> bool:
     """Download dataset from HuggingFace and organise into train/val/no_drone/drone dirs."""
     try:
@@ -199,12 +227,6 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
         pass
     _log.info("Label names: %s", label_names or "(int: 0=no_drone, 1=drone assumed)")
 
-    def _label_to_dir(lbl: int) -> str:
-        if label_names:
-            name = label_names[lbl].lower()
-            return "drone" if "drone" in name else "no_drone"
-        return "drone" if lbl == 1 else "no_drone"
-
     import io as _io
 
     import soundfile as _sf
@@ -234,7 +256,7 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
                     arr,
                 ).astype(np.float32)
 
-            subdir = _label_to_dir(int(label))
+            subdir = _label_to_dir(int(label), label_names)
             out_dir = cache_dir / split_name / subdir
             out_dir.mkdir(parents=True, exist_ok=True)
             out_path = out_dir / f"{split_name}_{i:06d}.wav"
@@ -604,6 +626,34 @@ def step_drone_audio_training(
         "drone": sum(1 for _, lbl in val_items if lbl == 1),
         "no_drone": sum(1 for _, lbl in val_items if lbl == 0),
     }
+
+    missing_train = [name for name, count in train_counts.items() if count == 0]
+    missing_val = [name for name, count in val_counts.items() if count == 0]
+    if missing_train or missing_val:
+        _log.warning(
+            "Drone audio dataset is not class-balanced enough to train: "
+            "train=%s val=%s. Rebuild %s with both drone and no_drone samples.",
+            train_counts,
+            val_counts,
+            cache_dir,
+        )
+        result["skipped"] = True
+        result["error"] = (
+            "drone audio dataset must contain both drone and no_drone samples "
+            "in train and val splits"
+        )
+        _write_report(
+            audio_dir / "drone_audio_report.md",
+            cache_dir,
+            n_train,
+            n_val,
+            train_counts,
+            val_counts,
+            {},
+            None,
+            time.monotonic() - t0,
+        )
+        return result
 
     try:
         import torch  # noqa: F401

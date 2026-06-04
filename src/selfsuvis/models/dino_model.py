@@ -55,8 +55,21 @@ def _set_dino_xformers_enabled(enabled: bool) -> None:
     """Toggle dinov2 xFormers attention for already-imported hub modules."""
     import sys
 
-    for mod_name, mod in sys.modules.items():
+    for mod_name, mod in list(sys.modules.items()):
         if "dinov2" in mod_name and hasattr(mod, "XFORMERS_AVAILABLE"):
+            if enabled:
+                has_symbols = hasattr(mod, "memory_efficient_attention") and hasattr(mod, "unbind")
+                if not has_symbols:
+                    try:
+                        from xformers.ops import (  # type: ignore[import-untyped]
+                            memory_efficient_attention,
+                            unbind,
+                        )
+                    except Exception:
+                        mod.XFORMERS_AVAILABLE = False
+                        continue
+                    mod.memory_efficient_attention = memory_efficient_attention
+                    mod.unbind = unbind
             mod.XFORMERS_AVAILABLE = enabled
 
 

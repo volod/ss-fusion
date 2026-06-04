@@ -20,6 +20,7 @@ def _write_frame(path: Path, color: tuple[int, int, int]) -> None:
 
 _STUB_MODULE_NAMES = [
     "ssv_vdp.steps.gemma_tracking",
+    "ssv_vdp.steps.perception",
     "pipeline",
     "selfsuvis.pipeline.core",
     "selfsuvis.pipeline.vision",
@@ -51,6 +52,9 @@ def _load_steps_module():
         RFDETR_CONFIDENCE=0.35,
         SAM_ENABLED=True,
         GEMMA_API_TIMEOUT_SEC=60,
+        GEMMA_TRACKING_MAX_SAMPLE_FRAMES=12,
+        GEMMA_CACHE_RESPONSES=False,
+        GEMMA_SLOW_CALL_SEC=30,
     )
     core_mod = types.ModuleType("selfsuvis.pipeline.core")
     core_mod.settings = settings
@@ -101,6 +105,12 @@ def _load_steps_module():
     local_pkg = types.ModuleType("selfsuvis.pipeline.workflows.local")
     local_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline/workflows/local")]
     sys.modules["selfsuvis.pipeline.workflows.local"] = local_pkg
+
+    # Stub the perception package so its __init__.py (which imports embed.py →
+    # OpenCLIPEmbedder → heavy pipeline deps) is never executed.
+    perception_pkg = types.ModuleType("ssv_vdp.steps.perception")
+    perception_pkg.__path__ = [str(ROOT / "src/ssv_vdp/steps/perception")]
+    sys.modules["ssv_vdp.steps.perception"] = perception_pkg
 
     common_mod = types.ModuleType("ssv_vdp.steps.common")
     common_mod._log = types.SimpleNamespace(
@@ -234,6 +244,9 @@ def test_sam_directed_by_gemma_path_b_is_pure_fallback_not_supplement():
 
 def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeypatch, tmp_path):
     tracking = _load_steps_module()
+    # Patches must target the perception module (where step_gemma_directed_tracking
+    # looks up its globals), not the shim module.
+    _pm = sys.modules["ssv_vdp.steps.perception.gemma_tracking"]
 
     frame_a = tmp_path / "frame_a.jpg"
     frame_b = tmp_path / "frame_b.jpg"
@@ -256,7 +269,7 @@ def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeyp
         "tracking_priority": ["vehicle"],
     }
     monkeypatch.setattr(
-        tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene
+        _pm, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene
     )
 
     class FakeTracker:
@@ -291,7 +304,7 @@ def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeyp
             pass
 
     fake_tracker = FakeTracker()
-    monkeypatch.setattr(tracking, "RFDETRTracker", lambda: fake_tracker)
+    monkeypatch.setattr(_pm, "RFDETRTracker", lambda: fake_tracker)
 
     class FakeSAMPredictor:
         def is_available(self) -> bool:
@@ -306,7 +319,7 @@ def test_step_gemma_directed_tracking_writes_outputs_and_tracks_priority(monkeyp
     monkeypatch.setattr(tracking.settings, "SAM_ENABLED", True)
     monkeypatch.setattr(tracking.settings, "GEMMA_API_TIMEOUT_SEC", 3.0)
     monkeypatch.setattr(
-        tracking,
+        _pm,
         "_sam_directed_by_gemma",
         lambda *_args, **_kwargs: [
             {
@@ -358,6 +371,7 @@ def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pa
     monkeypatch, tmp_path
 ):
     tracking = _load_steps_module()
+    _pm = sys.modules["ssv_vdp.steps.perception.gemma_tracking"]
 
     frame_a = tmp_path / "frame_a.jpg"
     _write_frame(frame_a, (255, 0, 0))
@@ -371,7 +385,7 @@ def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pa
         "tracking_priority": ["vehicle"],
     }
     monkeypatch.setattr(
-        tracking, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene
+        _pm, "_gemma_structured_scene_analysis", lambda *args, **kwargs: gemma_scene
     )
 
     class FakeTracker:
@@ -406,7 +420,7 @@ def test_step_gemma_directed_tracking_retries_without_label_filter_when_first_pa
         def release(self) -> None:
             pass
 
-    monkeypatch.setattr(tracking, "RFDETRTracker", FakeTracker)
+    monkeypatch.setattr(_pm, "RFDETRTracker", FakeTracker)
     monkeypatch.setattr(tracking.settings, "RFDETR_ENABLED", True)
     monkeypatch.setattr(tracking.settings, "SAM_ENABLED", False)
     monkeypatch.setattr(tracking.settings, "GEMMA_API_TIMEOUT_SEC", 3.0)
