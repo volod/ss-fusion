@@ -391,6 +391,7 @@ def step_export_model(
                 _log.warning("  ONNX export ran but file not found at %s", onnx_path)
             try:
                 from selfsuvis.models.dino_model import _set_dino_xformers_enabled
+
                 _set_dino_xformers_enabled(device.startswith("cuda"))
             except Exception:
                 pass
@@ -399,6 +400,7 @@ def step_export_model(
             _log.warning("  ONNX export failed (%s) — skipping", exc)
             try:
                 from selfsuvis.models.dino_model import _set_dino_xformers_enabled
+
                 _set_dino_xformers_enabled(device.startswith("cuda"))
             except Exception:
                 pass

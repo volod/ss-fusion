@@ -105,7 +105,9 @@ def _is_florence2_complete(model_id: str) -> bool:
     try:
         from huggingface_hub import try_to_load_from_cache
 
-        return try_to_load_from_cache(repo_id=model_id, filename="modeling_florence2.py") is not None
+        return (
+            try_to_load_from_cache(repo_id=model_id, filename="modeling_florence2.py") is not None
+        )
     except Exception:
         return False
 

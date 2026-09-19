@@ -105,7 +105,10 @@ def write_multimodal_md(
         lines += ["## Depth — Percentile Summary (sample)", ""]
         depth_rows = [r for r in depth_result.get("depth_results", []) if r.get("depth")][:5]
         if depth_rows:
-            lines += ["| t (s) | p10 | p25 | p50 | p75 | p90 |", "|-------|-----|-----|-----|-----|-----|"]
+            lines += [
+                "| t (s) | p10 | p25 | p50 | p75 | p90 |",
+                "|-------|-----|-----|-----|-----|-----|",
+            ]
             for r in depth_rows:
                 p = r["depth"].get("percentiles", [0] * 5)
                 lines.append(
@@ -186,14 +189,21 @@ def write_detailed_captions_md(
     model_id: str,
 ) -> None:
     ok = sum(
-        1 for r in results
+        1
+        for r in results
         if not r.get("service_unavailable") and not r.get("skipped") and not r.get("parse_error")
     )
     parse_errors = sum(1 for r in results if r.get("parse_error"))
     unavailable = sum(1 for r in results if r.get("service_unavailable"))
 
     text_results = [
-        {**r, "caption": r.get("scene_summary") or r.get("caption") or r.get("scene_description") or ""}
+        {
+            **r,
+            "caption": r.get("scene_summary")
+            or r.get("caption")
+            or r.get("scene_description")
+            or "",
+        }
         for r in results
         if not r.get("service_unavailable") and not r.get("skipped") and not r.get("parse_error")
     ]
@@ -205,16 +215,18 @@ def write_detailed_captions_md(
     segments: list[dict[str, Any]] = []
     for r in enriched_valid:
         if r["is_new_segment"]:
-            segments.append({
-                "segment_id": r["segment_id"],
-                "start_t": r["t_sec"],
-                "end_t": r["t_sec"],
-                "frame_count": 1,
-                "scene_summary": r.get("scene_summary") or r.get("caption") or "",
-                "road_surface": r.get("road_surface", ""),
-                "road_condition": r.get("road_condition", ""),
-                "vehicle_groups": r.get("vehicle_groups", []),
-            })
+            segments.append(
+                {
+                    "segment_id": r["segment_id"],
+                    "start_t": r["t_sec"],
+                    "end_t": r["t_sec"],
+                    "frame_count": 1,
+                    "scene_summary": r.get("scene_summary") or r.get("caption") or "",
+                    "road_surface": r.get("road_surface", ""),
+                    "road_condition": r.get("road_condition", ""),
+                    "vehicle_groups": r.get("vehicle_groups", []),
+                }
+            )
         elif segments:
             segments[-1]["end_t"] = r["t_sec"]
             segments[-1]["frame_count"] += 1
@@ -285,11 +297,21 @@ def write_detailed_captions_md(
             facts = r.get("scene_summary") or r.get("caption") or r.get("scene_description") or ""
             if not facts:
                 parts = [
-                    f"{k}: {v}" for k, v in r.items()
-                    if k not in (
-                        "frame_path", "t_sec", "subtitle_text", "ocr_text", "segment_id",
-                        "is_new_segment", "similarity", "segment_start_t", "caption",
-                    ) and v
+                    f"{k}: {v}"
+                    for k, v in r.items()
+                    if k
+                    not in (
+                        "frame_path",
+                        "t_sec",
+                        "subtitle_text",
+                        "ocr_text",
+                        "segment_id",
+                        "is_new_segment",
+                        "similarity",
+                        "segment_start_t",
+                        "caption",
+                    )
+                    and v
                 ]
                 facts = "; ".join(parts[:4])
             caption = str(facts).replace("|", "\\|")[:200]
@@ -375,11 +397,13 @@ def write_multi_model_comparison_md(
     from ..common import _jaccard
 
     qwen_rows = [
-        r for r in qwen_result.get("results", [])
+        r
+        for r in qwen_result.get("results", [])
         if not r.get("service_unavailable") and not r.get("parse_error")
     ]
     uni_rows = [
-        r for r in unidrive_result.get("results", [])
+        r
+        for r in unidrive_result.get("results", [])
         if not r.get("service_unavailable") and not r.get("parse_error")
     ]
 
@@ -403,17 +427,24 @@ def write_multi_model_comparison_md(
         u_summary = str(u_under.get("scene_summary", "") or "")
         moe_summary = str(u_moe.get("consensus_summary", "") or "")
         agreement_scores.append(_jaccard(q_summary, u_summary or moe_summary))
-        example_rows.append((
-            float(u.get("t_sec", 0.0)), q_summary, u_summary,
-            moe_summary, str(u_moe.get("expert_agreement", "unknown") or "unknown"),
-        ))
+        example_rows.append(
+            (
+                float(u.get("t_sec", 0.0)),
+                q_summary,
+                u_summary,
+                moe_summary,
+                str(u_moe.get("expert_agreement", "unknown") or "unknown"),
+            )
+        )
 
     mean_agreement = float(np.mean(agreement_scores)) if agreement_scores else 0.0
     clf = (gemma_result.get("task_results", {}) or {}).get("scene_classification", {}) or {}
     gemma_scene = next(iter((clf.get("category_distribution") or {}).keys()), "")
 
     risk_levels = [((r.get("understanding") or {}).get("risk_level", "unknown")) for r in uni_rows]
-    agreement_levels = [((r.get("mixture_of_experts") or {}).get("expert_agreement", "unknown")) for r in uni_rows]
+    agreement_levels = [
+        ((r.get("mixture_of_experts") or {}).get("expert_agreement", "unknown")) for r in uni_rows
+    ]
 
     lines = [
         f"# Multi-Model Comparison — {video_name}",
@@ -442,9 +473,9 @@ def write_multi_model_comparison_md(
     ]
     for t_sec, q_sum, u_sum, moe_sum, expert_agreement in example_rows:
         lines.append(
-            f"| {t_sec:.1f} | {q_sum.replace('|', chr(92)+'|')[:60]} | "
-            f"{u_sum.replace('|', chr(92)+'|')[:60]} | "
-            f"{moe_sum.replace('|', chr(92)+'|')[:60]} | {expert_agreement} |"
+            f"| {t_sec:.1f} | {q_sum.replace('|', chr(92) + '|')[:60]} | "
+            f"{u_sum.replace('|', chr(92) + '|')[:60]} | "
+            f"{moe_sum.replace('|', chr(92) + '|')[:60]} | {expert_agreement} |"
         )
     lines += [
         "",

@@ -67,7 +67,11 @@ def run_phase4(
             title="Multi-model comparison",
             description="Compare Gemma, Qwen, and UniDriveVLA outputs and expose UniDrive mixture-of-experts agreement signals.",
             status="ok",
-            context_inputs=["Gemma summary", "Qwen structured scene facts", "UniDrive expert outputs"],
+            context_inputs=[
+                "Gemma summary",
+                "Qwen structured scene facts",
+                "UniDrive expert outputs",
+            ],
             context_outputs=[
                 f"{mm.get('matched_frames', 0)} matched comparison frames",
                 f"Qwen/UniDrive agreement {mm.get('mean_qwen_unidrive_agreement', 0.0):.3f}",
@@ -126,7 +130,9 @@ def run_phase4(
             "clip-level aggregation can hide when a threat is localized to a brief segment",
             "threat estimate can be over-trusted if policy and sensor-health checks are skipped downstream",
         ],
-        artifacts=["local_threat_assessment.json"] if not local_threat_result.get("skipped") else [],
+        artifacts=["local_threat_assessment.json"]
+        if not local_threat_result.get("skipped")
+        else [],
     )
 
     # Step 29: Action policy
@@ -154,7 +160,11 @@ def run_phase4(
         title="Action policy",
         description="Map the threat estimate, confidence, and sensor-health context into a fixed action vocabulary without changing the threat score semantics.",
         status="ok" if not policy_result.get("skipped") else "skipped",
-        context_inputs=["local threat estimate", "automation confidence", "sensor-health indicators"],
+        context_inputs=[
+            "local threat estimate",
+            "automation confidence",
+            "sensor-health indicators",
+        ],
         context_outputs=[
             f"recommended action {policy_result.get('recommended_action', 'continue')}",
             f"policy reason {policy_result.get('policy_reason', 'n/a')}",
@@ -175,7 +185,9 @@ def run_phase4(
     _qwen_url = getattr(args, "qwen_api_url", "") or settings.QWEN_API_URL
     _qwen_model = getattr(args, "qwen_model", "") or settings.QWEN_MODEL
     with _Timer(T, "Z_synthesis"):
-        step_video_synthesis(video_name, video_dir, video_context, api_url=_qwen_url, model=_qwen_model)
+        step_video_synthesis(
+            video_name, video_dir, video_context, api_url=_qwen_url, model=_qwen_model
+        )
     _append_agentic_step(
         agentic_trace,
         step_id="29",
@@ -183,10 +195,14 @@ def run_phase4(
         description="Use accumulated multimodal context to generate a structured ontology and narrative summary of the whole video.",
         status="ok" if _qwen_url else "skipped",
         context_inputs=[
-            "Gemma summary", "captions, ASR, OCR, detections, Qwen frame reasoning",
-            "local threat assessment", "retrieval description and map summary",
+            "Gemma summary",
+            "captions, ASR, OCR, detections, Qwen frame reasoning",
+            "local threat assessment",
+            "retrieval description and map summary",
         ],
-        context_outputs=["video ontology", "global narrative summary"] if _qwen_url else ["no synthesis output"],
+        context_outputs=["video ontology", "global narrative summary"]
+        if _qwen_url
+        else ["no synthesis output"],
         risks=[
             "final narrative can collapse uncertain evidence into a single confident story",
             "contradictions across modalities may be hidden in the synthesized summary",
@@ -235,8 +251,14 @@ def run_phase4(
             [
                 (_agentic_url, _agentic_model),
                 (_qwen_url, _qwen_model),
-                (getattr(args, "unidrive_api_url", "") or settings.UNIDRIVE_API_URL, getattr(args, "unidrive_model", "") or settings.UNIDRIVE_MODEL),
-                (getattr(args, "gemma_api_url", "") or settings.GEMMA_API_URL, getattr(args, "gemma_api_model", "") or settings.GEMMA_API_MODEL),
+                (
+                    getattr(args, "unidrive_api_url", "") or settings.UNIDRIVE_API_URL,
+                    getattr(args, "unidrive_model", "") or settings.UNIDRIVE_MODEL,
+                ),
+                (
+                    getattr(args, "gemma_api_url", "") or settings.GEMMA_API_URL,
+                    getattr(args, "gemma_api_model", "") or settings.GEMMA_API_MODEL,
+                ),
             ]
         )
 
@@ -246,6 +268,7 @@ def run_phase4(
         _drone_enabled = True  # on by default when not explicitly disabled
     if _drone_enabled:
         from ...steps.edge.drone_detection import step_drone_detection_training
+
         _step(32, _TOTAL_STEPS, "Drone detection training → drone_detection/")
         _append_agentic_step(
             agentic_trace,
@@ -257,7 +280,11 @@ def run_phase4(
             ),
             status="ok",
             context_inputs=["extracted mission frames", "seraphim HF dataset batch_001"],
-            context_outputs=["drone_yolo8n_a76.onnx", "drone_yolo8n_rv1106_int8.onnx", "drone_detection_report.md"],
+            context_outputs=[
+                "drone_yolo8n_a76.onnx",
+                "drone_yolo8n_rv1106_int8.onnx",
+                "drone_detection_report.md",
+            ],
             risks=[
                 "small dataset subset limits generalisation",
                 "false positives increase without sufficient hard negatives",
@@ -278,7 +305,11 @@ def run_phase4(
             "[ok]" if drone_result.get("model_rknn") else "skipped",
         )
     else:
-        _step(32, _TOTAL_STEPS, "Drone detection training (skipped — pass --drone-detection to enable)")
+        _step(
+            32,
+            _TOTAL_STEPS,
+            "Drone detection training (skipped — pass --drone-detection to enable)",
+        )
 
     # Step 33: Drone audio detection model training
     _audio_enabled = getattr(args, "drone_audio", None)
@@ -286,6 +317,7 @@ def run_phase4(
         _audio_enabled = True  # on by default when not explicitly disabled
     if _audio_enabled:
         from ...steps.edge.drone_audio import step_drone_audio_training
+
         _step(33, _TOTAL_STEPS, "Drone audio training → drone_audio/")
         _append_agentic_step(
             agentic_trace,
@@ -297,7 +329,10 @@ def run_phase4(
                 ".data/drone-audio-data/; export ONNX for edge inference."
             ),
             status="ok",
-            context_inputs=[".data/drone-audio-data/train/drone/*.wav", ".data/drone-audio-data/train/no_drone/*.wav"],
+            context_inputs=[
+                ".data/drone-audio-data/train/drone/*.wav",
+                ".data/drone-audio-data/train/no_drone/*.wav",
+            ],
             context_outputs=["drone_audio_cnn.pt", "drone_audio_cnn.onnx", "drone_audio_report.md"],
             risks=[
                 "datasets library required for first-time HF download",
@@ -326,6 +361,7 @@ def run_phase4(
         _drau_enabled = _drau_onnx.exists()
     if _drau_enabled:
         from ...steps.edge.drau_eval import step_drau_range_eval
+
         _step(34, _TOTAL_STEPS, "drau range eval → drone_audio/drau_range_report.md")
         _append_agentic_step(
             agentic_trace,

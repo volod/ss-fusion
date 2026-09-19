@@ -210,6 +210,7 @@ def _download_hf_dataset(cache_dir: Path) -> bool:
         # datasets ≥ 3.x for audio column decoding; we decode the raw bytes with
         # soundfile instead (already installed as part of the sensor extras).
         from datasets import Audio  # type: ignore[import]
+
         ds = load_dataset(_HF_REPO, cache_dir=str(cache_dir / "_hf_cache"))
         ds = {split: sd.cast_column("audio", Audio(decode=False)) for split, sd in ds.items()}
     except Exception as exc:
@@ -553,7 +554,7 @@ def _write_report(
         "ssv-prepare-audio  # or: ssv-split-audio",
         "",
         "# Re-run audio training step with more epochs",
-        "selfsuvis --mode local --drone-audio --drone-audio-epochs 20",
+        "ssv --mode local --drone-audio --drone-audio-epochs 20",
         "```",
     ]
     write_markdown_artifact(path, lines)

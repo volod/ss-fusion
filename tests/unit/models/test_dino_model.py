@@ -1,6 +1,5 @@
 """Tests for DINO model loading logic: alias resolution, HF wrapper, embed-dim lookup."""
 
-import os
 from unittest.mock import patch
 
 import pytest
@@ -60,8 +59,9 @@ def test_resolve_dino_hub_returns_github_when_no_cache():
 
 
 def test_hf_dino_wrapper_returns_cls_token():
-    import torch
     from types import SimpleNamespace
+
+    import torch
 
     from selfsuvis.models.dino_model import _HFDINOWrapper
 
@@ -105,4 +105,6 @@ def test_dino_embed_dim_does_not_include_reg_variants():
     from selfsuvis.models.dino_model import _DINO_EMBED_DIM
 
     for key in _DINO_EMBED_DIM:
-        assert not key.endswith("_reg"), f"_reg variant {key} should not have its own embed-dim entry"
+        assert not key.endswith("_reg"), (
+            f"_reg variant {key} should not have its own embed-dim entry"
+        )

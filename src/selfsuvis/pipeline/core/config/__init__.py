@@ -11,20 +11,21 @@ from selfsuvis.pipeline.core.logging import get_logger
 # package_root and repo_root as the old core/config.py did.
 _load_layered_env(anchor_file=str(_Path(__file__).parent.parent / "env.py"))
 
+# The imports below must run after the layered .env load above.
 from ._helpers import (  # noqa: E402
     _env,
     _env_float,
     _env_int,
-    _env_json_dict,
-    _parse_allowed_paths,
+    _env_json_dict,  # noqa: F401 -- re-exported for callers and tests
+    _parse_allowed_paths,  # noqa: F401 -- re-exported for callers and tests
     get_dino_model_name,
     mask_secret,
 )
-from ._models import _ModelSettings
-from ._pipeline import _PipelineSettings
-from ._security import _SecuritySettings
-from ._services import _ServiceSettings
-from ._training import _TrainingSettings
+from ._models import _ModelSettings  # noqa: E402
+from ._pipeline import _PipelineSettings  # noqa: E402
+from ._security import _SecuritySettings  # noqa: E402
+from ._services import _ServiceSettings  # noqa: E402
+from ._training import _TrainingSettings  # noqa: E402
 
 logger = get_logger(__name__)
 

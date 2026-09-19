@@ -1,29 +1,16 @@
 import hashlib
-import os
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 from selfsuvis.pipeline.core.config import settings
+from ss_kit.paths import ensure_dir as ensure_kit_dir
+from ss_kit.security import resolve_allowed_path as resolve_kit_path
+from ss_kit.security import stable_point_id as stable_point_id
 
 
 def ensure_dir(path: str) -> None:
-    os.makedirs(path, exist_ok=True)
-
-
-# Number of hex digits taken from the SHA-256 digest to form a 64-bit Qdrant point ID.
-# Changing this value invalidates all existing Qdrant data — wipe and re-index.
-_POINT_ID_HEX_DIGITS = 16
-
-
-def stable_point_id(*parts: Any) -> int:
-    # Uses SHA-256. Changing this function changes all Qdrant point IDs;
-    # existing indexed data must be wiped and re-indexed after an upgrade.
-    h = hashlib.sha256()
-    for p in parts:
-        h.update(str(p).encode("utf-8"))
-        h.update(b"|")
-    return int(h.hexdigest()[:_POINT_ID_HEX_DIGITS], 16)
+    ensure_kit_dir(path)
 
 
 def utcnow() -> datetime:
@@ -78,26 +65,12 @@ def resolve_allowed_path(
     Fail-closed: returns None when ALLOWED_INDEX_PATHS is empty so that
     path-based endpoints are disabled rather than open to the whole filesystem.
     """
-    allowed = settings.ALLOWED_INDEX_PATHS
-    if not allowed:
-        return None
-    if isinstance(allowed, str):
-        allowed = [p for p in allowed.split(",") if p.strip()]
-
-    resolved = os.path.abspath(os.path.realpath(user_path))
-    for base in allowed:
-        base_abs = os.path.abspath(os.path.realpath(base))
-        try:
-            common = os.path.commonpath([base_abs, resolved])
-            if common == base_abs:
-                if must_be_file and not os.path.isfile(resolved):
-                    return None
-                if must_be_dir and not os.path.isdir(resolved):
-                    return None
-                return resolved
-        except ValueError:
-            continue
-    return None
+    return resolve_kit_path(
+        user_path,
+        settings.ALLOWED_INDEX_PATHS,
+        must_be_file=must_be_file,
+        must_be_dir=must_be_dir,
+    )
 
 
 def resolve_allowed_paths_for_walk(user_dir: str) -> str | None:
@@ -106,7 +79,7 @@ def resolve_allowed_paths_for_walk(user_dir: str) -> str | None:
 
 
 class RateTimer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.start = time.time()
         self.count = 0
 

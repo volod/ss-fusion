@@ -7,7 +7,13 @@ import sys
 from selfsuvis.pipeline.core.logging import get_logger
 
 from ._auth import _with_auth_retry
-from ._cache import _is_hf_cached, _is_openclip_cached, _is_dino_hub_cached, _is_florence2_complete, _verify_models
+from ._cache import (
+    _is_dino_hub_cached,
+    _is_florence2_complete,
+    _is_hf_cached,
+    _is_openclip_cached,
+    _verify_models,
+)
 from ._dino import _download_dino
 from ._downloaders import (
     _download_depth,

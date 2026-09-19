@@ -6,18 +6,6 @@ existing ``from ssv_vdp.steps.caption import X`` import continues to work unchan
 
 from selfsuvis.pipeline.core import settings  # noqa: F401 — accessed as caption.settings by tests
 
-# -- Step functions -----------------------------------------------------------
-from ._florence import step_gemma_segment_captions, step_scene_captioning  # noqa: F401
-from ._gemma_analysis import step_gemma_analysis  # noqa: F401
-from ._sensing import (  # noqa: F401
-    step_asr_transcription,
-    step_depth_estimation,
-    step_object_detection,
-    step_ocr_extraction,
-)
-from ._vlm import step_qwen_captioning, step_unidrive_analysis  # noqa: F401
-from ._world_model import step_world_model_pass  # noqa: F401
-
 # -- caption_helpers re-exports (used directly by pipeline code) --------------
 from ..caption_helpers.frame_selection import (  # noqa: F401
     _SEGMENT_DIFF_MAX_BOUNDARIES_DEFAULT,
@@ -71,3 +59,15 @@ from ..common import (  # noqa: F401
     write_json_artifact,
     write_markdown_artifact,
 )
+
+# -- Step functions -----------------------------------------------------------
+from ._florence import step_gemma_segment_captions, step_scene_captioning  # noqa: F401
+from ._gemma_analysis import step_gemma_analysis  # noqa: F401
+from ._sensing import (  # noqa: F401
+    step_asr_transcription,
+    step_depth_estimation,
+    step_object_detection,
+    step_ocr_extraction,
+)
+from ._vlm import step_qwen_captioning, step_unidrive_analysis  # noqa: F401
+from ._world_model import step_world_model_pass  # noqa: F401

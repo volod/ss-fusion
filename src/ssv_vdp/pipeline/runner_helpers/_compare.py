@@ -8,10 +8,10 @@ from PIL import Image
 
 from selfsuvis.models.openclip_model import OpenCLIPEmbedder
 from selfsuvis.pipeline.core.logging import get_logger
+
 from ...steps.common import _TEXT_PROMPTS
 
 _log = get_logger(__name__)
-
 
 
 def step_compare_and_describe(

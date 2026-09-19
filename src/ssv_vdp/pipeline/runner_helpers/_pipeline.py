@@ -14,11 +14,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-# Re-exported so runner_helpers/__init__.py can still import them by name.
-_TOTAL_STEPS = 35
-_SSL_GATE_MAX_LOSS = 10.0
-
-from selfsuvis.pipeline.core import resolve_device, settings
 from selfsuvis.pipeline.core.logging import get_logger
 
 from ...steps.common import (
@@ -29,6 +24,10 @@ from ._pipeline_phase1 import run_phase1
 from ._pipeline_phase2 import run_phase2
 from ._pipeline_phase3 import run_phase3
 from ._pipeline_phase4 import run_phase4
+
+# Re-exported so runner_helpers/__init__.py can still import them by name.
+_TOTAL_STEPS = 35
+_SSL_GATE_MAX_LOSS = 10.0
 
 _log = get_logger(__name__)
 

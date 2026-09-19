@@ -27,12 +27,20 @@ import glob
 import os
 
 from selfsuvis.pipeline.core.logging import get_logger
+from selfsuvis.pipeline.core.manifests import (
+    build_model_artifact,
+    model_manifest_path,
+    write_manifest,
+)
 
 logger = get_logger(__name__)
 
 
 def _load_backbone(model_name: str, checkpoint: str | None, device: str):
-    """Load DINOv3/DINOv2 backbone and optionally restore fine-tuned weights."""
+    """Load DINOv3/DINOv2 backbone and optionally restore fine-tuned weights.
+
+    Returns the backbone and the hub model name it was actually loaded from.
+    """
     import torch
 
     from selfsuvis.models.dino_model import _resolve_dino_hub, hub_load_dino
@@ -49,21 +57,53 @@ def _load_backbone(model_name: str, checkpoint: str | None, device: str):
         logger.info("Fine-tuned weights loaded.")
 
     backbone.eval()
-    return backbone
+    return backbone, actual_name
+
+
+def _prepare_for_trace(backbone) -> None:
+    """Make a DINOv2-family backbone traceable, as the local pipeline's export step does.
+
+    xformers attention and antialiased bicubic position-embedding interpolation have no ONNX
+    mapping; both are switched off on the backbone, so the parity check compares the same
+    forward pass the ONNX graph holds.
+    """
+    import sys
+
+    for name, module in sys.modules.items():
+        if "dinov2" in name and hasattr(module, "XFORMERS_AVAILABLE"):
+            module.XFORMERS_AVAILABLE = False
+    if hasattr(backbone, "interpolate_antialias"):
+        backbone.interpolate_antialias = False
+    if hasattr(backbone, "interpolate_offset"):
+        backbone.interpolate_offset = 0.0
 
 
 def _export_onnx(backbone, output_path: str, image_size: int, opset: int) -> None:
     """Trace and export the backbone to ONNX."""
     import torch
 
+    class _SingleInput(torch.nn.Module):
+        # DINOv2 forward(x, masks=None) otherwise leaks `masks` into the traced graph.
+        def __init__(self, inner) -> None:
+            super().__init__()
+            self.inner = inner
+
+        def forward(self, x):
+            return self.inner(x)
+
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    _prepare_for_trace(backbone)
+    # Trace a float32 CPU copy, as the local pipeline does: DINOv2 position-embedding
+    # interpolation builds CPU tensors while tracing, so a CUDA backbone fails.
+    device = next(backbone.parameters()).device
+    export_model = _SingleInput(backbone.cpu().float()).eval()
     dummy = torch.zeros(1, 3, image_size, image_size)
 
     logger.info(
         "Exporting ONNX to %s (opset=%d, image_size=%d) ...", output_path, opset, image_size
     )
     torch.onnx.export(
-        backbone,
+        export_model,
         dummy,
         output_path,
         opset_version=opset,
@@ -74,12 +114,19 @@ def _export_onnx(backbone, output_path: str, image_size: int, opset: int) -> Non
             "embedding": {0: "batch_size"},
         },
         do_constant_folding=True,
+        # The TorchScript exporter, as the local pipeline uses: torch >= 2.9 defaults to the
+        # dynamo exporter, which rejects `dynamic_axes` for this model.
+        dynamo=False,
     )
+    backbone.to(device)
     logger.info("ONNX export complete: %s", output_path)
 
 
-def _validate_parity(backbone, onnx_path: str, image_size: int, device: str) -> None:
-    """Run a forward pass through both PyTorch and ONNX and assert outputs are close."""
+def _validate_parity(backbone, onnx_path: str, image_size: int, device: str) -> float | None:
+    """Run a forward pass through both PyTorch and ONNX and assert outputs are close.
+
+    Returns the max absolute difference, or None when onnxruntime is unavailable.
+    """
     import numpy as np
     import torch
 
@@ -87,7 +134,7 @@ def _validate_parity(backbone, onnx_path: str, image_size: int, device: str) -> 
         import onnxruntime as ort
     except ImportError as exc:
         logger.warning("onnxruntime not installed — skipping parity validation: %s", exc)
-        return
+        return None
 
     logger.info("Validating PyTorch ↔ ONNX parity ...")
     dummy_np = np.random.randn(1, 3, image_size, image_size).astype(np.float32)
@@ -108,6 +155,7 @@ def _validate_parity(backbone, onnx_path: str, image_size: int, device: str) -> 
             "The ONNX model may not reproduce the PyTorch forward pass faithfully."
         )
     logger.info("Parity check PASSED (max diff %.2e < 1e-3).", max_diff)
+    return max_diff
 
 
 def _collect_calibration_images(calibration_dir: str, n_samples: int) -> list:
@@ -123,10 +171,40 @@ def _collect_calibration_images(calibration_dir: str, n_samples: int) -> list:
     return paths
 
 
+def _write_export_manifest(
+    onnx_path: str,
+    args: argparse.Namespace,
+    base_model: str,
+    max_diff: float | None = None,
+    quantization: str | None = None,
+    source: str | None = None,
+) -> None:
+    """Write the ONNX file's `model-artifact` manifest next to it; a failure only warns.
+
+    `source` is the file it was made from: the checkpoint by default, the float ONNX file for a
+    quantized one.
+    """
+    try:
+        manifest = build_model_artifact(
+            onnx_path,
+            base_model=base_model,
+            producer="ssv_vdp.scripts.export_onnx",
+            derived_from=source or args.checkpoint,
+            metrics={"onnx_max_abs_diff": max_diff} if max_diff is not None else None,
+            image_size=args.image_size,
+            opset=args.opset,
+            quantization=quantization,
+        )
+        path = write_manifest(manifest, model_manifest_path(onnx_path))
+        logger.info("Model manifest: %s", path)
+    except (OSError, ValueError) as exc:
+        logger.warning("Model manifest not written for %s: %s", onnx_path, exc)
+
+
 def _quantize_static(
     onnx_path: str, output_path: str, calibration_paths: list, image_size: int
-) -> None:
-    """Quantize ONNX model to INT8 using static quantization."""
+) -> bool:
+    """Quantize ONNX model to INT8 using static quantization; returns whether it ran."""
     try:
         from onnxruntime.quantization import CalibrationDataReader, QuantType, quantize_static
     except ImportError as exc:
@@ -135,7 +213,7 @@ def _quantize_static(
             "Install onnxruntime-tools or a newer onnxruntime build. Error: %s",
             exc,
         )
-        return
+        return False
 
     from PIL import Image
 
@@ -170,9 +248,10 @@ def _quantize_static(
         onnx_path,
         output_path,
         calibration_data_reader=reader,
-        quant_type=QuantType.QInt8,
+        weight_type=QuantType.QInt8,
     )
     logger.info("INT8 quantization complete: %s", output_path)
+    return True
 
 
 def main() -> None:
@@ -204,8 +283,8 @@ def main() -> None:
     parser.add_argument(
         "--opset",
         type=int,
-        default=17,
-        help="ONNX opset version (default: 17)",
+        default=18,
+        help="ONNX opset version (default: 18, as the local pipeline exports)",
     )
     parser.add_argument(
         "--validate",
@@ -254,21 +333,26 @@ def main() -> None:
     print()
 
     # 1. Load backbone
-    backbone = _load_backbone(args.model_name, args.checkpoint, args.device)
+    backbone, base_model = _load_backbone(args.model_name, args.checkpoint, args.device)
 
     # 2. Export ONNX
     _export_onnx(backbone, args.output, args.image_size, args.opset)
 
     # 3. Validate parity
+    max_diff = None
     if args.validate:
-        _validate_parity(backbone, args.output, args.image_size, args.device)
+        max_diff = _validate_parity(backbone, args.output, args.image_size, args.device)
+    _write_export_manifest(args.output, args, base_model, max_diff)
 
     # 4. Quantize
     if args.quantize:
         stem = os.path.splitext(args.output)[0]
         int8_path = f"{stem}_int8.onnx"
         calib_paths = _collect_calibration_images(args.calibration_dir, args.calibration_samples)
-        _quantize_static(args.output, int8_path, calib_paths, args.image_size)
+        if _quantize_static(args.output, int8_path, calib_paths, args.image_size):
+            _write_export_manifest(
+                int8_path, args, base_model, quantization="int8_static", source=args.output
+            )
         print(f"\nINT8 model: {int8_path}")
 
     print(f"\nDone. ONNX model: {args.output}")

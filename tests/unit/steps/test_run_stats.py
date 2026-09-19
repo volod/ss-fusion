@@ -1,6 +1,3 @@
-import math
-
-
 def test_step_labels_include_audio_drau_and_advisor_order():
     from ssv_vdp.steps.report_helpers._stats import _STEP_LABELS
 

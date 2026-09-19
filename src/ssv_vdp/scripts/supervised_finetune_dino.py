@@ -24,6 +24,7 @@ Warm-starting from an SSL checkpoint (recommended):
 """
 
 import argparse
+
 from selfsuvis.pipeline.core.logging import get_logger
 from selfsuvis.pipeline.training.supervised import SupervisedFinetuneConfig, run_supervised_finetune
 

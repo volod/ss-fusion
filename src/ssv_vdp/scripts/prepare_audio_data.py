@@ -39,6 +39,7 @@ Environment
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 
@@ -165,7 +166,7 @@ def main() -> None:
     if ok:
         print(f"\nDrone audio dataset ready at: {data_dir}")
         print("Train the DroneAudioCNN with:")
-        print("  selfsuvis --mode local --videos-dir .data/videos --drone-audio")
+        print("  ssv --mode local --videos-dir .data/videos --drone-audio")
     else:
         print("\nWarning: some splits appear to be incomplete.")
         sys.exit(1)

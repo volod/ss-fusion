@@ -10,8 +10,8 @@ from typing import Any
 from selfsuvis.pipeline.core.config import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ..state import PipelineState
 from ..runner import _append_agentic_step
+from ..state import PipelineState
 from .helpers import (
     GEMMA_CLAIM_MIN_SIM,
     low_agreement_frames,

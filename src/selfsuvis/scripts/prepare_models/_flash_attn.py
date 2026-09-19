@@ -60,6 +60,7 @@ def _install_flash_attn() -> None:
         mem_jobs = _math.ceil(raw_mem) if (raw_mem % 1) >= 0.8 else int(raw_mem)
         try:
             import os as _os
+
             cpu_jobs = max(1, (_os.cpu_count() or 4) // 2)
         except Exception:
             cpu_jobs = 1
@@ -67,11 +68,17 @@ def _install_flash_attn() -> None:
         log.info(
             "  flash-attn compilation budget: %.1f GiB total / %.1f GiB avail / %.1f GiB usable"
             " → mem_jobs=%d  cpu_jobs=%d  MAX_JOBS=%d",
-            total_gb, avail_gb, usable_gb, mem_jobs, cpu_jobs, jobs,
+            total_gb,
+            avail_gb,
+            usable_gb,
+            mem_jobs,
+            cpu_jobs,
+            jobs,
         )
         return jobs
 
     import os as _os
+
     ram_per_job = float(_os.environ.get("FLASH_ATTN_RAM_PER_JOB_GB", "12"))
     max_jobs = _flash_attn_max_jobs(ram_per_job_gb=ram_per_job)
 

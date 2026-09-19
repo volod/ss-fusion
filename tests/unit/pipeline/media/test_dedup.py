@@ -6,6 +6,7 @@ import pytest
 from selfsuvis.pipeline.media.dedup import PhashLRU, dhash
 
 
+@pytest.mark.heavy
 def test_dhash_deterministic():
     pytest.importorskip("cv2", reason="cv2 required for dhash")
     img = np.random.randint(0, 256, (64, 64), dtype=np.uint8)
@@ -14,6 +15,7 @@ def test_dhash_deterministic():
     assert h1 == h2
 
 
+@pytest.mark.heavy
 def test_dhash_different_images():
     pytest.importorskip("cv2", reason="cv2 required for dhash")
     # Use images with different gradients (flat 0/255 yield same dhash)

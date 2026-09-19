@@ -10,13 +10,13 @@ from typing import Any
 from selfsuvis.pipeline.core.config import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ..state import PipelineState
 from ..runner import (
     _append_agentic_step,
     step_agentic_flow_artifact,
     step_multi_model_compare,
     step_video_synthesis,
 )
+from ..state import PipelineState
 from .helpers import build_evidence_summary, critique_pass, llm_call_with_retry
 
 _log = get_logger(__name__)
@@ -356,8 +356,8 @@ def _audit_reflection(
 
 
 def node_p4_emit_analytics(state: PipelineState) -> dict[str, Any]:
-    from ..runner import _emit_local_run_analytics
     from ...steps.caption import get_runtime_telemetry
+    from ..runner import _emit_local_run_analytics
 
     video_dir = Path(state["video_dir"])
     stats = dict(state.get("stats", {}))

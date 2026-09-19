@@ -1,5 +1,6 @@
-import numpy as np
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from selfsuvis.pipeline.core import get_logger, settings
 from selfsuvis.pipeline.core.optional_deps import require_qdrant_client, require_qdrant_models
@@ -69,7 +70,6 @@ class QdrantStore:
         limit: int,
         payload_filter: "qmodels.Filter | None" = None,
     ) -> list["qmodels.ScoredPoint"]:
-        qmodels = self._qmodels
         # qdrant-client >= 1.7 removed client.search(); use query_points() instead.
         response = self.client.query_points(
             collection_name=self.collection,

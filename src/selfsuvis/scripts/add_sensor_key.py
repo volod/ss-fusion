@@ -11,9 +11,7 @@ re-provision.
 import argparse
 import asyncio
 import hashlib
-import os
 import secrets
-import sys
 
 import asyncpg
 

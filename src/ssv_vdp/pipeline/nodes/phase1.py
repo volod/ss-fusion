@@ -7,8 +7,8 @@ from typing import Any
 from selfsuvis.pipeline.core.logging import get_logger
 
 from ...steps.common import VideoKnowledge
-from ..state import PipelineState
 from ..runner import _append_agentic_step
+from ..state import PipelineState
 
 _log = get_logger(__name__)
 

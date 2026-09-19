@@ -6,6 +6,7 @@ import pytest
 
 import selfsuvis.pipeline.core.logging as logging_utils_mod
 from selfsuvis.pipeline.core.logging import configure_logging, get_logger
+from ss_kit.logging import stop_logging
 
 
 @pytest.fixture(autouse=True)
@@ -14,6 +15,7 @@ def reset_configured():
     original = logging_utils_mod._CONFIGURED
     logging_utils_mod._CONFIGURED = False
     yield
+    stop_logging()
     logging_utils_mod._CONFIGURED = original
 
 

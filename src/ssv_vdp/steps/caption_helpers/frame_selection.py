@@ -1,6 +1,5 @@
 """Frame subset selection for LLM/VLM steps and segment boundary ranking."""
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from selfsuvis.pipeline.core import settings

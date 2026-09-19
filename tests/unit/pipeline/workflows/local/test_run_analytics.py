@@ -1,7 +1,8 @@
 from types import SimpleNamespace
 
-from ssv_vdp.pipeline import runner
-from ssv_vdp.steps import caption as steps_caption, report as steps_report
+from ssv_vdp.pipeline.runner_helpers import _analytics as runner_analytics
+from ssv_vdp.steps import caption as steps_caption
+from ssv_vdp.steps import report as steps_report
 
 
 def test_build_local_run_analytics_payload_includes_high_signal_fields():
@@ -75,7 +76,7 @@ def test_build_local_run_analytics_payload_includes_high_signal_fields():
         ),
     )
 
-    payload = runner._build_local_run_analytics_payload(summary)
+    payload = runner_analytics._build_local_run_analytics_payload(summary)
 
     assert payload["video_name"] == "mission_a"
     assert payload["artifact_count"] == 17

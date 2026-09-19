@@ -270,6 +270,27 @@ def _is_recoverable_batch_assertion(exc: BaseException) -> bool:
     return "only support square feature maps for now" in str(exc).lower()
 
 
+def _tie_language_embeddings(model: object) -> None:
+    """Re-tie Florence-2 BART token embeddings and lm_head to ``shared``.
+
+    The checkpoint stores only ``language_model.model.shared``; the remote code
+    relies on transformers 4.x ``_tied_weights_keys`` handling, which 5.x does not
+    apply, leaving encoder/decoder embeddings and lm_head randomly initialised
+    (gibberish captions). Tying is idempotent, so this is safe on 4.x too.
+    """
+    lm = getattr(model, "language_model", None)
+    inner = getattr(lm, "model", None)
+    shared = getattr(inner, "shared", None)
+    if shared is None:
+        return
+    for module in (getattr(inner, "encoder", None), getattr(inner, "decoder", None)):
+        if module is not None and getattr(module, "embed_tokens", None) is not None:
+            module.embed_tokens.weight = shared.weight
+    head = getattr(lm, "lm_head", None)
+    if head is not None:
+        head.weight = shared.weight
+
+
 def _pad_to_square(image: Image.Image) -> Image.Image:
     """Pad a PIL image to square with black borders (letterbox/pillarbox).
 
@@ -374,7 +395,9 @@ class FlorenceModel:
                     r".*will lose the ability to call `generate` and other related functions.*",
                     logger_levels={"transformers": logging.ERROR},
                 ):
-                    self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+                    self._model = AutoModelForCausalLM.from_pretrained(
+                        source_label, **fallback_kwargs
+                    )
         except AttributeError as exc:
             # Florence-2 custom code (trust_remote_code) may lack _supports_sdpa in
             # some transformers versions — retry without attn_implementation.
@@ -389,10 +412,13 @@ class FlorenceModel:
                     r".*will lose the ability to call `generate` and other related functions.*",
                     logger_levels={"transformers": logging.ERROR},
                 ):
-                    self._model = AutoModelForCausalLM.from_pretrained(source_label, **fallback_kwargs)
+                    self._model = AutoModelForCausalLM.from_pretrained(
+                        source_label, **fallback_kwargs
+                    )
             self._generation_mode = "eager"
         if self.device != "cuda":
             self._model = self._model.to(self.device)
+        _tie_language_embeddings(self._model)
         self._model.eval()
         generation_config = getattr(self._model, "generation_config", None)
         if generation_config is not None and hasattr(generation_config, "early_stopping"):
@@ -509,11 +535,28 @@ class FlorenceModel:
         # Florence-2 requires square feature maps; pad non-square frames in place.
         images = [_pad_to_square(img) for img in images]
 
+        # Florence2Processor (trust_remote_code) forwards do_resize/do_normalize/
+        # resample/... as explicit None; transformers 5.x treats those as overrides
+        # and skips resize + normalize (full-res pixels overflow the 2D pos-embed
+        # -> CUDA index assert). Pass the image processor's own config explicitly.
+        ip = getattr(self._processor, "image_processor", None)
+        ip_kwargs = (
+            {
+                "do_resize": ip.do_resize,
+                "do_normalize": ip.do_normalize,
+                "resample": ip.resample,
+                "image_mean": ip.image_mean,
+                "image_std": ip.image_std,
+            }
+            if ip is not None
+            else {}
+        )
         inputs = self._processor(
             text=prompts,
             images=images,
             return_tensors="pt",
             padding=True,
+            **ip_kwargs,
         )
         model_dtype = next(self._model.parameters()).dtype
         inputs = _sanitize_model_inputs(inputs, device=self.device, dtype=model_dtype)

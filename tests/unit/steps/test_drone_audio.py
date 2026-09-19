@@ -1,6 +1,6 @@
-import numpy as np
-import pytest
 from types import SimpleNamespace
+
+import numpy as np
 
 
 def test_label_name_to_dir_handles_no_drone_before_drone():
@@ -155,7 +155,10 @@ def test_val_split_fallback_rejects_when_split_produces_one_class_val(tmp_path, 
     monkeypatch.setattr(drone_audio, "_download_hf_dataset", lambda cache_dir: False)
 
     result = drone_audio.step_drone_audio_training(
-        tmp_path / "run", tmp_path, "cpu", SimpleNamespace(drone_audio_epochs=1),
+        tmp_path / "run",
+        tmp_path,
+        "cpu",
+        SimpleNamespace(drone_audio_epochs=1),
     )
 
     # The 80/20 split puts drone first and no_drone last, so the 20% tail

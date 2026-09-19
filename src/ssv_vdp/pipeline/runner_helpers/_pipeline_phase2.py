@@ -395,7 +395,11 @@ def run_phase2(
             "SAM masks may bleed across object boundaries in cluttered frames",
             "comparison vs HF detector may hide YOLO-specific failure modes",
         ],
-        artifacts=["yolo_sam_results.json", "yolo_sam/frame_*_annotated.jpg", "detection_comparison.md"]
+        artifacts=[
+            "yolo_sam_results.json",
+            "yolo_sam/frame_*_annotated.jpg",
+            "detection_comparison.md",
+        ]
         if not yolo_sam_result.get("skipped")
         else [],
     )
@@ -405,7 +409,11 @@ def run_phase2(
     _gemma_api_url_p3 = getattr(args, "gemma_api_url", "") or settings.GEMMA_API_URL
     _gemma_api_model_p3 = getattr(args, "gemma_api_model", "") or settings.GEMMA_API_MODEL
     if not getattr(args, "no_rfdetr", False) and _gemma_api_url_p3:
-        _step(10, _TOTAL_STEPS, "Gemma 4 directed tracking → gemma_tracking/ + gemma_tracking_results.json")
+        _step(
+            10,
+            _TOTAL_STEPS,
+            "Gemma 4 directed tracking → gemma_tracking/ + gemma_tracking_results.json",
+        )
         _prep_vram_for_step(models, device)
         clip_dino_on_gpu = False
         with _Timer(T, "P3_gemma_tracking"):
@@ -435,7 +443,11 @@ def run_phase2(
             "Gemma-priority classes across the full frame sequence with persistent track IDs."
         ),
         status="skipped" if gemma_tracking_result.get("skipped") else "ok",
-        context_inputs=["sampled frames", "Gemma sidecar API output", "CLIP embeddings for SAM mask filtering"],
+        context_inputs=[
+            "sampled frames",
+            "Gemma sidecar API output",
+            "CLIP embeddings for SAM mask filtering",
+        ],
         context_outputs=[
             f"scene_type={gemma_tracking_result.get('scene_type', 'n/a')}",
             f"{gemma_tracking_result.get('n_tracked_objects', 0)} unique track IDs",
@@ -451,7 +463,11 @@ def run_phase2(
             "RF-DETR tracking IDs reset per video; no cross-video identity",
             "Gemma object labels may not match RF-DETR COCO vocabulary exactly",
         ],
-        artifacts=["gemma_tracking_results.json", "gemma_tracking/frame_*_tracked.jpg", "gemma_tracking_summary.md"]
+        artifacts=[
+            "gemma_tracking_results.json",
+            "gemma_tracking/frame_*_tracked.jpg",
+            "gemma_tracking_summary.md",
+        ]
         if not gemma_tracking_result.get("skipped")
         else [],
     )
@@ -541,8 +557,11 @@ def run_phase2(
         description="Fuse visual frames with accumulated Florence, ASR, OCR, depth, detections, and prior-Qwen state for structured per-frame reasoning.",
         status="skipped" if qwen_result.get("skipped") else "ok",
         context_inputs=[
-            "frame image", "Florence scene priors", "ASR-aligned subtitle context",
-            "OCR/depth/detection cues", "previous Qwen structured state",
+            "frame image",
+            "Florence scene priors",
+            "ASR-aligned subtitle context",
+            "OCR/depth/detection cues",
+            "previous Qwen structured state",
         ],
         context_outputs=[
             f"{qwen_result.get('ok_count', 0)} detailed captions",
@@ -583,7 +602,11 @@ def run_phase2(
         title="UniDriveVLA expert analysis",
         description="Run an external UniDriveVLA bridge for understanding, perception, planning, and mixture-of-experts consensus on sampled frames.",
         status="skipped" if unidrive_result.get("skipped") else "ok",
-        context_inputs=["sampled frames", "ASR/OCR context when available", "agentic context from earlier steps"],
+        context_inputs=[
+            "sampled frames",
+            "ASR/OCR context when available",
+            "agentic context from earlier steps",
+        ],
         context_outputs=[
             f"{unidrive_result.get('ok_count', 0)} UniDrive analyses",
             "understanding/perception/planning triplets",
@@ -599,7 +622,17 @@ def run_phase2(
         artifacts=["unidrive_analysis.md"] if not unidrive_result.get("skipped") else [],
     )
 
-    if any([args.asr, args.ocr, args.depth, args.detection, args.world_model, args.qwen, getattr(args, "unidrive", False)]):
+    if any(
+        [
+            args.asr,
+            args.ocr,
+            args.depth,
+            args.detection,
+            args.world_model,
+            args.qwen,
+            getattr(args, "unidrive", False),
+        ]
+    ):
         write_multimodal_md(
             video_dir / "multimodal_features.md",
             video_name,
@@ -616,14 +649,22 @@ def run_phase2(
     # Step 14: SceneTok
     scenetok_result: dict[str, Any] = {"skipped": True}
     if getattr(args, "scenetok", False):
-        _step(14, _TOTAL_STEPS, "SceneTok streaming encoder + segmentation decoder → scenetok_tokens.npz")
+        _step(
+            14,
+            _TOTAL_STEPS,
+            "SceneTok streaming encoder + segmentation decoder → scenetok_tokens.npz",
+        )
         _scenetok_api_url = getattr(args, "scenetok_api_url", "") or settings.SCENETOK_API_URL
-        _scenetok_checkpoint = getattr(args, "scenetok_checkpoint", "") or settings.SCENETOK_CHECKPOINT
+        _scenetok_checkpoint = (
+            getattr(args, "scenetok_checkpoint", "") or settings.SCENETOK_CHECKPOINT
+        )
         if _scenetok_api_url:
             import os as _os
+
             _os.environ.setdefault("SCENETOK_API_URL", _scenetok_api_url)
         if _scenetok_checkpoint:
             import os as _os
+
             _os.environ.setdefault("SCENETOK_CHECKPOINT", _scenetok_checkpoint)
         with _Timer(T, "S_scenetok"):
             scenetok_result = step_scenetok(
@@ -657,7 +698,11 @@ def run_phase2(
         artifacts=(
             ["scenetok_tokens.npz", "scenetok_masks/"]
             if not scenetok_result.get("skipped") and settings.SCENETOK_MODE == "masks"
-            else (["scenetok_tokens.npz", "scenetok_views/"] if not scenetok_result.get("skipped") else [])
+            else (
+                ["scenetok_tokens.npz", "scenetok_views/"]
+                if not scenetok_result.get("skipped")
+                else []
+            )
         ),
     )
 
@@ -665,10 +710,13 @@ def run_phase2(
     cosmos3_result: dict[str, Any] = {"skipped": True, "clips": [], "n_clips": 0}
     if getattr(args, "cosmos3", None):
         from ...steps.perception.cosmos3 import step_cosmos3_inference
+
         _step(15, _TOTAL_STEPS, "Cosmos3 world-model inference → cosmos3_inference.json")
         _prep_vram_for_step(models, device)
         with _Timer(T, "S_cosmos3"):
-            cosmos3_result = step_cosmos3_inference(frame_list, video_name, video_dir, device=device)
+            cosmos3_result = step_cosmos3_inference(
+                frame_list, video_name, video_dir, device=device
+            )
     else:
         _step(15, _TOTAL_STEPS, "Cosmos3 inference (skipped — pass --cosmos3 to enable)")
         T["S_cosmos3"] = 0.0
@@ -731,7 +779,10 @@ def run_phase2(
         description="Measure retrieval behavior of the base model as the control reference for adaptation steps.",
         status="ok",
         context_inputs=["retrieval index", "query frame"],
-        context_outputs=[f"top-{len(base_results)} baseline matches", f"query at {query_t_sec:.1f}s"],
+        context_outputs=[
+            f"top-{len(base_results)} baseline matches",
+            f"query at {query_t_sec:.1f}s",
+        ],
         risks=[
             "search quality may favor visual similarity over semantic identity",
             "one query frame can underrepresent broader retrieval behavior",
@@ -748,12 +799,26 @@ def run_phase2(
                 h = _map_future.result(timeout=600)
             except Exception as _map_exc:
                 _log.warning("  3D-map background thread raised: %s", _map_exc, exc_info=True)
-                h = {"sfm_poses": 0, "method": "failed", "points": None, "gsplat_method": "failed", "splat_ply": None, "viewer_html": ""}
+                h = {
+                    "sfm_poses": 0,
+                    "method": "failed",
+                    "points": None,
+                    "gsplat_method": "failed",
+                    "splat_ply": None,
+                    "viewer_html": "",
+                }
             finally:
                 _map_executor.shutdown(wait=False)
         else:
             _map_executor.shutdown(wait=False)
-            h = {"sfm_poses": 0, "method": "skipped", "points": None, "gsplat_method": "skipped", "splat_ply": None, "viewer_html": ""}
+            h = {
+                "sfm_poses": 0,
+                "method": "skipped",
+                "points": None,
+                "gsplat_method": "skipped",
+                "splat_ply": None,
+                "viewer_html": "",
+            }
     T["I_3dmap"] = float(h.get("elapsed_sec", T.get("I_3dmap", 0.0)) or 0.0)
     stats["sfm_poses"] = h["sfm_poses"]
     stats["map_method"] = h["method"]

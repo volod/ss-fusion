@@ -5,8 +5,8 @@ import time
 
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ._cache import _is_hf_cached, _is_florence2_complete
-from ._utils import _quiet_hf, _label, _capture_hf_load_report
+from ._cache import _is_florence2_complete, _is_hf_cached
+from ._utils import _capture_hf_load_report, _quiet_hf
 
 log = get_logger("prepare_models")
 
@@ -193,7 +193,9 @@ def _download_world_model(model_id: str) -> None:
                 or "Unrecognized feature extractor" in feat_msg
                 or "Unrecognized" in feat_msg
             ):
-                log.info("  No compatible feature extractor — downloading repo via snapshot_download")
+                log.info(
+                    "  No compatible feature extractor — downloading repo via snapshot_download"
+                )
                 local_dir = snapshot_download(
                     repo_id=model_id,
                     ignore_patterns=["*.msgpack", "flax_model*", "tf_model*", "rust_model*"],

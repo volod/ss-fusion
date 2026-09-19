@@ -1,7 +1,6 @@
 """Env-reading helpers and small utilities shared by all settings modules."""
 
 import logging as _logging
-import os
 
 from selfsuvis.pipeline.core.env import (
     env_float,
@@ -9,24 +8,12 @@ from selfsuvis.pipeline.core.env import (
     env_json_dict,
     env_str,
 )
+from ss_kit.security import parse_path_allowlist
+from ss_kit.settings import mask_secret
 
 _log = _logging.getLogger(__name__)
 
-
-def mask_secret(value: str, visible_suffix: int = 4) -> str:
-    """Return *value* with all but the last *visible_suffix* chars replaced by '*'.
-
-    Safe to pass to any logger. Examples::
-
-        mask_secret("hf_abcdefghijklmnopqrstuv")  -> "*********************stuv"
-        mask_secret("")                            -> "<not set>"
-        mask_secret("hi")                          -> "*i"
-    """
-    if not value:
-        return "<not set>"
-    if len(value) <= visible_suffix:
-        return "*" * (len(value) - 1) + value[-1]
-    return "*" * (len(value) - visible_suffix) + value[-visible_suffix:]
+__all__ = ["get_dino_model_name", "mask_secret"]
 
 
 def _env(key: str, default: str) -> str:
@@ -47,10 +34,8 @@ def _env_json_dict(key: str, default: dict[str, str] | None = None) -> dict[str,
 
 
 def _parse_allowed_paths(val: str | None) -> list[str]:
-    """Parse ALLOWED_INDEX_PATHS as comma-separated list. Empty means no restriction."""
-    if val is None or not val.strip():
-        return []
-    return [p.strip() for p in val.split(",") if p.strip()]
+    """Parse ALLOWED_INDEX_PATHS as a comma-separated list. Empty disables path endpoints."""
+    return parse_path_allowlist(val)
 
 
 def get_dino_model_name(model_name: str) -> str | None:

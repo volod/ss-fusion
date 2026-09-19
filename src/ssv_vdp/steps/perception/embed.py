@@ -63,8 +63,8 @@ def _embed_and_flush(
     dino_embeds = dino_model.encode_images(batch_pil) if dino_model else None
     if is_qdrant:
         from selfsuvis.pipeline.core.optional_deps import require_qdrant_models
-
         from selfsuvis.pipeline.core.utils import stable_point_id
+
         qmodels = require_qdrant_models()
 
         points = []

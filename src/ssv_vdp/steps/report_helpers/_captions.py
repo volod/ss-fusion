@@ -1,6 +1,5 @@
 """Caption report writers: scene captions, Gemma frame descriptions, segment diffs."""
 
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -27,13 +26,15 @@ def write_scene_captions_md(
     segments: list[dict[str, Any]] = []
     for r in enriched:
         if r["is_new_segment"]:
-            segments.append({
-                "segment_id": r["segment_id"],
-                "start_t": r["t_sec"],
-                "end_t": r["t_sec"],
-                "caption": r.get("caption") or "",
-                "frame_count": 1,
-            })
+            segments.append(
+                {
+                    "segment_id": r["segment_id"],
+                    "start_t": r["t_sec"],
+                    "end_t": r["t_sec"],
+                    "caption": r.get("caption") or "",
+                    "frame_count": 1,
+                }
+            )
         elif segments:
             segments[-1]["end_t"] = r["t_sec"]
             segments[-1]["frame_count"] += 1

@@ -12,41 +12,41 @@ from ..common import (
 
 # (timing_key, step_label, computation_type) — ordered by execution sequence.
 _STEP_LABELS: list[tuple[str, str, str]] = [
-    ("A_extract",         "01 Ingest: Frame extraction",           "I/O"),
-    ("B_index",           "02 Ingest: Vector indexing",            "GPU embed"),
-    ("J_gemma",           "03 Analyze: Gemma multimodal",          "LLM API"),
-    ("L_caption",         "04 Analyze: Florence captions",         "GPU vision"),
-    ("L_seg_caps",        "04b Analyze: Gemma segment diffs",      "LLM API"),
-    ("M_asr",             "05 Analyze: ASR transcription",         "GPU speech"),
-    ("N_ocr",             "06 Analyze: OCR text extraction",       "LLM API"),
-    ("O_depth",           "07 Analyze: Depth estimation",          "GPU vision"),
-    ("P_detection",       "08 Analyze: Object detection",          "GPU vision"),
-    ("P2_yolo_sam",       "09 Analyze: YOLO+SAM detection",        "GPU vision"),
-    ("P3_gemma_tracking", "10 Analyze: Gemma directed tracking",   "LLM API+GPU"),
-    ("Q_world",           "11 Analyze: World model embeddings",    "GPU vision"),
-    ("R_qwen",            "12 Analyze: Qwen detailed captions",    "LLM API"),
-    ("S_unidrive",        "13 Analyze: UniDriveVLA expert",        "LLM API"),
-    ("S_scenetok",        "14 Analyze: SceneTok encoder+seg",      "GPU vision"),
-    ("C_base_search",     "15 Eval: Base search test",             "GPU embed"),
-    ("I_3dmap",           "16 Map: SfM + Gaussian Splat",          "GPU 3D"),
-    ("PS_physical_state", "17 Analyze: Physical scene state",      "CPU fusion"),
-    ("PS_field_state",    "18 Analyze: Environmental field state", "CPU fusion"),
-    ("PS_threat_primitives", "19 Analyze: Threat primitives",      "CPU fusion"),
-    ("D_finetune",        "21 Adapt: SSL DINOv3 fine-tune",        "GPU train"),
-    ("E_distill",         "22 Adapt: Knowledge distillation",      "GPU train"),
-    ("E_distill_stage2",  "23 Adapt: Stage 2 distillation",        "GPU train"),
-    ("F_export",          "24 Export: ONNX + gallery",             "CPU"),
-    ("G_ft_search",       "25 Eval: Fine-tuned search test",       "GPU embed"),
-    ("H_compare",         "26 Eval: Model comparison",             "GPU embed"),
-    ("T_multimodel",      "27 Audit: Multi-model comparison",      "GPU vision"),
-    ("PS_local_threat",   "28 Analyze: Local threat inference",    "CPU fusion"),
-    ("PS_policy",         "29 Decide: Action policy",              "CPU policy"),
-    ("Z_synthesis",       "30 Synthesize: Ontology+narrative",     "LLM API"),
-    ("AA_agentic",        "31 Audit: Agentic flow",                "LLM API"),
-    ("AC_drone_detection","32 Train: Drone detection",             "GPU train"),
-    ("AC_drone_audio",    "33 Train: Drone audio",                 "GPU train"),
-    ("AC_drau_eval",      "34 Eval: drau range",                   "CPU analysis"),
-    ("AB_model_advisor",  "35 Optimize: Model/run advisor",        "CPU analysis"),
+    ("A_extract", "01 Ingest: Frame extraction", "I/O"),
+    ("B_index", "02 Ingest: Vector indexing", "GPU embed"),
+    ("J_gemma", "03 Analyze: Gemma multimodal", "LLM API"),
+    ("L_caption", "04 Analyze: Florence captions", "GPU vision"),
+    ("L_seg_caps", "04b Analyze: Gemma segment diffs", "LLM API"),
+    ("M_asr", "05 Analyze: ASR transcription", "GPU speech"),
+    ("N_ocr", "06 Analyze: OCR text extraction", "LLM API"),
+    ("O_depth", "07 Analyze: Depth estimation", "GPU vision"),
+    ("P_detection", "08 Analyze: Object detection", "GPU vision"),
+    ("P2_yolo_sam", "09 Analyze: YOLO+SAM detection", "GPU vision"),
+    ("P3_gemma_tracking", "10 Analyze: Gemma directed tracking", "LLM API+GPU"),
+    ("Q_world", "11 Analyze: World model embeddings", "GPU vision"),
+    ("R_qwen", "12 Analyze: Qwen detailed captions", "LLM API"),
+    ("S_unidrive", "13 Analyze: UniDriveVLA expert", "LLM API"),
+    ("S_scenetok", "14 Analyze: SceneTok encoder+seg", "GPU vision"),
+    ("C_base_search", "15 Eval: Base search test", "GPU embed"),
+    ("I_3dmap", "16 Map: SfM + Gaussian Splat", "GPU 3D"),
+    ("PS_physical_state", "17 Analyze: Physical scene state", "CPU fusion"),
+    ("PS_field_state", "18 Analyze: Environmental field state", "CPU fusion"),
+    ("PS_threat_primitives", "19 Analyze: Threat primitives", "CPU fusion"),
+    ("D_finetune", "21 Adapt: SSL DINOv3 fine-tune", "GPU train"),
+    ("E_distill", "22 Adapt: Knowledge distillation", "GPU train"),
+    ("E_distill_stage2", "23 Adapt: Stage 2 distillation", "GPU train"),
+    ("F_export", "24 Export: ONNX + gallery", "CPU"),
+    ("G_ft_search", "25 Eval: Fine-tuned search test", "GPU embed"),
+    ("H_compare", "26 Eval: Model comparison", "GPU embed"),
+    ("T_multimodel", "27 Audit: Multi-model comparison", "GPU vision"),
+    ("PS_local_threat", "28 Analyze: Local threat inference", "CPU fusion"),
+    ("PS_policy", "29 Decide: Action policy", "CPU policy"),
+    ("Z_synthesis", "30 Synthesize: Ontology+narrative", "LLM API"),
+    ("AA_agentic", "31 Audit: Agentic flow", "LLM API"),
+    ("AC_drone_detection", "32 Train: Drone detection", "GPU train"),
+    ("AC_drone_audio", "33 Train: Drone audio", "GPU train"),
+    ("AC_drau_eval", "34 Eval: drau range", "CPU analysis"),
+    ("AB_model_advisor", "35 Optimize: Model/run advisor", "CPU analysis"),
 ]
 
 
@@ -86,7 +86,8 @@ def write_final_stats_md(
         "",
         "Step totals are per-step durations. They may exceed elapsed time because the 3D map step can run in the background.",
         "",
-        header, sep,
+        header,
+        sep,
     ]
     for key, label, comp_type in _STEP_LABELS:
         vals = [v.get("timings", {}).get(key, 0.0) for v in per_video]
@@ -257,7 +258,7 @@ def print_run_stats(
     SEP = "-" * W
 
     def _fit(value: str, width: int) -> str:
-        return value[:width] if len(value) <= width else value[:max(0, width - 3)] + "..."
+        return value[:width] if len(value) <= width else value[: max(0, width - 3)] + "..."
 
     def _row(label: str, comp_type: str, *dur_cols: str) -> str:
         row = f"  {label:<{LABEL_W}} {comp_type:<{TYPE_W}}"
@@ -289,7 +290,9 @@ def print_run_stats(
             if total_step == 0 and key in _always_show:
                 _log.info(_row(label + " (skipped)", comp_type, *["—"] * n_vids, "—"))
             else:
-                _log.info(_row(label, comp_type, *[_fmt_sec(s) for s in vals], _fmt_sec(total_step)))
+                _log.info(
+                    _row(label, comp_type, *[_fmt_sec(s) for s in vals], _fmt_sec(total_step))
+                )
             for i, s in enumerate(vals):
                 col_totals[i] += s
             grand_total += total_step
@@ -300,20 +303,46 @@ def print_run_stats(
     _log.info("  " + SEP)
 
     pipeline_per_video = [v.get("pipeline_sec", 0.0) for v in per_video]
-    _log.info(_row("Pipeline (steps sum)", "", *[_fmt_sec(s) for s in pipeline_per_video], _fmt_sec(sum(pipeline_per_video))))
+    _log.info(
+        _row(
+            "Pipeline (steps sum)",
+            "",
+            *[_fmt_sec(s) for s in pipeline_per_video],
+            _fmt_sec(sum(pipeline_per_video)),
+        )
+    )
     pipeline_sum = sum(pipeline_per_video)
     overlap_adjustment = max(0.0, pipeline_sum + init_elapsed - total_elapsed)
     overhead = total_elapsed - pipeline_sum - init_elapsed + overlap_adjustment
     _log.info(_row("Model initialisation", "", _fmt_sec(init_elapsed), *([""] * (n_vids - 1)), ""))
     if overlap_adjustment > 0:
-        _log.info(_row("Concurrent overlap adjustment", "", *([""] * n_vids), f"-{_fmt_sec(overlap_adjustment)}"))
-    _log.info(_row("Overhead (I/O, viewer, etc.)", "", *([""] * n_vids), _fmt_sec(max(0.0, overhead))))
+        _log.info(
+            _row(
+                "Concurrent overlap adjustment",
+                "",
+                *([""] * n_vids),
+                f"-{_fmt_sec(overlap_adjustment)}",
+            )
+        )
+    _log.info(
+        _row("Overhead (I/O, viewer, etc.)", "", *([""] * n_vids), _fmt_sec(max(0.0, overhead)))
+    )
     _log.info(_row("WALL CLOCK TOTAL", "", *([""] * n_vids), _fmt_sec(total_elapsed)))
 
     _log.info("")
     _log.info("  COMPUTATION TYPE BREAKDOWN  (pipeline steps only)")
     _log.info("  " + "-" * (TYPE_W + DUR_W + LABEL_W + 2))
-    for ct in ["I/O", "GPU embed", "GPU vision", "GPU speech", "GPU 3D", "GPU train", "CPU", "LLM API", "LLM API+GPU"]:
+    for ct in [
+        "I/O",
+        "GPU embed",
+        "GPU vision",
+        "GPU speech",
+        "GPU 3D",
+        "GPU train",
+        "CPU",
+        "LLM API",
+        "LLM API+GPU",
+    ]:
         t = by_type.get(ct, 0.0)
         if t > 0:
             pct = 100.0 * t / max(sum(by_type.values()), 1e-9)
@@ -326,34 +355,76 @@ def print_run_stats(
         t_extract = v.get("timings", {}).get("A_extract", 0.0) or 1e-9
         t_index = v.get("timings", {}).get("B_index", 0.0) or 1e-9
         frames = v.get("frames", 0)
-        _log.info("  %-26s  extract: %5.1f fr/s   index: %5.1f fr/s", v.get("name", "?"), frames / t_extract, frames / t_index)
+        _log.info(
+            "  %-26s  extract: %5.1f fr/s   index: %5.1f fr/s",
+            v.get("name", "?"),
+            frames / t_extract,
+            frames / t_index,
+        )
 
     _log.info("")
     _log.info("  MODEL METRICS")
     _log.info("  " + SEP[: W - 2])
     _log.info(_row("Metric", *names))
     _log.info("  " + SEP[: W - 2])
-    _log.info(_row("SSL finetune loss", *[f"{v.get('best_loss', float('nan')):.4f}" for v in per_video]))
-    _log.info(_row(
-        "Distill loss",
-        *[f"{v.get('distill_loss', float('nan')):.4f}" if not math.isnan(v.get("distill_loss", float("nan"))) else "skipped" for v in per_video],
-    ))
+    _log.info(
+        _row("SSL finetune loss", *[f"{v.get('best_loss', float('nan')):.4f}" for v in per_video])
+    )
+    _log.info(
+        _row(
+            "Distill loss",
+            *[
+                f"{v.get('distill_loss', float('nan')):.4f}"
+                if not math.isnan(v.get("distill_loss", float("nan")))
+                else "skipped"
+                for v in per_video
+            ],
+        )
+    )
     _log.info(_row("Teacher ckpt (MB)", *[f"{v.get('ckpt_mb', 0.0):.1f}" for v in per_video]))
-    _log.info(_row("Student ckpt (MB)", *[f"{v.get('student_ckpt_mb', 0.0):.1f}" if v.get("student_ckpt_mb") else "—" for v in per_video]))
-    _log.info(_row("ONNX size (MB)", *[f"{v.get('onnx_mb', 0.0):.1f}" if v.get("onnx_exported") else "—" for v in per_video]))
-    _log.info(_row(
-        "Compression ratio",
-        *[f"{v['distill_compression_ratio']:.1f}×" if v.get("distill_compression_ratio")
-          else (f"{v['teacher_dim'] / v['student_dim']:.1f}×" if v.get("student_dim") and v.get("teacher_dim") else "—")
-          for v in per_video],
-    ))
-    _log.info(_row("Base infer (ms/fr)", *[f"{v.get('base_infer_ms', 0.0):.1f}" for v in per_video]))
-    _log.info(_row("Fine-tuned infer (ms/fr)", *[f"{v.get('ft_infer_ms', 0.0):.1f}" for v in per_video]))
+    _log.info(
+        _row(
+            "Student ckpt (MB)",
+            *[
+                f"{v.get('student_ckpt_mb', 0.0):.1f}" if v.get("student_ckpt_mb") else "—"
+                for v in per_video
+            ],
+        )
+    )
+    _log.info(
+        _row(
+            "ONNX size (MB)",
+            *[f"{v.get('onnx_mb', 0.0):.1f}" if v.get("onnx_exported") else "—" for v in per_video],
+        )
+    )
+    _log.info(
+        _row(
+            "Compression ratio",
+            *[
+                f"{v['distill_compression_ratio']:.1f}×"
+                if v.get("distill_compression_ratio")
+                else (
+                    f"{v['teacher_dim'] / v['student_dim']:.1f}×"
+                    if v.get("student_dim") and v.get("teacher_dim")
+                    else "—"
+                )
+                for v in per_video
+            ],
+        )
+    )
+    _log.info(
+        _row("Base infer (ms/fr)", *[f"{v.get('base_infer_ms', 0.0):.1f}" for v in per_video])
+    )
+    _log.info(
+        _row("Fine-tuned infer (ms/fr)", *[f"{v.get('ft_infer_ms', 0.0):.1f}" for v in per_video])
+    )
 
     _log.info("")
     _log.info("  SEARCH QUALITY  (top-1 cosine score, self/near-temporal matches excluded)")
     _log.info("  " + SEP[: W - 2])
-    _log.info(_row("Base model (pretrained)", *[f"{v.get('base_top_score', 0.0):.4f}" for v in per_video]))
+    _log.info(
+        _row("Base model (pretrained)", *[f"{v.get('base_top_score', 0.0):.4f}" for v in per_video])
+    )
     _log.info(_row("Fine-tuned model", *[f"{v.get('ft_top_score', 0.0):.4f}" for v in per_video]))
 
     _log.info("")
@@ -370,12 +441,45 @@ def print_run_stats(
     _log.info(_row("Domain", *[_as(v, "domain") for v in per_video]))
     _log.info(_row("Top category", *[_as(v, "top_category") for v in per_video]))
     _log.info(_row("Artifacts", *[str(_as(v, "artifact_count")) for v in per_video]))
-    _log.info(_row("Coverage F/Q/A/O", *[_fmt_analytics_coverage(v.get("analysis_summary", {}) or {}) for v in per_video]))
-    _log.info(_row("Detections", *[_fmt_analytics_detections(v.get("analysis_summary", {}) or {}) for v in per_video]))
-    _log.info(_row("Temporal", *[_fmt_analytics_temporal(v.get("analysis_summary", {}) or {}) for v in per_video]))
-    _log.info(_row("World/Tracking", *[_fmt_analytics_world_tracking(v.get("analysis_summary", {}) or {}) for v in per_video]))
-    _log.info(_row("Map quality", *[_fmt_analytics_map(v.get("analysis_summary", {}) or {}) for v in per_video]))
-    _log.info(_row("Warnings", *[_fmt_analytics_warnings(v.get("analysis_summary", {}) or {}) for v in per_video]))
+    _log.info(
+        _row(
+            "Coverage F/Q/A/O",
+            *[_fmt_analytics_coverage(v.get("analysis_summary", {}) or {}) for v in per_video],
+        )
+    )
+    _log.info(
+        _row(
+            "Detections",
+            *[_fmt_analytics_detections(v.get("analysis_summary", {}) or {}) for v in per_video],
+        )
+    )
+    _log.info(
+        _row(
+            "Temporal",
+            *[_fmt_analytics_temporal(v.get("analysis_summary", {}) or {}) for v in per_video],
+        )
+    )
+    _log.info(
+        _row(
+            "World/Tracking",
+            *[
+                _fmt_analytics_world_tracking(v.get("analysis_summary", {}) or {})
+                for v in per_video
+            ],
+        )
+    )
+    _log.info(
+        _row(
+            "Map quality",
+            *[_fmt_analytics_map(v.get("analysis_summary", {}) or {}) for v in per_video],
+        )
+    )
+    _log.info(
+        _row(
+            "Warnings",
+            *[_fmt_analytics_warnings(v.get("analysis_summary", {}) or {}) for v in per_video],
+        )
+    )
 
     _log.info("")
     _log.info("  TOP VIDEO DESCRIPTION  (CLIP text similarity)")

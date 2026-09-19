@@ -58,6 +58,7 @@ _ANALYSIS_PROMPT = (
 # Hardware-aware model selection
 # ---------------------------------------------------------------------------
 
+
 def _select_local_model(
     free_vram_gb: float,
     model_override: str,
@@ -73,9 +74,7 @@ def _select_local_model(
     return _COSMOS3_NANO_ID, use_offload
 
 
-def _sample_frames(
-    frame_list: list[tuple[str, float]], max_frames: int
-) -> list[tuple[str, float]]:
+def _sample_frames(frame_list: list[tuple[str, float]], max_frames: int) -> list[tuple[str, float]]:
     if len(frame_list) <= max_frames:
         return frame_list
     step = len(frame_list) / max_frames
@@ -85,6 +84,7 @@ def _sample_frames(
 # ---------------------------------------------------------------------------
 # Sidecar path  (vLLM-Omni / OpenAI-compatible)
 # ---------------------------------------------------------------------------
+
 
 def _run_sidecar(
     api_url: str,
@@ -144,15 +144,14 @@ def _run_sidecar(
     except Exception as exc:
         return {"skipped": True, "reason": f"sidecar error: {exc}"}
 
-    raw_text = (
-        body.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
-    ).strip()
+    raw_text = (body.get("choices", [{}])[0].get("message", {}).get("content", "") or "").strip()
     return {"raw_text": raw_text, "model_id": model_id, "via": "sidecar"}
 
 
 # ---------------------------------------------------------------------------
 # Local diffusers path
 # ---------------------------------------------------------------------------
+
 
 def _run_local(
     model_id: str,
@@ -168,9 +167,7 @@ def _run_local(
         return {"skipped": True, "reason": f"diffusers/torch unavailable: {exc}"}
 
     try:
-        _log.info(
-            "  Loading %s (offload=%s) …", model_id, use_offload
-        )
+        _log.info("  Loading %s (offload=%s) …", model_id, use_offload)
         load_kwargs: dict[str, Any] = {
             "torch_dtype": torch.bfloat16,
             "trust_remote_code": True,
@@ -214,6 +211,7 @@ def _run_local(
             del pipe
             if device == "cuda":
                 import torch as _t
+
                 _t.cuda.empty_cache()
         except Exception:
             pass
@@ -225,11 +223,14 @@ def _run_local(
 # JSON extraction helper
 # ---------------------------------------------------------------------------
 
+
 def _extract_json_payload(raw_text: str) -> dict[str, Any]:
     """Best-effort extraction of the JSON object from a model response."""
     if not raw_text:
         return {}
-    for start, end in [(raw_text.find("{"), raw_text.rfind("}")),]:
+    for start, end in [
+        (raw_text.find("{"), raw_text.rfind("}")),
+    ]:
         if start != -1 and end > start:
             try:
                 return json.loads(raw_text[start : end + 1])
@@ -241,6 +242,7 @@ def _extract_json_payload(raw_text: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Public step
 # ---------------------------------------------------------------------------
+
 
 def step_cosmos3_inference(
     frame_list: list[tuple[str, float]],
@@ -267,14 +269,16 @@ def step_cosmos3_inference(
     if api_url:
         mode = "sidecar"
         model_id = model_override if model_override != "auto" else _COSMOS3_NANO_ID
-        max_frames = int(getattr(settings, "COSMOS3_MAX_FRAMES", _DEFAULT_MAX_FRAMES_SIDECAR) or _DEFAULT_MAX_FRAMES_SIDECAR)
-        _log.info(
-            "  Cosmos3 sidecar mode: endpoint=%s model=%s", api_url, model_id
+        max_frames = int(
+            getattr(settings, "COSMOS3_MAX_FRAMES", _DEFAULT_MAX_FRAMES_SIDECAR)
+            or _DEFAULT_MAX_FRAMES_SIDECAR
         )
+        _log.info("  Cosmos3 sidecar mode: endpoint=%s model=%s", api_url, model_id)
     else:
         mode = "local"
         try:
             from selfsuvis.pipeline.vision.registry import detect_resources
+
             resources = detect_resources()
             free_vram_gb = resources.get("free_vram_gb", resources.get("vram_gb", 0.0))
         except Exception:
@@ -290,7 +294,10 @@ def step_cosmos3_inference(
             )
             return result
         model_id, use_offload = selection
-        max_frames = int(getattr(settings, "COSMOS3_MAX_FRAMES", _DEFAULT_MAX_FRAMES_LOCAL) or _DEFAULT_MAX_FRAMES_LOCAL)
+        max_frames = int(
+            getattr(settings, "COSMOS3_MAX_FRAMES", _DEFAULT_MAX_FRAMES_LOCAL)
+            or _DEFAULT_MAX_FRAMES_LOCAL
+        )
         _log.info(
             "  Cosmos3 local mode: model=%s offload=%s free_vram=%.1fGB",
             model_id,
@@ -323,9 +330,7 @@ def step_cosmos3_inference(
             raw = _run_local(model_id, use_offload, clip_frames, device)  # type: ignore[arg-type]
 
         if raw.get("skipped"):
-            _log.warning(
-                "  Cosmos3 clip %d skipped: %s", clip_idx, raw.get("reason", "unknown")
-            )
+            _log.warning("  Cosmos3 clip %d skipped: %s", clip_idx, raw.get("reason", "unknown"))
             clip_results.append(
                 {"clip_idx": clip_idx, "t_sec": mid_t, "skipped": True, "reason": raw.get("reason")}
             )

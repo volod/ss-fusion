@@ -5,7 +5,7 @@ from typing import Any
 
 from selfsuvis.pipeline.core.logging import get_logger
 
-from ...steps.common import _Timer, _banner, _step
+from ...steps.common import _banner, _step, _Timer
 from ._agentic import _append_agentic_step
 
 _log = get_logger(__name__)

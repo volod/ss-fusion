@@ -36,4 +36,3 @@ def require_qdrant_client():
             "Qdrant client is required for this operation. Install with: pip install qdrant-client"
         ) from exc
     return QdrantClient
-

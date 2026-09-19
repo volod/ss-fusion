@@ -18,5 +18,3 @@ def test_compact_formatter_sanitizes_non_ascii_message():
     record.args = ("DINOv3 → EfficientViT ×2 ✅",)
 
     assert formatter.format(record) == "Step -> DINOv3 -> EfficientViT x2 [ok]"
-
-

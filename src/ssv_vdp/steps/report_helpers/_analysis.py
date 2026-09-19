@@ -84,7 +84,7 @@ Detected {{ sc_data.n_changes }} transition(s).
 {% if sc_data.changes %}
 | # | t (s) | Cosine Distance |
 |---|-------|-----------------|
-{% for i, ch in sc_data.changes[:15] | enumerate %}
+{% for i, ch in enumerate(sc_data.changes[:15]) %}
 | {{ i + 1 }} | {{ "%.1f"|format(ch.t_sec) }} | {{ "%.4f"|format(ch.distance) }} |
 {% endfor %}
 {% endif %}

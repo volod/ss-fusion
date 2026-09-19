@@ -1,4 +1,5 @@
-from ssv_vdp.steps import caption as steps_caption, embed as steps_embed
+from ssv_vdp.steps import caption as steps_caption
+from ssv_vdp.steps.perception import embed as steps_embed
 
 
 def test_adaptive_sparse_budget_scales_down_short_clip_sampling():

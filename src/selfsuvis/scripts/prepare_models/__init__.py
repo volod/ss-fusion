@@ -132,19 +132,19 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 # Re-export everything that external callers access via `import prepare_models as pm; pm.X`
-from ._cli import main, _default_all_if_no_selection, _resolve_hf_model  # noqa: E402
+from ._cache import _is_dino_hub_cached, _is_hf_cached, _is_openclip_cached  # noqa: E402
+from ._cli import _default_all_if_no_selection, _resolve_hf_model, main  # noqa: E402
+from ._gemma import _is_gemma_cached  # noqa: E402
 from ._ollama import (  # noqa: E402
+    _is_ollama_model_cached,
     _resolve_unidrive_backend,
     _resolve_unidrive_prepare_model,
-    _is_ollama_model_cached,
 )
-from ._cache import _is_hf_cached, _is_openclip_cached, _is_dino_hub_cached  # noqa: E402
 from ._special import (  # noqa: E402
-    _is_yolo_cached,
     _is_scenetok_cached,
+    _is_yolo_cached,
     _normalize_scenetok_checkpoint_name,
 )
-from ._gemma import _is_gemma_cached  # noqa: E402
 
 __all__ = [
     "main",

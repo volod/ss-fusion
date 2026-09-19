@@ -22,5 +22,6 @@ __all__ = ["run_local"]
 def __getattr__(name: str):
     if name == "run_local":
         from .pipeline.runner import run_local  # noqa: PLC0415
+
         return run_local
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

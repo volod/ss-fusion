@@ -64,6 +64,7 @@ def run_phase3(
 
     try:
         from selfsuvis.models.gemma_model import GemmaEmbedder
+
         _HAS_GEMMA = True
     except Exception:
         _HAS_GEMMA = False
@@ -110,8 +111,14 @@ def run_phase3(
             models,
             device,
             extra_sidecars=[
-                (getattr(args, "qwen_api_url", "") or settings.QWEN_API_URL, getattr(args, "qwen_model", "") or settings.QWEN_MODEL),
-                (getattr(args, "unidrive_api_url", "") or settings.UNIDRIVE_API_URL, getattr(args, "unidrive_model", "") or settings.UNIDRIVE_MODEL),
+                (
+                    getattr(args, "qwen_api_url", "") or settings.QWEN_API_URL,
+                    getattr(args, "qwen_model", "") or settings.QWEN_MODEL,
+                ),
+                (
+                    getattr(args, "unidrive_api_url", "") or settings.UNIDRIVE_API_URL,
+                    getattr(args, "unidrive_model", "") or settings.UNIDRIVE_MODEL,
+                ),
             ],
             label="SSL fine-tuning",
         )
@@ -120,14 +127,20 @@ def run_phase3(
     _step(21, _TOTAL_STEPS, "SSL DINOv3 fine-tuning → finetune_stats.md")
     # Adaptive epoch count: scale up for short clips so the training sees ~200 gradient steps.
     _n_batches_per_epoch = max(1, len(frame_list) // max(1, args.batch_size))
-    _ssl_epochs = max(args.epochs, min(20, (200 + _n_batches_per_epoch - 1) // _n_batches_per_epoch))
+    _ssl_epochs = max(
+        args.epochs, min(20, (200 + _n_batches_per_epoch - 1) // _n_batches_per_epoch)
+    )
     if _ssl_epochs != args.epochs:
         _log.info(
             "  SSL adaptive epochs: %d (CLI default=%d) — %d frames, %d batches/epoch",
-            _ssl_epochs, args.epochs, len(frame_list), _n_batches_per_epoch,
+            _ssl_epochs,
+            args.epochs,
+            len(frame_list),
+            _n_batches_per_epoch,
         )
 
     from ...steps.adaptation.ssl import step_ssl_finetune
+
     with _Timer(T, "D_finetune"):
         d = step_ssl_finetune(
             video_id,
@@ -168,6 +181,7 @@ def run_phase3(
 
     # SSL gate check
     import os as _os
+
     _ssl_best_loss = stats.get("best_loss", float("inf"))
     ssl_gate_passed = (
         bool(checkpoint_path)
@@ -178,13 +192,16 @@ def run_phase3(
         _log.info(
             "  [ok] SSL gate passed (best_loss=%.4f < %.1f) — proceeding to distillation, "
             "ONNX export, and search comparison",
-            _ssl_best_loss, _SSL_GATE_MAX_LOSS,
+            _ssl_best_loss,
+            _SSL_GATE_MAX_LOSS,
         )
     else:
         _log.warning(
             "  ✗ SSL gate did not pass (checkpoint=%r, best_loss=%.4f, threshold=%.1f) — "
             "skipping steps E/F/G/H (distillation, ONNX export, search comparison)",
-            checkpoint_path, _ssl_best_loss, _SSL_GATE_MAX_LOSS,
+            checkpoint_path,
+            _ssl_best_loss,
+            _SSL_GATE_MAX_LOSS,
         )
 
     # Step 22: Knowledge distillation (Stage 1)
@@ -318,15 +335,21 @@ def run_phase3(
                 "Stage 2 adds a second compression hop — errors from Stage 1 compound",
                 "RKD-D-only may underfit when teacher/student topologies diverge",
             ],
-            artifacts=["distill_stage2_stats.md", "checkpoints_stage2/student_best.pt", "edge_models/efficientvit_local.onnx"]
+            artifacts=[
+                "distill_stage2_stats.md",
+                "checkpoints_stage2/student_best.pt",
+                "edge_models/efficientvit_local.onnx",
+            ]
             if not e_distill_stage2.get("skipped")
             else [],
         )
     else:
         T["E_distill_stage2"] = 0.0
         _gate_reason_s2 = (
-            "SSL gate did not pass" if not ssl_gate_passed
-            else "--no-distill" if args.no_distill
+            "SSL gate did not pass"
+            if not ssl_gate_passed
+            else "--no-distill"
+            if args.no_distill
             else "no Stage 1 student"
         )
         _step(23, _TOTAL_STEPS, f"Stage 2 distillation (skipped — {_gate_reason_s2})")
@@ -368,7 +391,10 @@ def run_phase3(
             description="Package the best available backbone and gallery into deployment artifacts.",
             status="ok",
             context_inputs=["teacher or student backbone", "retrieval gallery frames"],
-            context_outputs=[f"onnx exported={e.get('exported', False)}", "gallery.npz for edge classification"],
+            context_outputs=[
+                f"onnx exported={e.get('exported', False)}",
+                "gallery.npz for edge classification",
+            ],
             risks=[
                 "export mismatches can change runtime behavior versus training",
                 "gallery coverage can be too narrow for field use",
@@ -399,8 +425,16 @@ def run_phase3(
         _step(25, _TOTAL_STEPS, "Fine-tuned model transformation test → finetuned_search.md")
         with _Timer(T, "G_ft_search"):
             f = step_finetuned_model_search_test(
-                frame_list, store, is_qdrant, models, query_frame, query_t_sec,
-                video_id, video_name, video_dir, top_k=args.top_k,
+                frame_list,
+                store,
+                is_qdrant,
+                models,
+                query_frame,
+                query_t_sec,
+                video_id,
+                video_name,
+                video_dir,
+                top_k=args.top_k,
             )
         ft_results = f["results"]
         stats["ft_top_score"] = ft_results[0]["score"] if ft_results else 0.0
@@ -440,12 +474,22 @@ def run_phase3(
 
     # Step 26: Model comparison + description
     if ssl_gate_passed:
-        _step(26, _TOTAL_STEPS, "Model comparison + video description → comparison.md, description.md")
+        _step(
+            26, _TOTAL_STEPS, "Model comparison + video description → comparison.md, description.md"
+        )
         with _Timer(T, "H_compare"):
             g = step_compare_and_describe(
-                frame_list, store, is_qdrant, base_results, ft_results, models,
-                video_id, video_name, video_dir,
-                stats.get("ckpt_mb", 0.0), stats.get("onnx_mb", 0.0),
+                frame_list,
+                store,
+                is_qdrant,
+                base_results,
+                ft_results,
+                models,
+                video_id,
+                video_name,
+                video_dir,
+                stats.get("ckpt_mb", 0.0),
+                stats.get("onnx_mb", 0.0),
             )
         if g:
             stats["base_infer_ms"] = g.get("base_infer_ms", 0.0)

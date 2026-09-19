@@ -1,16 +1,13 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from PIL import Image
 
 from selfsuvis.pipeline.core import ensure_dir, get_logger, now_iso, settings
 from selfsuvis.pipeline.core.optional_deps import require_cv2
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass
@@ -124,6 +121,7 @@ def image_to_text_agent(
 
     description = _scene_description(frame_bgr)
     if tagger is not None:
+        cv2 = require_cv2()
         info = tagger.describe_image(Image.fromarray(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)))
         if info.get("labels"):
             labels = ", ".join([item["label"] for item in info["labels"]])
@@ -233,6 +231,7 @@ def _process_frame_to_record(
 ) -> tuple[dict[str, Any] | None, dict[str, Any], list[Segment] | None, dict[str, int], int]:
     """Process one frame through agents. Returns (record_dict, ontology, prev_segments, prev_tracks, next_track_id).
     record_dict is None if the frame could not be read."""
+    cv2 = require_cv2()
     frame = cv2.imread(rec.path)
     if frame is None:
         return (None, ontology, prev_segments, prev_tracks, next_track_id)

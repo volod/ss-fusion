@@ -138,9 +138,11 @@ def load_wav_mono(path: Path) -> np.ndarray:
     """Load WAV as mono float32 at _SR Hz. Raises on failure."""
     try:
         import soundfile as sf
+
         audio, sr_in = sf.read(str(path), dtype="float32")
     except Exception:
         from scipy.io import wavfile
+
         sr_in, audio = wavfile.read(str(path))
         if audio.dtype.kind in ("i", "u"):
             audio = audio.astype(np.float32) / np.iinfo(audio.dtype).max
@@ -166,6 +168,7 @@ def load_wav_mono(path: Path) -> np.ndarray:
 def load_session(model_path: Path):
     """Load ONNX session with single-threaded CPU provider."""
     import onnxruntime as ort
+
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = 1
     opts.log_severity_level = 3

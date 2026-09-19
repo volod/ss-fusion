@@ -71,10 +71,7 @@ def _check_cached(report: PreflightReport, label: str, check_fn: Any, *, hint: s
 
 
 def _prepare_hint(*args: str) -> str:
-    command = " ".join(
-        ["selfsuvis-models"]
-        + [shlex.quote(arg) for arg in args if arg]
-    )
+    command = " ".join(["selfsuvis-models"] + [shlex.quote(arg) for arg in args if arg])
     return f"run `{command}`"
 
 

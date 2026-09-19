@@ -86,7 +86,7 @@ def caption_via_florence_api(
             raw = resp.json()["choices"][0]["message"]["content"].strip()
             # Florence-2 sometimes echoes the task token; strip it
             if raw.startswith("<MORE_DETAILED_CAPTION>"):
-                raw = raw[len("<MORE_DETAILED_CAPTION>"):].strip()
+                raw = raw[len("<MORE_DETAILED_CAPTION>") :].strip()
             caption = raw
         except Exception as exc:
             _log.debug("  Florence API error for %s: %s", Path(fp).name, exc)
@@ -228,7 +228,7 @@ def caption_via_qwen_api(
                     idx + 1,
                     len(frame_list),
                 )
-                for fp2, t2 in frame_list[idx + 1:]:
+                for fp2, t2 in frame_list[idx + 1 :]:
                     caption_results.append(
                         {"frame_path": fp2, "t_sec": t2, "caption": "", "caption_confidence": 0.0}
                     )

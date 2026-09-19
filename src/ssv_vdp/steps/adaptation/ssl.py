@@ -968,13 +968,25 @@ def step_dae_finetune(
             n_frames,
             min_frames,
         )
-        return {"checkpoint": "", "best_mse": float("nan"), "elapsed_sec": 0.0,
-                "ckpt_mb": 0.0, "n_frames": n_frames, "skipped": True}
+        return {
+            "checkpoint": "",
+            "best_mse": float("nan"),
+            "elapsed_sec": 0.0,
+            "ckpt_mb": 0.0,
+            "n_frames": n_frames,
+            "skipped": True,
+        }
 
     frames_dir = str(Path(frame_list[0][0]).parent) if frame_list else ""
     if not frames_dir:
-        return {"checkpoint": "", "best_mse": float("nan"), "elapsed_sec": 0.0,
-                "ckpt_mb": 0.0, "n_frames": n_frames, "skipped": True}
+        return {
+            "checkpoint": "",
+            "best_mse": float("nan"),
+            "elapsed_sec": 0.0,
+            "ckpt_mb": 0.0,
+            "n_frames": n_frames,
+            "skipped": True,
+        }
 
     cfg = DAEFinetuneConfig(
         frames_dir=frames_dir,
@@ -996,33 +1008,47 @@ def step_dae_finetune(
     )
     _log.info(
         "  DAE fine-tuning: %d frames | epochs=%d | corruption=%s | device=%s",
-        n_frames, epochs, cfg.corruption_mode, device,
+        n_frames,
+        epochs,
+        cfg.corruption_mode,
+        device,
     )
     t0 = time.time()
     try:
         best_path = run_dae_finetune(cfg)
     except Exception as exc:
         _log.warning("  DAE training failed (%s) -- skipping", exc)
-        return {"checkpoint": "", "best_mse": float("nan"), "elapsed_sec": 0.0,
-                "ckpt_mb": 0.0, "n_frames": n_frames, "skipped": True}
+        return {
+            "checkpoint": "",
+            "best_mse": float("nan"),
+            "elapsed_sec": 0.0,
+            "ckpt_mb": 0.0,
+            "n_frames": n_frames,
+            "skipped": True,
+        }
 
     elapsed = time.time() - t0
     ckpt_mb = os.path.getsize(best_path) / 1e6 if os.path.exists(best_path) else 0.0
 
     metrics_path = video_dir / "dae_training_metrics.json"
-    write_json_artifact(metrics_path, {
-        "video_id": video_id,
-        "n_frames": n_frames,
-        "epochs": epochs,
-        "corruption_mode": cfg.corruption_mode,
-        "device": device,
-        "elapsed_sec": round(elapsed, 2),
-        "ckpt_mb": round(ckpt_mb, 2),
-    })
+    write_json_artifact(
+        metrics_path,
+        {
+            "video_id": video_id,
+            "n_frames": n_frames,
+            "epochs": epochs,
+            "corruption_mode": cfg.corruption_mode,
+            "device": device,
+            "elapsed_sec": round(elapsed, 2),
+            "ckpt_mb": round(ckpt_mb, 2),
+        },
+    )
 
     _log.info(
         "  [ok] DAE training complete in %.1fs | checkpoint: %s (%.1f MB)",
-        elapsed, best_path, ckpt_mb,
+        elapsed,
+        best_path,
+        ckpt_mb,
     )
     return {
         "checkpoint": best_path,

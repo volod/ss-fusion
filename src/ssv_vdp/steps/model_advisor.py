@@ -330,7 +330,7 @@ def build_model_run_advisor(
                 "APP_ENV": env.get("APP_ENV", "dev") or "dev",
             },
             "command": (
-                ".venv/bin/selfsuvis --mode local --videos-dir .data/videos "
+                ".venv/bin/ssv --mode local --videos-dir .data/videos "
                 "--qwen --unidrive --world-model --rfdetr-model base --drone-detection"
             ),
         },

@@ -53,25 +53,25 @@ def _normalise_threat_rows(
             for signal in contradiction_signals
             if signal.get("description")
         ]
-        uncertainty = float(
-            evidence.get("uncertainty", primitive.get("uncertainty", 0.0)) or 0.0
+        uncertainty = float(evidence.get("uncertainty", primitive.get("uncertainty", 0.0)) or 0.0)
+        rows.append(
+            {
+                "threat_type": threat_type,
+                "score": float(threat.get("score", 0.0) or 0.0),
+                "uncertainty": uncertainty,
+                "sensor_sources": sensor_sources,
+                "disagreeing_sources": disagreeing_sources,
+                "contradiction_signals": contradiction_signals,
+                "recommended_action": str(
+                    policy_decision.get(
+                        "recommended_action", local_threat.get("recommended_action", "continue")
+                    )
+                ),
+                "support_frames": support_frame_names(primitive.get("spatial_support") or []),
+                "confidence": max(0.0, 1.0 - uncertainty),
+                "evidence_sources": evidence_sources,
+            }
         )
-        rows.append({
-            "threat_type": threat_type,
-            "score": float(threat.get("score", 0.0) or 0.0),
-            "uncertainty": uncertainty,
-            "sensor_sources": sensor_sources,
-            "disagreeing_sources": disagreeing_sources,
-            "contradiction_signals": contradiction_signals,
-            "recommended_action": str(
-                policy_decision.get(
-                    "recommended_action", local_threat.get("recommended_action", "continue")
-                )
-            ),
-            "support_frames": support_frame_names(primitive.get("spatial_support") or []),
-            "confidence": max(0.0, 1.0 - uncertainty),
-            "evidence_sources": evidence_sources,
-        })
     return rows
 
 
@@ -209,8 +209,9 @@ def write_agentic_flow_md(
     )
     if threat_rows:
         local_threat_ctx = video_context.get("local_threat", {})
-        lines += _threat_evidence_lines(threat_rows, local_threat_ctx, section_title="Threat Evidence")
-        contradiction_summary = summarize_contradictions(threat_rows)
+        lines += _threat_evidence_lines(
+            threat_rows, local_threat_ctx, section_title="Threat Evidence"
+        )
         lines += ["## Threat Provenance", ""]
         for row in threat_rows:
             frames = ", ".join(row["support_frames"]) or "none"

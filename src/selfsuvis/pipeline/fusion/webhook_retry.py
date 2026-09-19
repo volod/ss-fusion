@@ -7,13 +7,12 @@ HMAC-SHA256 signature sent as X-SelfSuvis-Signature when WEBHOOK_SECRET is set.
 """
 
 import asyncio
-import hashlib
-import hmac
 import json
 
 import httpx
 
 from selfsuvis.pipeline.core import get_logger, settings
+from ss_kit.security import sign_hmac_sha256
 
 logger = get_logger(__name__)
 
@@ -60,12 +59,9 @@ async def run_webhook_retry() -> None:
                     "X-SelfSuvis-Version": "1",
                 }
                 if settings.WEBHOOK_SECRET:
-                    sig = hmac.new(
-                        settings.WEBHOOK_SECRET.encode(),
-                        msg=body_bytes,
-                        digestmod=hashlib.sha256,
-                    ).hexdigest()
-                    headers["X-SelfSuvis-Signature"] = f"sha256={sig}"
+                    headers["X-SelfSuvis-Signature"] = (
+                        f"sha256={sign_hmac_sha256(settings.WEBHOOK_SECRET, body_bytes)}"
+                    )
 
                 try:
                     resp = await client.post(url, content=body_bytes, headers=headers)

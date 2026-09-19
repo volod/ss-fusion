@@ -12,12 +12,14 @@ from selfsuvis.pipeline.storage import InMemoryStore
 
 try:
     from selfsuvis.models.dino_model import DINOEmbedder
+
     _HAS_DINO = True
 except Exception:
     _HAS_DINO = False
 
 try:
     from selfsuvis.models.gemma_model import GemmaEmbedder
+
     _HAS_GEMMA = True
 except Exception:
     _HAS_GEMMA = False
@@ -27,7 +29,6 @@ from ...steps.common import _banner
 _log = get_logger(__name__)
 
 _VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
-
 
 
 def init_models(device: str) -> dict[str, Any]:

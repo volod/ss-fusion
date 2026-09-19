@@ -44,22 +44,22 @@ def _phase1_force_cli_env(args: Any) -> None:
     ``from selfsuvis.pipeline.core.env import ...`` import in apply_local_env.
     """
     # ── Enable / disable flags ────────────────────────────────────────────────
-    os.environ["ASR_ENABLED"]         = "true" if args.asr       else "false"
-    os.environ["OCR_ENABLED"]         = "true" if args.ocr       else "false"
-    os.environ["DEPTH_ENABLED"]       = "true" if args.depth     else "false"
-    os.environ["DETECTION_ENABLED"]   = "true" if args.detection else "false"
+    os.environ["ASR_ENABLED"] = "true" if args.asr else "false"
+    os.environ["OCR_ENABLED"] = "true" if args.ocr else "false"
+    os.environ["DEPTH_ENABLED"] = "true" if args.depth else "false"
+    os.environ["DETECTION_ENABLED"] = "true" if args.detection else "false"
     os.environ["WORLD_MODEL_ENABLED"] = "true" if args.world_model else "false"
-    os.environ["UNIDRIVE_ENABLED"]    = "true" if args.unidrive  else "false"
+    os.environ["UNIDRIVE_ENABLED"] = "true" if args.unidrive else "false"
 
-    os.environ["YOLO_ENABLED"]   = "false" if getattr(args, "no_yolo",  False) else "true"
-    os.environ["SAM_ENABLED"]    = "false" if getattr(args, "no_sam",   False) else "true"
-    os.environ["RFDETR_ENABLED"] = "false" if getattr(args, "no_rfdetr",False) else "true"
+    os.environ["YOLO_ENABLED"] = "false" if getattr(args, "no_yolo", False) else "true"
+    os.environ["SAM_ENABLED"] = "false" if getattr(args, "no_sam", False) else "true"
+    os.environ["RFDETR_ENABLED"] = "false" if getattr(args, "no_rfdetr", False) else "true"
 
     # ── Model tier overrides ──────────────────────────────────────────────────
     _rfdetr_model = getattr(args, "rfdetr_model", "base") or "base"
-    os.environ["RFDETR_MODEL"] = _rfdetr_model          # always honour CLI flag
+    os.environ["RFDETR_MODEL"] = _rfdetr_model  # always honour CLI flag
     _yolo_model = getattr(args, "yolo_model", "yolo11l") or "yolo11l"
-    os.environ.setdefault("YOLO_MODEL", _yolo_model)    # yield to shell/env
+    os.environ.setdefault("YOLO_MODEL", _yolo_model)  # yield to shell/env
     _sam_model = getattr(args, "sam_model", "auto") or "auto"
     os.environ.setdefault("SAM_MODEL", _sam_model)
 
@@ -92,11 +92,7 @@ def _phase1_force_cli_env(args: Any) -> None:
 
     # Fallback: when --unidrive is enabled without an explicit API URL, reuse
     # the Qwen endpoint (same Ollama instance, compatible v1 endpoint).
-    if (
-        args.unidrive
-        and not os.environ.get("UNIDRIVE_API_URL")
-        and os.environ.get("QWEN_API_URL")
-    ):
+    if args.unidrive and not os.environ.get("UNIDRIVE_API_URL") and os.environ.get("QWEN_API_URL"):
         os.environ["UNIDRIVE_API_URL"] = os.environ["QWEN_API_URL"]
         if not os.environ.get("UNIDRIVE_BACKEND"):
             os.environ["UNIDRIVE_BACKEND"] = os.environ.get("QWEN_BACKEND", "ollama")
@@ -176,7 +172,7 @@ def apply_local_env(args: Any) -> None:
         if _output_val and not Path(_output_val).is_absolute():
             _rel = str(_output_val)
             if _rel.startswith(".data/") or _rel == ".data":
-                _suffix = _rel[len(".data/"):] if _rel.startswith(".data/") else ""
+                _suffix = _rel[len(".data/") :] if _rel.startswith(".data/") else ""
                 args.output_dir = os.path.join(_data_dir, _suffix) if _suffix else _data_dir
 
     # Step 3b — align model-cache dirs with DATA_DIR so preflight checks and

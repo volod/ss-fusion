@@ -19,27 +19,27 @@ Outputs (under video_dir/drone_audio/):
 """
 
 import math
-import time
 import textwrap
+import time
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from selfsuvis.pipeline.core.logging import get_logger
+
 from ..common import write_markdown_artifact
 
 # Reuse MFCC constants and implementation from the training step.
 from .drone_audio import (
-    _N_MFCC,
-    _T_FRAMES,
-    _SR,
-    _N_FFT,
     _HOP_LENGTH,
+    _N_FFT,
     _N_MELS,
+    _N_MFCC,
+    _SR,
+    _T_FRAMES,
     _compute_mfcc,
     _load_wav_mono,
-    _collect_split,
 )
 
 _log = get_logger("pipeline.local.drau_eval")
@@ -148,10 +148,13 @@ def _load_onnx_session(onnx_path: Path) -> Any | None:
     """Load ONNX model. Returns session or None if onnxruntime unavailable."""
     try:
         import onnxruntime as ort
+
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1
         opts.log_severity_level = 3
-        return ort.InferenceSession(str(onnx_path), sess_options=opts, providers=["CPUExecutionProvider"])
+        return ort.InferenceSession(
+            str(onnx_path), sess_options=opts, providers=["CPUExecutionProvider"]
+        )
     except Exception as exc:
         _log.warning("onnxruntime not available: %s", exc)
         return None
@@ -260,12 +263,10 @@ def _build_report_lines(
         r = results[d]
         p = r["p_drone"]
         bar = _ascii_bar(p)
-        lines.append(
-            f"| {d:>4} | {p:.3f} | {r['p_drone_std']:.3f} | {r['n_signals']} | {bar} |"
-        )
+        lines.append(f"| {d:>4} | {p:.3f} | {r['p_drone_std']:.3f} | {r['n_signals']} | {bar} |")
     lines += [
         "",
-        f"**Estimated detection range** (P >= 0.50): "
+        "**Estimated detection range** (P >= 0.50): "
         + (f"{det_range} m" if det_range is not None else "< 1 m (model not loaded or untrained)"),
         "",
         "## Signal Model",

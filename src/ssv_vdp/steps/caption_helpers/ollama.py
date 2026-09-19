@@ -1,6 +1,5 @@
 """Ollama sidecar helpers: model resolution, unload, adaptive timeout."""
 
-from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
 
 _log = get_logger("pipeline.local.caption")

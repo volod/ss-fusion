@@ -7,6 +7,7 @@ from typing import Any
 
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
+
 from ._agentic import (
     _build_agentic_flow_prompt,
     _build_agentic_flow_prompt_compact,
