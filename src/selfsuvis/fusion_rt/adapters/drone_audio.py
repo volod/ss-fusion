@@ -22,7 +22,7 @@ from pathlib import Path
 import httpx
 
 from selfsuvis.fusion_rt.config import fusion_settings
-from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.pipeline.core import get_logger
 
 from .base import SensorAdapter
 from .registry import registry
@@ -99,7 +99,7 @@ class DroneAudioAdapter(SensorAdapter):
                     "payload": {"source_file": wav_path.name},
                 }
                 try:
-                    api_key = settings.API_KEY
+                    api_key = fusion_settings.API_KEY
                     headers = {"X-Api-Key": api_key} if api_key else {}
                     await client.post(_INGEST_URL, json=payload, headers=headers)
                     self._record_event()

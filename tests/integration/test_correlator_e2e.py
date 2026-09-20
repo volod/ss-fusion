@@ -5,6 +5,7 @@ Run with: pytest tests/integration/ -m integration
 """
 
 import asyncio
+import os
 from datetime import datetime, timezone
 
 import httpx
@@ -12,7 +13,7 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("FUSION_RT_URL", "http://localhost:8001")
 
 
 @pytest.fixture

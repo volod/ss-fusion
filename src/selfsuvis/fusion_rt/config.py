@@ -7,10 +7,16 @@ for RF and training paths; they cannot import this module.
 import os
 from pathlib import Path
 
-from selfsuvis.pipeline.core.config._helpers import _env, _env_float, _env_int
+from selfsuvis.pipeline.core.config._helpers import (
+    _env,
+    _env_float,
+    _env_int,
+    _parse_allowed_paths,
+)
 from selfsuvis.pipeline.core.db_urls import sibling_database_url
 from selfsuvis.pipeline.core.env import kit_project_root
 from selfsuvis.pipeline.core.logging import get_logger
+from ss_kit.mqtt import MqttSettings
 from ss_kit.settings import KitSettings
 from ss_kit.settings import load_layered_env as load_kit_layered_env
 
@@ -45,9 +51,25 @@ class FusionSettings(KitSettings):
 
     CORRELATOR_REDIS_URL = _env("CORRELATOR_REDIS_URL", "redis://localhost:6379/1")
     WEBHOOK_REDIS_URL = _env("WEBHOOK_REDIS_URL", "redis://localhost:6379/2")
+    HEALTH_REDIS_URL = _env("HEALTH_REDIS_URL", "redis://localhost:6379/3")
     WEBHOOK_ALERT_URL = _env("WEBHOOK_ALERT_URL", "")
     WEBHOOK_SECRET = _env("WEBHOOK_SECRET", "")
     CORRELATOR_ENABLED = _env("CORRELATOR_ENABLED", "true").lower() == "true"
+    CORRELATOR_POLL_INTERVAL_S = _env_float("CORRELATOR_POLL_INTERVAL_S", 5.0)
+
+    API_KEY = _env("API_KEY", "")
+    _app_env = _env("APP_ENV", "dev").strip().lower()
+    API_AUTH_REQUIRED = (
+        _env("API_AUTH_REQUIRED", "true" if _app_env == "prod" else "false").lower() == "true"
+    )
+    RATE_LIMIT_PER_MIN = _env_int("RATE_LIMIT_PER_MIN", 120)
+    RATE_LIMIT_BURST = _env_int("RATE_LIMIT_BURST", 60)
+    TRUST_PROXY_HEADERS = _env("TRUST_PROXY_HEADERS", "false").lower() == "true"
+    ALLOWED_INDEX_PATHS = _parse_allowed_paths(os.getenv("ALLOWED_INDEX_PATHS"))
+
+    SITE_ID = _env("COOP_SITE_ID", "local")
+    CAMERA_EVENT_WINDOW_SEC = _env_int("COOP_CAMERA_EVENT_WINDOW_SEC", 120)
+    mqtt = MqttSettings.from_env("COOP_MQTT_")
 
     DRONE_AUDIO_MODEL_PATH = _env("DRONE_AUDIO_MODEL_PATH", "")
     DRONE_AUDIO_WATCH_DIR = _env("DRONE_AUDIO_WATCH_DIR", "")

@@ -4,7 +4,7 @@ Creates test zones and posts synthetic sensor events to the ingest API.
 Use this script when Phase 2 adapters are not yet writing live events.
 
 Usage:
-    python -m selfsuvis.scripts.seed_test_events [--api-url http://localhost:8000]
+    python -m selfsuvis.scripts.seed_test_events [--api-url http://localhost:8001]
 """
 
 import argparse
@@ -75,7 +75,11 @@ async def seed(api_url: str, api_key: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed test events for correlator development")
-    parser.add_argument("--api-url", default="http://localhost:8000", help="API base URL")
+    parser.add_argument(
+        "--api-url",
+        default="http://localhost:8001",
+        help="fusion-rt base URL",
+    )
     args = parser.parse_args()
     api_key = os.getenv("API_KEY", "")
     asyncio.run(seed(args.api_url, api_key))

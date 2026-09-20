@@ -1,7 +1,8 @@
-"""Combined camera + sensor site snapshot for the video API.
+"""Combined camera + sensor site snapshot for fusion-rt.
 
-Sensor rows are rebuilt from contract ``sensor-state`` (and ``sensor-event``) messages
-published by ss-sens. Camera rows are a rolling window of local Frigate events.
+Sensor rows are rebuilt from contract ``sensor-state`` (and ``sensor-event``)
+messages published by ss-sens. Camera rows are a rolling window of
+``camera-event`` messages the video side publishes on the topic map.
 """
 
 import asyncio
@@ -114,13 +115,30 @@ class CombinedSiteSnapshot:
                 self._sensors[node_id] = message
 
     async def ingest_camera_event(self, event: Any) -> None:
+        camera = str(getattr(event, "camera", "") or "unknown")
+        started_at = _parse_time(getattr(event, "started_at", None))
+
+        class _Row:
+            pass
+
+        row = event
+        if not hasattr(event, "started_at") or not isinstance(
+            getattr(event, "started_at"), datetime
+        ):
+            row = _Row()
+            row.event_id = getattr(event, "event_id", "")
+            row.camera = camera
+            row.label = getattr(event, "label", "")
+            row.score = float(getattr(event, "score", 0.0) or 0.0)
+            row.started_at = started_at
+            row.has_snapshot = bool(getattr(event, "has_snapshot", False))
         async with self._lock:
-            if event.camera not in self._cameras:
-                self._cameras[event.camera] = deque()
-            self._cameras[event.camera].append(event)
+            if camera not in self._cameras:
+                self._cameras[camera] = deque()
+            self._cameras[camera].append(row)
             cutoff = datetime.now(timezone.utc) - timedelta(seconds=self._camera_window_sec)
-            queue = self._cameras[event.camera]
-            while queue and queue[0].started_at < cutoff:
+            queue = self._cameras[camera]
+            while queue and _parse_time(queue[0].started_at) < cutoff:
                 queue.popleft()
 
     async def get_state(self) -> CombinedSiteState:
@@ -155,14 +173,16 @@ class CombinedSiteSnapshot:
                 "event_id": e.event_id,
                 "label": e.label,
                 "score": e.score,
-                "started_at": e.started_at.isoformat(),
+                "started_at": _parse_time(e.started_at).isoformat(),
                 "has_snapshot": e.has_snapshot,
             }
-            for e in sorted(events, key=lambda item: item.started_at, reverse=True)[:10]
+            for e in sorted(events, key=lambda item: _parse_time(item.started_at), reverse=True)[
+                :10
+            ]
         ]
         return CameraEventSummary(
             camera=camera,
-            last_seen=max(e.started_at for e in events),
+            last_seen=max(_parse_time(e.started_at) for e in events),
             recent_detections=recent,
             active_labels=labels,
             total_events=len(events),

@@ -23,7 +23,9 @@ from selfsuvis.pipeline.fusion.utils import probability_union
 
 logger = get_logger(__name__)
 
-_POLL_INTERVAL_S = 5.0
+
+def _poll_interval_s() -> float:
+    return max(0.2, float(fusion_settings.CORRELATOR_POLL_INTERVAL_S))
 
 
 def _risk_level(confidence: float) -> str:
@@ -229,8 +231,11 @@ async def _poll(pool, redis_client, sse_subscribers: dict) -> None:
 
 async def run_correlator(app) -> None:
     """Main correlator loop. Called as asyncio.create_task from app lifespan."""
-    pool = getattr(app.state, "fusion_db_pool", None) or app.state.db_pool
-    sse_subscribers: dict = app.state.sse_subscribers
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.error("Correlator: fusion db pool is not configured")
+        return
+    sse_subscribers: dict = getattr(app.state, "sse_subscribers", {})
 
     try:
         import redis.asyncio as aioredis  # pylint: disable=import-outside-toplevel
@@ -263,4 +268,4 @@ async def run_correlator(app) -> None:
             )
         except Exception as exc:
             logger.error("Correlator: poll error: %s", exc)
-        await asyncio.sleep(_POLL_INTERVAL_S)
+        await asyncio.sleep(_poll_interval_s())

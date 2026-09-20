@@ -51,11 +51,10 @@ class SceneSynthesis(BaseModel):
 
 
 class SceneSynthesizer:
-    """Produce a unified SceneSynthesis from the current SiteState + recent DB captions.
+    """Produce a unified SceneSynthesis from the current SiteState + MQTT captions.
 
     Args:
         aggregator:       CombinedSiteSnapshot holding live sensor + camera state.
-        db_pool:          asyncpg pool for scene_timeline caption queries.
         cache_sec:        Minimum seconds between LLM calls per site.
         reasoning_url:    Override for REASONING_API_URL.
         reasoning_model:  Override for REASONING_MODEL.
@@ -70,17 +69,34 @@ class SceneSynthesizer:
         reasoning_model: str | None = None,
     ) -> None:
         self._aggregator = aggregator
-        self._db_pool = db_pool
+        self._captions: list[dict[str, Any]] = []
+        self._caption_limit = 20
         self._cache_sec = cache_sec
-        self._reasoning_url = (
-            reasoning_url or settings.REASONING_API_URL or settings.GEMMA_API_URL
-        ).rstrip("/")
+        if reasoning_url is None:
+            url = settings.REASONING_API_URL or settings.GEMMA_API_URL
+        else:
+            url = reasoning_url
+        self._reasoning_url = (url or "").rstrip("/")
         self._reasoning_model = (
             reasoning_model or settings.REASONING_MODEL or settings.GEMMA_API_MODEL
         )
         self._cache: SceneSynthesis | None = None
         self._cache_ts: float = 0.0
         self._lock = asyncio.Lock()
+        if db_pool is not None:
+            logger.debug("SceneSynthesizer ignores db_pool; captions arrive over MQTT")
+
+    async def ingest_caption(self, caption: Any) -> None:
+        """Keep a rolling window of contract scene-caption messages."""
+        if hasattr(caption, "model_dump"):
+            data = caption.model_dump(mode="json")
+        elif isinstance(caption, dict):
+            data = dict(caption)
+        else:
+            return
+        async with self._lock:
+            self._captions.insert(0, data)
+            del self._captions[self._caption_limit :]
 
     async def synthesize(self, force: bool = False) -> SceneSynthesis:
         """Return a (possibly cached) scene synthesis."""
@@ -89,32 +105,11 @@ class SceneSynthesizer:
                 return self._cache
 
             state = await self._aggregator.get_state()
-            captions = await self._fetch_recent_captions()
+            captions = list(self._captions)
             result = await self._call_llm(state, captions)
             self._cache = result
             self._cache_ts = time.monotonic()
             return result
-
-    # -- DB caption fetch ------------------------------------------------------
-
-    async def _fetch_recent_captions(self) -> list[dict[str, Any]]:
-        if self._db_pool is None:
-            return []
-        try:
-            async with self._db_pool.acquire() as conn:
-                rows = await conn.fetch(
-                    """
-                    SELECT mission_id, created_at AS ts, caption, facts_json
-                    FROM scene_timeline
-                    WHERE created_at > now() - interval '5 minutes'
-                    ORDER BY created_at DESC
-                    LIMIT 20
-                    """,
-                )
-                return [dict(r) for r in rows]
-        except Exception as exc:
-            logger.debug("SceneSynthesizer: scene_timeline query failed: %s", exc)
-            return []
 
     # -- LLM call -------------------------------------------------------------
 
@@ -219,7 +214,7 @@ def _build_prompt(state: CombinedSiteState, captions: list[dict[str, Any]]) -> s
     if captions:
         lines.append("\n### Live Scene Captions (most recent)")
         for cap in captions[:5]:
-            ts = cap.get("ts", "?")
+            ts = cap.get("created_at") or cap.get("ts", "?")
             text = cap.get("caption") or ""
             mission = cap.get("mission_id", "")
             lines.append(f"  [{mission}@{ts}] {text[:200]}")
