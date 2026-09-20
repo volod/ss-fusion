@@ -47,7 +47,7 @@ def load_layered_env(
     Load order (later entries win over earlier, os.environ always wins):
       1. {package}/env/{app_env}.env  -- packaged defaults
       2. {repo_root}/.env             -- top-level user overrides (HF_TOKEN, etc.)
-      3. {repo_root}/.data/.env       -- stack env (sencoop / test infra overrides)
+      3. {repo_root}/.data/.env       -- stack env (ss-sens / test infra overrides)
       4. {repo_root}/.data/.env.local -- machine-local dev overrides (highest precedence,
                                         written by `make env`; never committed)
     """

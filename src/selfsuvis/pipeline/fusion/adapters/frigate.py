@@ -2,7 +2,7 @@
 
 Full sensor integration is deferred to Phase 0 customer pairing.
 This stub emits synthetic events sufficient to exercise the correlator in Phase 3A.
-Uses COOP_FRIGATE_API_URL from coop.config (no duplicate env var added).
+Uses COOP_FRIGATE_API_URL (video-side camera settings).
 """
 
 import asyncio
@@ -22,9 +22,9 @@ class FrigateAdapter(SensorAdapter):
     def __init__(self) -> None:
         super().__init__()
         try:
-            from sencoop.config import settings as coop_settings
+            from selfsuvis.pipeline.realtime.camera_settings import camera_settings
 
-            self._frigate_url = coop_settings.frigate_api_url
+            self._frigate_url = camera_settings.frigate_api_url
         except Exception:
             self._frigate_url = ""
         self.enabled = bool(self._frigate_url)
