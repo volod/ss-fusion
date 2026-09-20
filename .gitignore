@@ -25,10 +25,11 @@ __pycache__/
 /dist/
 /.eggs/
 
-# Model weight files (cache lives under $DATA_DIR)
+# Model weight files and compiled wheels (cache lives under $DATA_DIR)
 *.pt
 *.onnx
 *.rknn
+*.whl
 
 # Editors and operating systems
 .DS_Store
