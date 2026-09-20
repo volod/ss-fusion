@@ -3,8 +3,10 @@
 import os
 from pathlib import Path as _Path
 
+from selfsuvis.pipeline.core.env import kit_project_root
 from selfsuvis.pipeline.core.env import load_layered_env as _load_layered_env
 from selfsuvis.pipeline.core.logging import get_logger
+from ss_kit.settings import KitSettings
 
 # Load .env files before any _env() calls execute in the mixin class bodies.
 # anchor_file points at core/env.py so project_roots() resolves the same
@@ -31,13 +33,16 @@ logger = get_logger(__name__)
 
 
 class Settings(
+    KitSettings,
     _ModelSettings,
     _PipelineSettings,
     _ServiceSettings,
     _TrainingSettings,
     _SecuritySettings,
 ):
-    """Flat settings namespace populated from environment variables at import time."""
+    """Video and perception settings on KitSettings. Env names are unchanged."""
+
+    PROJECT_ROOT = kit_project_root(_Path(__file__).resolve().parent)
 
     APP_ENV = _env("APP_ENV", "dev").strip().lower()
     DATA_DIR = _env("DATA_DIR", "./.data")
@@ -72,6 +77,7 @@ class Settings(
 
 
 settings = Settings()
+VideoSettings = Settings
 
 
 def validate_settings() -> None:
@@ -133,6 +139,7 @@ __all__ = [
     "get_dino_model_name",
     "mask_secret",
     "Settings",
+    "VideoSettings",
     "settings",
     "validate_settings",
 ]

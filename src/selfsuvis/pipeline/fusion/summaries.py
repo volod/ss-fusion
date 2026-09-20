@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from selfsuvis.pipeline.core import settings
+from selfsuvis.fusion_rt.config import fusion_settings as settings
 from selfsuvis.pipeline.core.logging import get_logger
 from selfsuvis.pipeline.fusion.filters import PlatformStateFilter
 from selfsuvis.pipeline.fusion.measurements import PlatformMeasurement

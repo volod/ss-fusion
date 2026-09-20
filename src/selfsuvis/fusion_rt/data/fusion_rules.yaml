@@ -1,0 +1,23 @@
+# fusion_rules.yaml -- seed rules for correlator startup
+# Populated during Phase 0 pairing session with customer.
+# The correlator auto-seeds from this file at startup if the fusion_rules table is empty.
+# Each rule triggers an incident when all listed modalities fire in the same zone within window_s seconds.
+#
+# Schema:
+#   rule_id:        str   unique slug, e.g. "drone-convergence-north"
+#   label:          str   human-readable name shown in incident summary
+#   modalities:     list  required modalities (camera, audio, rf, thermal, vibration, custom)
+#   zone_id:        str|null  null = any zone
+#   window_s:       int   sliding window in seconds (1-3600)
+#   min_confidence: float minimum probability_union confidence to create incident (0.0-1.0)
+#   enabled:        bool
+
+rules: []
+# Example (uncomment and adapt after Phase 0 customer pairing):
+# - rule_id: drone-convergence
+#   label: Drone convergence
+#   modalities: [camera, audio, rf]
+#   zone_id: null
+#   window_s: 60
+#   min_confidence: 0.7
+#   enabled: true

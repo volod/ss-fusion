@@ -11,7 +11,8 @@ import json
 
 import httpx
 
-from selfsuvis.pipeline.core import get_logger, settings
+from selfsuvis.fusion_rt.config import fusion_settings
+from selfsuvis.pipeline.core import get_logger
 from ss_kit.security import sign_hmac_sha256
 
 logger = get_logger(__name__)
@@ -30,7 +31,7 @@ async def run_webhook_retry() -> None:
             "Webhook retry requires the 'redis' package. Install with: pip install redis"
         ) from exc
 
-    redis_client = aioredis.from_url(settings.WEBHOOK_REDIS_URL)
+    redis_client = aioredis.from_url(fusion_settings.WEBHOOK_REDIS_URL)
 
     async with httpx.AsyncClient(timeout=5.0) as client:
         while True:
@@ -47,7 +48,7 @@ async def run_webhook_retry() -> None:
                 if sleep_s > 0:
                     await asyncio.sleep(sleep_s)
 
-                url = settings.WEBHOOK_ALERT_URL
+                url = fusion_settings.WEBHOOK_ALERT_URL
                 if not url:
                     continue
 
@@ -58,9 +59,9 @@ async def run_webhook_retry() -> None:
                     "Content-Type": "application/json",
                     "X-SelfSuvis-Version": "1",
                 }
-                if settings.WEBHOOK_SECRET:
+                if fusion_settings.WEBHOOK_SECRET:
                     headers["X-SelfSuvis-Signature"] = (
-                        f"sha256={sign_hmac_sha256(settings.WEBHOOK_SECRET, body_bytes)}"
+                        f"sha256={sign_hmac_sha256(fusion_settings.WEBHOOK_SECRET, body_bytes)}"
                     )
 
                 try:

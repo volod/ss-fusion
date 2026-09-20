@@ -12,6 +12,7 @@ from ss_kit.env import (
     env_str,
     set_env_if_present,
 )
+from ss_kit.paths import discover_project_root
 from ss_kit.settings import load_layered_env as load_kit_layered_env
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "env_int",
     "env_json_dict",
     "env_str",
+    "kit_project_root",
     "load_layered_env",
     "load_script_env",
     "project_roots",
@@ -33,6 +35,19 @@ def project_roots(anchor_file: str) -> tuple[Path, Path]:
     package_root = current.parents[2]
     repo_root = current.parents[4]
     return package_root, repo_root
+
+
+def kit_project_root(start: Path | None = None) -> Path:
+    """Nearest marker root, or the working directory when markers are absent.
+
+    Installed wheels (Docker runtime images) live under site-packages with no
+    ``pyproject.toml`` or ``AGENTS.md`` above them. KitSettings then resolves a
+    relative ``DATA_DIR`` against the process working directory.
+    """
+    try:
+        return discover_project_root(start)
+    except FileNotFoundError:
+        return Path.cwd().resolve()
 
 
 def load_layered_env(

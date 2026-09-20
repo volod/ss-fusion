@@ -15,15 +15,15 @@ Design:
 import asyncio
 import json
 from datetime import datetime, timezone
+from importlib import resources
 
-from selfsuvis.pipeline.core import get_logger, settings
-from selfsuvis.pipeline.core.env import project_roots
+from selfsuvis.fusion_rt.config import fusion_settings
+from selfsuvis.pipeline.core import get_logger
 from selfsuvis.pipeline.fusion.utils import probability_union
 
 logger = get_logger(__name__)
 
 _POLL_INTERVAL_S = 5.0
-_SEED_YAML = project_roots(__file__)[1] / "docs" / "seed" / "fusion_rules.yaml"
 
 
 def _risk_level(confidence: float) -> str:
@@ -41,14 +41,15 @@ async def _seed_rules(conn) -> None:
     count = await conn.fetchval("SELECT COUNT(*) FROM fusion_rules")
     if count > 0:
         return
-    if not _SEED_YAML.exists():
-        logger.debug("Correlator: no seed YAML at %s, idling with no rules", _SEED_YAML)
-        return
-
     import yaml
 
     try:
-        data = yaml.safe_load(_SEED_YAML.read_text())
+        seed_text = (
+            resources.files("selfsuvis.fusion_rt")
+            .joinpath("data", "fusion_rules.yaml")
+            .read_text(encoding="utf-8")
+        )
+        data = yaml.safe_load(seed_text)
         rules = data.get("rules", []) if data else []
         for rule in rules:
             await conn.execute(
@@ -66,7 +67,7 @@ async def _seed_rules(conn) -> None:
                 rule.get("min_confidence", 0.5),
                 rule.get("enabled", True),
             )
-        logger.info("Correlator: seeded %d rules from %s", len(rules), _SEED_YAML)
+        logger.info("Correlator: seeded %d rules from package data", len(rules))
     except Exception as exc:
         logger.warning("Correlator: YAML seed failed: %s", exc)
 
@@ -228,7 +229,7 @@ async def _poll(pool, redis_client, sse_subscribers: dict) -> None:
 
 async def run_correlator(app) -> None:
     """Main correlator loop. Called as asyncio.create_task from app lifespan."""
-    pool = app.state.db_pool
+    pool = getattr(app.state, "fusion_db_pool", None) or app.state.db_pool
     sse_subscribers: dict = app.state.sse_subscribers
 
     try:
@@ -238,7 +239,7 @@ async def run_correlator(app) -> None:
             "Correlator requires the 'redis' package. Install with: pip install redis"
         ) from exc
 
-    redis_client = aioredis.from_url(settings.CORRELATOR_REDIS_URL)
+    redis_client = aioredis.from_url(fusion_settings.CORRELATOR_REDIS_URL)
 
     try:
         async with pool.acquire() as conn:

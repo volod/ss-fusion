@@ -3,6 +3,20 @@
 import pytest
 
 from selfsuvis.pipeline.core import config
+from ss_kit.settings import KitSettings
+
+
+def test_settings_is_kit_settings():
+    """Video Settings subclasses KitSettings and exposes fields()."""
+    assert issubclass(config.Settings, KitSettings)
+    fields = config.settings.fields()
+    assert "DATABASE_URL" in fields
+    assert "QDRANT_PORT" in fields
+    assert "FUSION_DATABASE_URL" not in fields
+    assert "CORRELATOR_ENABLED" not in fields
+    root = config.settings.PROJECT_ROOT
+    assert (root / "pyproject.toml").is_file()
+    assert (root / "AGENTS.md").is_file()
 
 
 def test_validate_settings_success(monkeypatch):

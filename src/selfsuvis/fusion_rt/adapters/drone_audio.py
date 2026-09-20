@@ -21,6 +21,7 @@ from pathlib import Path
 
 import httpx
 
+from selfsuvis.fusion_rt.config import fusion_settings
 from selfsuvis.pipeline.core import get_logger, settings
 
 from .base import SensorAdapter
@@ -45,8 +46,8 @@ class DroneAudioAdapter(SensorAdapter):
 
     def __init__(self) -> None:
         super().__init__()
-        self._model_path = settings.DRONE_AUDIO_MODEL_PATH
-        self._watch_dir = settings.DRONE_AUDIO_WATCH_DIR
+        self._model_path = fusion_settings.DRONE_AUDIO_MODEL_PATH
+        self._watch_dir = fusion_settings.DRONE_AUDIO_WATCH_DIR
         self.enabled = bool(self._model_path and self._watch_dir)
         self._session = None
 

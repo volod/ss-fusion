@@ -15,13 +15,15 @@ import secrets
 
 import asyncpg
 
+from selfsuvis.pipeline.core.db_urls import sibling_database_url
 from selfsuvis.pipeline.core.env import env_str, load_script_env
 
 load_script_env(anchor_file=__file__)
 
-DATABASE_URL = env_str(
-    "DATABASE_URL",
-    "postgresql://selfsuvis:selfsuvis@localhost:5432/selfsuvis",
+_DEFAULT_VIDEO = "postgresql://selfsuvis:selfsuvis@localhost:5432/selfsuvis"
+DATABASE_URL = env_str("FUSION_DATABASE_URL", "") or sibling_database_url(
+    env_str("DATABASE_URL", _DEFAULT_VIDEO),
+    "selfsuvis_fusion",
 )
 
 

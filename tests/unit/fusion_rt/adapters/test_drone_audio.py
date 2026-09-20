@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 
 def test_adapter_disabled_when_model_path_unset():
-    with patch("selfsuvis.pipeline.core.settings") as mock_settings:
+    with patch("selfsuvis.fusion_rt.adapters.drone_audio.fusion_settings") as mock_settings:
         mock_settings.DRONE_AUDIO_MODEL_PATH = ""
         mock_settings.DRONE_AUDIO_WATCH_DIR = "/some/dir"
 
@@ -18,7 +18,7 @@ def test_adapter_disabled_when_model_path_unset():
 
 
 def test_adapter_disabled_when_watch_dir_unset():
-    with patch("selfsuvis.pipeline.core.settings") as mock_settings:
+    with patch("selfsuvis.fusion_rt.adapters.drone_audio.fusion_settings") as mock_settings:
         mock_settings.DRONE_AUDIO_MODEL_PATH = "/some/model.onnx"
         mock_settings.DRONE_AUDIO_WATCH_DIR = ""
 

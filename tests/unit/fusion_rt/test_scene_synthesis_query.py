@@ -4,7 +4,7 @@ from typing import Any
 
 from selfsuvis.fusion_rt.scene_synthesis import SceneSynthesizer
 from selfsuvis.fusion_rt.site_snapshot import CombinedSiteSnapshot
-from selfsuvis.scripts.migrate_postgres import _SCHEMA
+from selfsuvis.pipeline.storage.migrate_video import VIDEO_SCHEMA
 
 SQL_WORDS = {
     "select", "from", "where", "order", "by", "desc", "limit", "as", "now", "interval",
@@ -13,7 +13,7 @@ SQL_WORDS = {
 
 
 def _table_columns(table: str) -> set[str]:
-    create = next(sql for sql in _SCHEMA if f"CREATE TABLE IF NOT EXISTS {table} (" in sql)
+    create = next(sql for sql in VIDEO_SCHEMA if f"CREATE TABLE IF NOT EXISTS {table} (" in sql)
     body = create.split("(", 1)[1]
     return {line.split()[0] for line in body.splitlines() if line.strip() and line[:1] == " "}
 

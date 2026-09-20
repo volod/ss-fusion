@@ -82,19 +82,7 @@ class _ServiceSettings:
     # -- Redis -----------------------------------------------------------------
     # Shared base URL -- kept for any code that hasn't migrated to per-consumer URLs.
     REDIS_URL = _env("REDIS_URL", "redis://localhost:6379/0")
-    # Per-consumer endpoints default to separate DBs on the same instance for key isolation.
-    CORRELATOR_REDIS_URL = _env("CORRELATOR_REDIS_URL", "redis://localhost:6379/1")
-    WEBHOOK_REDIS_URL = _env("WEBHOOK_REDIS_URL", "redis://localhost:6379/2")
     HEALTH_REDIS_URL = _env("HEALTH_REDIS_URL", "redis://localhost:6379/3")
-    WEBHOOK_ALERT_URL = _env("WEBHOOK_ALERT_URL", "")
-    WEBHOOK_SECRET = _env("WEBHOOK_SECRET", "")
-    CORRELATOR_ENABLED = _env("CORRELATOR_ENABLED", "true").lower() == "true"
-
-    # -- DroneAudioAdapter runtime paths ---------------------------------------
-    # DRONE_AUDIO_MODEL_PATH: path to ONNX from SV-21 training. Empty = disabled.
-    # DRONE_AUDIO_WATCH_DIR: directory to poll for .wav files. Empty = disabled.
-    DRONE_AUDIO_MODEL_PATH = _env("DRONE_AUDIO_MODEL_PATH", "")
-    DRONE_AUDIO_WATCH_DIR = _env("DRONE_AUDIO_WATCH_DIR", "")
 
     # -- Worker and ffmpeg -----------------------------------------------------
     WORKER_POLL_INTERVAL = _env_float("WORKER_POLL_INTERVAL", 2.0)
