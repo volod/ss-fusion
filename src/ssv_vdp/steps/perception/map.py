@@ -3,7 +3,8 @@
 from pathlib import Path
 from typing import Any
 
-from selfsuvis.pipeline.mapping import advise_map_quality, build_sparse_map
+from selfsuvis.pipeline.mapping.builder import build_sparse_map
+from selfsuvis.pipeline.mapping.quality_advisor import advise_map_quality
 
 from ..common import _log
 

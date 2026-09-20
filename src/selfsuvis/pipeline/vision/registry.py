@@ -18,6 +18,7 @@ import subprocess
 from dataclasses import dataclass, field
 
 from selfsuvis.pipeline.core import get_logger
+from selfsuvis.pipeline.core.gpu_utils import detect_vram_gb
 
 logger = get_logger(__name__)
 
@@ -34,33 +35,6 @@ def _env_float_override(key: str) -> float | None:
     except ValueError:
         logger.warning("Invalid float override %s=%r ignored", key, raw)
         return None
-
-
-def detect_vram_gb() -> float:
-    """Return total GPU VRAM in GiB. Returns 0.0 if no GPU found."""
-    override = _env_float_override("GPU_TOTAL_GB_HINT")
-    if override is not None:
-        return override
-    try:
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            mib = int(result.stdout.strip().splitlines()[0].strip())
-            return mib / 1024.0
-    except Exception:
-        pass
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            return torch.cuda.get_device_properties(0).total_memory / (1024**3)
-    except Exception:
-        pass
-    return 0.0
 
 
 def detect_free_vram_gb() -> float:

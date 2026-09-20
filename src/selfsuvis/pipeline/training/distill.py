@@ -305,7 +305,7 @@ class KnowledgeDistiller:
     def _load_student(self) -> torch.nn.Module:
         if self.config.student_model.startswith("efficientvit_"):
             try:
-                from selfsuvis.models.efficientvit_model import EfficientViTEmbedder
+                from selfsuvis.pipeline.training.efficientvit_model import EfficientViTEmbedder
             except ImportError as exc:
                 raise ImportError(
                     "timm is required for EfficientViT student: pip install timm"

@@ -70,7 +70,7 @@ class QdrantStore:
         limit: int,
         payload_filter: "qmodels.Filter | None" = None,
     ) -> list["qmodels.ScoredPoint"]:
-        # qdrant-client >= 1.7 removed client.search(); use query_points() instead.
+        # qdrant-client 1.19 and Qdrant v1.19 use /points/query (client.search is gone).
         response = self.client.query_points(
             collection_name=self.collection,
             query=query_vector.tolist(),

@@ -40,11 +40,11 @@ def test_run_local_preflight_reports_missing_cached_models(monkeypatch, tmp_path
 
     monkeypatch.setattr("selfsuvis.pipeline.core.preflight._has_module", lambda _name: True)
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_openclip_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_openclip_cached",
         lambda *_args, **_kwargs: False,
     )
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_dino_hub_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_dino_hub_cached",
         lambda *_args, **_kwargs: False,
     )
     monkeypatch.setattr(
@@ -63,15 +63,15 @@ def test_run_local_preflight_checks_drone_detection_runtime_bits(monkeypatch, tm
 
     monkeypatch.setattr("selfsuvis.pipeline.core.preflight._has_module", lambda _name: True)
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_openclip_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_openclip_cached",
         lambda *_args, **_kwargs: True,
     )
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_dino_hub_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_dino_hub_cached",
         lambda *_args, **_kwargs: True,
     )
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_yolo_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_yolo_cached",
         lambda model: model == "yolov8n",
     )
     monkeypatch.setattr(
@@ -85,15 +85,14 @@ def test_run_local_preflight_checks_drone_detection_runtime_bits(monkeypatch, tm
     assert any("dataset cache is empty" in item for item in report.warnings)
 
 
-def test_resolve_auto_model_expands_auto_for_hf_tasks(monkeypatch):
+def test_resolve_auto_model_expands_auto_for_hf_tasks():
     from selfsuvis.pipeline.core.preflight import _resolve_auto_model
 
-    monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._resolve_hf_model",
-        lambda task, override: f"{task}-resolved:{override or 'empty'}",
+    assert _resolve_auto_model("ocr", "auto", select_model=lambda task: f"{task}-resolved") == (
+        "ocr-resolved"
     )
-
-    assert _resolve_auto_model("ocr", "auto") == "ocr-resolved:empty"
+    assert _resolve_auto_model("ocr", "auto") == ""
+    assert _resolve_auto_model("ocr", "explicit-model") == "explicit-model"
 
 
 def test_run_local_preflight_downgrades_scenetok_to_warning_on_small_gpu(monkeypatch, tmp_path):
@@ -101,11 +100,11 @@ def test_run_local_preflight_downgrades_scenetok_to_warning_on_small_gpu(monkeyp
 
     monkeypatch.setattr("selfsuvis.pipeline.core.preflight._has_module", lambda _name: True)
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_openclip_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_openclip_cached",
         lambda *_args, **_kwargs: True,
     )
     monkeypatch.setattr(
-        "selfsuvis.pipeline.core.preflight.model_prep._is_dino_hub_cached",
+        "selfsuvis.pipeline.core.preflight.model_cache.is_dino_hub_cached",
         lambda *_args, **_kwargs: True,
     )
     monkeypatch.setattr(
@@ -138,7 +137,7 @@ def test_run_local_preflight_downgrades_scenetok_to_warning_on_small_gpu(monkeyp
         )(),
     )
     monkeypatch.setattr(
-        "selfsuvis.pipeline.vision.registry.detect_vram_gb",
+        "selfsuvis.pipeline.core.preflight.detect_vram_gb",
         lambda: 16.0,
     )
 

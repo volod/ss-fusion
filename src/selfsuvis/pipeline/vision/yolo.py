@@ -382,9 +382,10 @@ class YOLODetector:
                 pass
             device = _get_device()
             logger.info("Loading YOLO model: %s on %s", self.model_id, device)
+            cache_dir = _ultralytics_cache_dir()
+            cache_dir.mkdir(parents=True, exist_ok=True)
             model_file = self.model_id if self.model_id.endswith(".pt") else f"{self.model_id}.pt"
-            cached = _ultralytics_cache_dir() / model_file
-            model_arg = str(cached) if cached.exists() else model_file
+            model_arg = str(cache_dir / model_file)
             self._model = YOLO(model_arg)
             if device == "cuda":
                 self._model.to("cuda")

@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from selfsuvis.pipeline.core import model_cache
 from selfsuvis.pipeline.core.config import settings
+from selfsuvis.pipeline.core.gpu_utils import detect_vram_gb
 from selfsuvis.pipeline.core.logging import get_logger
-from selfsuvis.scripts import prepare_models as model_prep
 
 logger = get_logger(__name__)
 
@@ -97,15 +98,20 @@ def _is_local_url(url: str) -> bool:
     return host in {"", "localhost", "127.0.0.1", "::1"}
 
 
-def _resolve_auto_model(task: str, override: str) -> str:
+_SCENETOK_MIN_LOCAL_VRAM_GB = 20.0
+
+
+def _resolve_auto_model(task: str, override: str, select_model: Any | None = None) -> str:
     override = (override or "").strip()
     if override and override.lower() != "auto":
         return override
+    if select_model is not None:
+        selected = select_model(task)
+        if selected:
+            return selected
     if task == "asr":
-        from selfsuvis.pipeline.vision.registry import auto_select, detect_resources
-
-        return auto_select("asr", detect_resources()) or "openai/whisper-large-v3-turbo"
-    return model_prep._resolve_hf_model(task, "")
+        return "openai/whisper-large-v3-turbo"
+    return ""
 
 
 def _check_ollama_sidecar_model(
@@ -123,7 +129,7 @@ def _check_ollama_sidecar_model(
     _check_cached(
         report,
         f"{label} Ollama model {model_name}",
-        lambda: model_prep._is_ollama_model_cached(model_name),
+        lambda: model_cache.is_ollama_model_cached(model_name),
         hint="run `selfsuvis-models --reasoning/--unidrive` or `ollama pull`",
     )
 
@@ -145,12 +151,12 @@ def _check_vllm_sidecar_model(
     _check_cached(
         report,
         f"{label} vLLM model {model_name}",
-        lambda: model_prep._is_hf_cached(model_name),
+        lambda: model_cache.is_hf_cached(model_name),
         hint="run `selfsuvis-models --all` or cache the model manually",
     )
 
 
-def run_local_preflight(args: Any) -> PreflightReport:
+def run_local_preflight(args: Any, *, select_model: Any | None = None) -> PreflightReport:
     """Verify local pipeline requirements before the run starts."""
     report = PreflightReport(scope="local pipeline")
 
@@ -160,7 +166,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
     _check_cached(
         report,
         f"OpenCLIP {settings.OPENCLIP_MODEL}/{settings.OPENCLIP_PRETRAINED}",
-        lambda: model_prep._is_openclip_cached(
+        lambda: model_cache.is_openclip_cached(
             settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED
         ),
         hint=_prepare_hint("--clip"),
@@ -168,43 +174,46 @@ def run_local_preflight(args: Any) -> PreflightReport:
     _check_cached(
         report,
         "DINOv2/v3 torch hub archive",
-        lambda: model_prep._is_dino_hub_cached("dinov3_vitb14"),
+        lambda: model_cache.is_dino_hub_cached("dinov3_vitb14"),
         hint=_prepare_hint("--dino"),
     )
 
+    def resolve_model(task: str, override: str) -> str:
+        return _resolve_auto_model(task, override, select_model=select_model)
+
     if getattr(args, "asr", False):
-        asr_model = _resolve_auto_model("asr", getattr(args, "asr_model", "") or settings.ASR_MODEL)
+        asr_model = resolve_model("asr", getattr(args, "asr_model", "") or settings.ASR_MODEL)
         _check_cached(
             report,
             f"ASR {asr_model}",
-            lambda model=asr_model: model_prep._is_hf_cached(model),
+            lambda model=asr_model: model_cache.is_hf_cached(model),
             hint=_prepare_hint("--whisper", "--whisper-model", asr_model),
         )
 
     if getattr(args, "ocr", False) and not settings.OCR_API_URL:
-        ocr_model = _resolve_auto_model("ocr", getattr(args, "ocr_model", "") or settings.OCR_MODEL)
+        ocr_model = resolve_model("ocr", getattr(args, "ocr_model", "") or settings.OCR_MODEL)
         if ocr_model:
             _check_cached(
                 report,
                 f"OCR {ocr_model}",
-                lambda model=ocr_model: model_prep._is_hf_cached(model),
+                lambda model=ocr_model: model_cache.is_hf_cached(model),
                 hint=_prepare_hint("--ocr", "--ocr-model", ocr_model),
             )
 
     if getattr(args, "depth", False):
-        depth_model = _resolve_auto_model(
+        depth_model = resolve_model(
             "depth", getattr(args, "depth_model", "") or settings.DEPTH_MODEL
         )
         if depth_model:
             _check_cached(
                 report,
                 f"Depth {depth_model}",
-                lambda model=depth_model: model_prep._is_hf_cached(model),
+                lambda model=depth_model: model_cache.is_hf_cached(model),
                 hint=_prepare_hint("--depth", "--depth-model", depth_model),
             )
 
     if getattr(args, "detection", False):
-        detection_model = _resolve_auto_model(
+        detection_model = resolve_model(
             "detection",
             getattr(args, "detection_model", "") or settings.DETECTION_MODEL,
         )
@@ -212,7 +221,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
             _check_cached(
                 report,
                 f"Detection {detection_model}",
-                lambda model=detection_model: model_prep._is_hf_cached(model),
+                lambda model=detection_model: model_cache.is_hf_cached(model),
                 hint=_prepare_hint("--detection", "--detection-model", detection_model),
             )
         if settings.YOLO_ENABLED:
@@ -222,7 +231,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
             _check_cached(
                 report,
                 "YOLO11 weights",
-                lambda: model_prep._is_yolo_cached(settings.YOLO_MODEL),
+                lambda: model_cache.is_yolo_cached(settings.YOLO_MODEL),
                 hint=_prepare_hint("--yolo", "--yolo-model", settings.YOLO_MODEL),
             )
         if settings.SAM_ENABLED:
@@ -233,14 +242,14 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 report,
                 f"SAM {sam_model}",
                 lambda model=sam_model: (
-                    model_prep._is_hf_cached(model)
-                    or model_prep._is_hf_cached("facebook/sam2-hiera-large")
+                    model_cache.is_hf_cached(model)
+                    or model_cache.is_hf_cached("facebook/sam2-hiera-large")
                 ),
                 hint=_prepare_hint("--sam", "--sam-model", sam_model),
             )
 
     if getattr(args, "world_model", False):
-        world_model = _resolve_auto_model(
+        world_model = resolve_model(
             "world_model",
             getattr(args, "world_model_id", "") or settings.WORLD_MODEL,
         )
@@ -248,7 +257,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
             _check_cached(
                 report,
                 f"World model {world_model}",
-                lambda model=world_model: model_prep._is_hf_cached(model),
+                lambda model=world_model: model_cache.is_hf_cached(model),
                 hint=_prepare_hint("--world-model", "--world-model-id", world_model),
             )
 
@@ -317,7 +326,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
             _check_cached(
                 report,
                 f"UniDrive {unidrive_model}",
-                lambda model=unidrive_model: model_prep._is_hf_cached(model),
+                lambda model=unidrive_model: model_cache.is_hf_cached(model),
                 hint="run `selfsuvis-models --unidrive`",
             )
 
@@ -325,15 +334,8 @@ def run_local_preflight(args: Any) -> PreflightReport:
         if settings.SCENETOK_API_URL:
             report.add_check("SceneTok sidecar configured")
         else:
+            min_local_vram_gb = _SCENETOK_MIN_LOCAL_VRAM_GB
             try:
-                from selfsuvis.pipeline.vision.scenetok import SceneTokModel
-
-                min_local_vram_gb = float(getattr(SceneTokModel, "_MIN_LOCAL_VRAM_GB", 20.0))
-            except Exception:
-                min_local_vram_gb = 20.0
-            try:
-                from selfsuvis.pipeline.vision.registry import detect_vram_gb
-
                 total_vram_gb = float(detect_vram_gb() or 0.0)
             except Exception:
                 total_vram_gb = 0.0
@@ -355,7 +357,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
                 _check_cached(
                     report,
                     f"SceneTok {settings.SCENETOK_CHECKPOINT}",
-                    lambda: model_prep._is_scenetok_cached(settings.SCENETOK_CHECKPOINT),
+                    lambda: model_cache.is_scenetok_cached(settings.SCENETOK_CHECKPOINT),
                     hint="run `selfsuvis-models --scenetok`",
                 )
 
@@ -370,7 +372,7 @@ def run_local_preflight(args: Any) -> PreflightReport:
         _check_cached(
             report,
             "YOLOv8n training weights",
-            lambda: model_prep._is_yolo_cached("yolov8n"),
+            lambda: model_cache.is_yolo_cached("yolov8n"),
             hint="place yolov8n.pt in .data/.cache/ultralytics or warm it once before the run",
         )
         drone_cache = Path(args.output_dir).resolve() / "_drone_detection_cache"
@@ -405,7 +407,7 @@ def run_production_preflight(component: str) -> PreflightReport:
         _check_cached(
             report,
             f"OpenCLIP {settings.OPENCLIP_MODEL}/{settings.OPENCLIP_PRETRAINED}",
-            lambda: model_prep._is_openclip_cached(
+            lambda: model_cache.is_openclip_cached(
                 settings.OPENCLIP_MODEL, settings.OPENCLIP_PRETRAINED
             ),
             hint=_prepare_hint("--clip"),
@@ -414,14 +416,14 @@ def run_production_preflight(component: str) -> PreflightReport:
         _check_cached(
             report,
             "DINOv2/v3 torch hub archive",
-            lambda: model_prep._is_dino_hub_cached(settings.MODEL_NAME),
+            lambda: model_cache.is_dino_hub_cached(settings.MODEL_NAME),
             hint=_prepare_hint("--dino"),
         )
     elif settings.MODEL_NAME == "gemma":
         _check_cached(
             report,
             f"Gemma {settings.GEMMA_MODEL_ID}",
-            lambda: model_prep._is_gemma_cached(settings.GEMMA_MODEL_ID),
+            lambda: model_cache.is_gemma_cached(settings.GEMMA_MODEL_ID),
             hint=_prepare_hint("--gemma", "--gemma-model", settings.GEMMA_MODEL_ID),
         )
 

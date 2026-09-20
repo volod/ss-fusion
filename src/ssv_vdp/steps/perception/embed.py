@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 
 from selfsuvis.models.openclip_model import OpenCLIPEmbedder
-from selfsuvis.pipeline.media import extract_frames
+from selfsuvis.pipeline.media.ffmpeg import extract_frames
 
 from ..common import _log
 

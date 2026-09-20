@@ -1,4 +1,4 @@
-"""Unit tests for models/efficientvit_model.py.
+"""Unit tests for pipeline/training/efficientvit_model.py.
 
 All tests mock torch/timm to avoid model downloads.
 """
@@ -29,7 +29,7 @@ def test_efficientvit_embedder_missing_timm_raises():
         return real_import(name, *args, **kwargs)
 
     with patch("builtins.__import__", side_effect=_no_timm):
-        from selfsuvis.models.efficientvit_model import EfficientViTEmbedder
+        from selfsuvis.pipeline.training.efficientvit_model import EfficientViTEmbedder
 
         with pytest.raises(ImportError, match="timm is required"):
             EfficientViTEmbedder(device="cpu")
@@ -44,7 +44,7 @@ def test_efficientvit_embedder_cuda_oom_on_load_raises_helpful_message():
         # Re-import so the mock is used at init time
         import importlib
 
-        import selfsuvis.models.efficientvit_model as mod
+        import selfsuvis.pipeline.training.efficientvit_model as mod
 
         importlib.reload(mod)
 
@@ -72,7 +72,7 @@ def test_efficientvit_embedder_oom_on_encode_raises_helpful_message():
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
 
-        import selfsuvis.models.efficientvit_model as mod
+        import selfsuvis.pipeline.training.efficientvit_model as mod
 
         importlib.reload(mod)
 
@@ -102,7 +102,7 @@ def test_efficientvit_embedder_encode_empty():
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
 
-        import selfsuvis.models.efficientvit_model as mod
+        import selfsuvis.pipeline.training.efficientvit_model as mod
 
         importlib.reload(mod)
 
@@ -133,7 +133,7 @@ def test_efficientvit_embedder_encode_normalises():
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
 
-        import selfsuvis.models.efficientvit_model as mod
+        import selfsuvis.pipeline.training.efficientvit_model as mod
 
         importlib.reload(mod)
 
@@ -167,7 +167,7 @@ def test_efficientvit_embedder_image_dim():
     with patch.dict("sys.modules", {"timm": timm_mock}):
         import importlib
 
-        import selfsuvis.models.efficientvit_model as mod
+        import selfsuvis.pipeline.training.efficientvit_model as mod
 
         importlib.reload(mod)
 

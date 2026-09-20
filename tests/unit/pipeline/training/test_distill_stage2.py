@@ -99,10 +99,12 @@ class TestLoadStudentEfficientViT(unittest.TestCase):
         mock_inst = MagicMock()
         mock_inst.as_torch_backbone.return_value = mock_backbone
         mock_cls = MagicMock(return_value=mock_inst)
-        fake_mod = types.ModuleType("selfsuvis.models.efficientvit_model")
+        fake_mod = types.ModuleType("selfsuvis.pipeline.training.efficientvit_model")
         fake_mod.EfficientViTEmbedder = mock_cls
 
-        with patch.dict("sys.modules", {"selfsuvis.models.efficientvit_model": fake_mod}):
+        with patch.dict(
+            "sys.modules", {"selfsuvis.pipeline.training.efficientvit_model": fake_mod}
+        ):
             d = self._distiller_shell("efficientvit_b1")
             result = d._load_student()
 
@@ -111,7 +113,7 @@ class TestLoadStudentEfficientViT(unittest.TestCase):
         self.assertIs(result, mock_backbone)
 
     def test_efficientvit_import_error_raises_with_timm_hint(self):
-        with patch.dict("sys.modules", {"selfsuvis.models.efficientvit_model": None}):
+        with patch.dict("sys.modules", {"selfsuvis.pipeline.training.efficientvit_model": None}):
             d = self._distiller_shell("efficientvit_b1")
             with self.assertRaises(ImportError) as ctx:
                 d._load_student()

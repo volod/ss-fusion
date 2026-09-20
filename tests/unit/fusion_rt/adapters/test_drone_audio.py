@@ -9,7 +9,7 @@ def test_adapter_disabled_when_model_path_unset():
         mock_settings.DRONE_AUDIO_MODEL_PATH = ""
         mock_settings.DRONE_AUDIO_WATCH_DIR = "/some/dir"
 
-        from selfsuvis.pipeline.fusion.adapters.drone_audio import DroneAudioAdapter
+        from selfsuvis.fusion_rt.adapters.drone_audio import DroneAudioAdapter
 
         adapter = DroneAudioAdapter()
         adapter._model_path = ""
@@ -22,7 +22,7 @@ def test_adapter_disabled_when_watch_dir_unset():
         mock_settings.DRONE_AUDIO_MODEL_PATH = "/some/model.onnx"
         mock_settings.DRONE_AUDIO_WATCH_DIR = ""
 
-        from selfsuvis.pipeline.fusion.adapters.drone_audio import DroneAudioAdapter
+        from selfsuvis.fusion_rt.adapters.drone_audio import DroneAudioAdapter
 
         adapter = DroneAudioAdapter()
         adapter._watch_dir = ""
@@ -31,7 +31,7 @@ def test_adapter_disabled_when_watch_dir_unset():
 
 
 async def test_start_returns_immediately_when_disabled():
-    from selfsuvis.pipeline.fusion.adapters.drone_audio import DroneAudioAdapter
+    from selfsuvis.fusion_rt.adapters.drone_audio import DroneAudioAdapter
 
     adapter = DroneAudioAdapter()
     adapter.enabled = False
@@ -43,7 +43,7 @@ async def test_processed_subdir_created(tmp_path):
     """After processing, file should be in processed/ subdir."""
     from unittest.mock import AsyncMock
 
-    from selfsuvis.pipeline.fusion.adapters.drone_audio import DroneAudioAdapter
+    from selfsuvis.fusion_rt.adapters.drone_audio import DroneAudioAdapter
 
     wav = tmp_path / "test.wav"
     wav.write_bytes(b"RIFF")  # Minimal fake WAV

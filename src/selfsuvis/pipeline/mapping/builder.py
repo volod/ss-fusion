@@ -29,7 +29,7 @@ import numpy as np
 from PIL import Image
 
 from selfsuvis.pipeline.core import get_logger
-from selfsuvis.pipeline.mapping import run_sfm
+from selfsuvis.pipeline.mapping.sfm import run_sfm
 
 logger = get_logger(__name__)
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from selfsuvis.pipeline.fusion.correlator import _risk_level
+from selfsuvis.fusion_rt.correlator import _risk_level
 from selfsuvis.pipeline.fusion.utils import probability_union
 
 

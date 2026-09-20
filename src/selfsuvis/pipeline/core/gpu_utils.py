@@ -6,7 +6,48 @@ Centralises three patterns that were previously copy-pasted into every model fil
 - :func:`resolve_device` — map ``settings.DEVICE`` to ``"cuda" | "mps" | "cpu"``
 - :func:`pipeline_device_arg` — convert a device string to the integer HuggingFace
   ``pipeline()`` expects (``-1`` for CPU, ``0`` for CUDA/MPS)
+- :func:`detect_vram_gb` — total GPU VRAM in GiB
 """
+
+import os
+import subprocess
+
+
+def _env_float_override(key: str) -> float | None:
+    raw = os.environ.get(key)
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def detect_vram_gb() -> float:
+    """Return total GPU VRAM in GiB. Returns 0.0 if no GPU found."""
+    override = _env_float_override("GPU_TOTAL_GB_HINT")
+    if override is not None:
+        return override
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            mib = int(result.stdout.strip().splitlines()[0].strip())
+            return mib / 1024.0
+    except Exception:
+        pass
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return torch.cuda.get_device_properties(0).total_memory / (1024**3)
+    except Exception:
+        pass
+    return 0.0
 
 
 def is_cuda_oom(exc: Exception) -> bool:

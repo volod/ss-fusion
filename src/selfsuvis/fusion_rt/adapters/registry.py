@@ -1,6 +1,6 @@
 """Adapter registry — register and retrieve sensor adapters by name."""
 
-from selfsuvis.pipeline.fusion.adapters.base import SensorAdapter
+from .base import SensorAdapter
 
 
 class _AdapterRegistry:

@@ -14,9 +14,9 @@ import torch
 import torch.nn as nn
 
 # ── Module under test ─────────────────────────────────────────────────────────
+from selfsuvis.pipeline.labeling.cvat import CvatAnnotationParser
 from selfsuvis.pipeline.training.supervised import (
     AnnotatedFrameDataset,
-    CvatAnnotationParser,
     SupConLoss,
     SupervisedFinetuneConfig,
     SupervisedFineTuner,

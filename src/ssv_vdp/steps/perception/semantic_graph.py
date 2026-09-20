@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any
 
-from selfsuvis.pipeline.mapping import (
+from selfsuvis.pipeline.mapping.semantic_graph import (
     build_semantic_environment_graph,
     write_semantic_graph_markdown,
 )

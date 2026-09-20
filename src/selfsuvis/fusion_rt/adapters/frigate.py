@@ -10,8 +10,9 @@ import asyncio
 import httpx
 
 from selfsuvis.pipeline.core import get_logger
-from selfsuvis.pipeline.fusion.adapters.base import SensorAdapter
-from selfsuvis.pipeline.fusion.adapters.registry import registry
+
+from .base import SensorAdapter
+from .registry import registry
 
 logger = get_logger(__name__)
 
@@ -21,12 +22,9 @@ class FrigateAdapter(SensorAdapter):
 
     def __init__(self) -> None:
         super().__init__()
-        try:
-            from selfsuvis.pipeline.realtime.camera_settings import camera_settings
+        from ss_kit.env import env_str
 
-            self._frigate_url = camera_settings.frigate_api_url
-        except Exception:
-            self._frigate_url = ""
+        self._frigate_url = env_str("COOP_FRIGATE_API_URL", "http://localhost:8971")
         self.enabled = bool(self._frigate_url)
 
     async def _auto_seed_zones(self, pool) -> None:

@@ -22,8 +22,9 @@ from pathlib import Path
 import httpx
 
 from selfsuvis.pipeline.core import get_logger, settings
-from selfsuvis.pipeline.fusion.adapters.base import SensorAdapter
-from selfsuvis.pipeline.fusion.adapters.registry import registry
+
+from .base import SensorAdapter
+from .registry import registry
 
 logger = get_logger(__name__)
 

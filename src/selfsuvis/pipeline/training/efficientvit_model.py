@@ -9,7 +9,7 @@ Reference: `timm.create_model("efficientvit_b1", pretrained=True)`
 
 Usage::
 
-    from selfsuvis.models.efficientvit_model import EfficientViTEmbedder
+    from selfsuvis.pipeline.training.efficientvit_model import EfficientViTEmbedder
     model = EfficientViTEmbedder(device="cuda")
     embs  = model.encode_images([pil_img1, pil_img2])  # (N, 384) float32 numpy
 

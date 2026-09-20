@@ -240,8 +240,11 @@ async def run_correlator(app) -> None:
 
     redis_client = aioredis.from_url(settings.CORRELATOR_REDIS_URL)
 
-    async with pool.acquire() as conn:
-        await _seed_rules(conn)
+    try:
+        async with pool.acquire() as conn:
+            await _seed_rules(conn)
+    except Exception as exc:
+        logger.error("Correlator: seed rules failed: %s", exc)
 
     # Startup catch-up
     try:

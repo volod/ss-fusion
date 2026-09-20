@@ -47,8 +47,15 @@ def _dispatch(args) -> None:
         apply_local_env(args)
         _validate_local_inputs(args)
         from selfsuvis.pipeline.core import log_preflight, run_local_preflight  # noqa: PLC0415
+        from selfsuvis.pipeline.vision.registry import (  # noqa: PLC0415
+            auto_select,
+            detect_resources,
+        )
 
-        report = run_local_preflight(args)
+        def _select_model(task: str) -> str:
+            return auto_select(task, detect_resources()) or ""
+
+        report = run_local_preflight(args, select_model=_select_model)
         log_preflight(report)
         if report.errors:
             print(

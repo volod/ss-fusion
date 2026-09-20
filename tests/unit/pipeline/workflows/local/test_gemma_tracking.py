@@ -26,7 +26,6 @@ _STUB_MODULE_NAMES = [
     "selfsuvis.pipeline.vision",
     "selfsuvis.pipeline.vision.rfdetr",
     "selfsuvis.pipeline.workflows",
-    "selfsuvis.pipeline.workflows.local",
     "ssv_vdp.steps.common",
 ]
 
@@ -101,10 +100,6 @@ def _load_steps_module():
     workflows_pkg = types.ModuleType("selfsuvis.pipeline.workflows")
     workflows_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline/workflows")]
     sys.modules["selfsuvis.pipeline.workflows"] = workflows_pkg
-
-    local_pkg = types.ModuleType("selfsuvis.pipeline.workflows.local")
-    local_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline/workflows/local")]
-    sys.modules["selfsuvis.pipeline.workflows.local"] = local_pkg
 
     # Stub the perception package so its __init__.py (which imports embed.py →
     # OpenCLIPEmbedder → heavy pipeline deps) is never executed.

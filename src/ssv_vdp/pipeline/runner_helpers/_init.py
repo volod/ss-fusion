@@ -8,7 +8,7 @@ from typing import Any
 from selfsuvis.models.openclip_model import OpenCLIPEmbedder
 from selfsuvis.pipeline.core import settings
 from selfsuvis.pipeline.core.logging import get_logger
-from selfsuvis.pipeline.storage import InMemoryStore
+from selfsuvis.pipeline.storage.vector_store import InMemoryStore
 
 try:
     from selfsuvis.models.dino_model import DINOEmbedder
