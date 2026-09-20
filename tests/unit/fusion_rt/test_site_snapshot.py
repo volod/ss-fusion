@@ -1,9 +1,9 @@
 """Combined camera + sensor snapshot from contract messages."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from selfsuvis.fusion_rt.site_snapshot import CombinedSiteSnapshot
-from selfsuvis.pipeline.realtime.camera_events import CameraEvent
 from ss_contracts.models import SensorEvent, SensorState
 
 
@@ -12,7 +12,7 @@ async def test_ingest_sensor_state_and_event_and_camera() -> None:
     await snap.ingest_sensor_state(
         SensorState(
             dev_eui="70b3d57ed0060001",
-            last_seen=datetime(2026, 9, 19, 8, 0, tzinfo=timezone.utc),
+            last_seen=datetime(2026, 9, 19, 8, 0, tzinfo=UTC),
             reading_count=3,
             temperature_c=21.4,
             motion=True,
@@ -21,8 +21,8 @@ async def test_ingest_sensor_state_and_event_and_camera() -> None:
     await snap.ingest_sensor_event(
         SensorEvent(
             event_kind="sensor",
-            event_time=datetime(2026, 9, 19, 8, 1, tzinfo=timezone.utc),
-            ingest_time=datetime(2026, 9, 19, 8, 1, 1, tzinfo=timezone.utc),
+            event_time=datetime(2026, 9, 19, 8, 1, tzinfo=UTC),
+            ingest_time=datetime(2026, 9, 19, 8, 1, 1, tzinfo=UTC),
             node_id="70b3d57ed0060002",
             sensor_type="lorawan",
             sector_id="unknown",
@@ -31,19 +31,13 @@ async def test_ingest_sensor_state_and_event_and_camera() -> None:
         )
     )
     await snap.ingest_camera_event(
-        CameraEvent(
+        SimpleNamespace(
             event_id="e1",
             camera="entrance",
             label="person",
             score=0.8,
-            top_score=0.8,
-            event_type="new",
-            started_at=datetime.now(timezone.utc),
-            ended_at=None,
+            started_at=datetime.now(UTC),
             has_snapshot=True,
-            has_clip=False,
-            region={},
-            raw={},
         )
     )
     state = await snap.get_state()

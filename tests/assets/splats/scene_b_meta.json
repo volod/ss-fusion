@@ -1,0 +1,7 @@
+{
+  "origin_lat": 48.00005,
+  "origin_lon": 11.00005,
+  "origin_alt": 100.0,
+  "n_gaussians": 200,
+  "radius_m": 10.0
+}

@@ -1,12 +1,12 @@
 """Unit tests for rules CRUD."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 class _Row(dict):

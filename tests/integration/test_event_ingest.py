@@ -6,7 +6,7 @@ Run with: pytest tests/integration/ -m integration
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -29,7 +29,7 @@ def api_key():
 
 
 async def test_post_event_appears_in_db(headers):
-    ts = datetime.now(timezone.utc).isoformat()
+    ts = datetime.now(UTC).isoformat()
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
             f"{API_URL}/api/v1/events/camera",
@@ -49,7 +49,7 @@ async def test_post_event_appears_in_db(headers):
 
 async def test_correlator_creates_incident_visible_in_site_state(headers):
     """Seed events, wait for correlator, check site/state."""
-    ts = datetime.now(timezone.utc).isoformat()
+    ts = datetime.now(UTC).isoformat()
     async with httpx.AsyncClient(timeout=10.0) as client:
         # First create a zone
         await client.post(

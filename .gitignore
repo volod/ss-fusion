@@ -1,0 +1,43 @@
+# Local environment and secrets
+.env
+.env.local
+.env.secrets
+.env.secrets.*
+.venv/
+
+# Runtime artifacts and tool caches
+.data/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Python
+__pycache__/
+*.py[codz]
+*.so
+*.egg-info/
+
+# Build output
+/build/
+/dist/
+/.eggs/
+
+# Model weight files (cache lives under $DATA_DIR)
+*.pt
+*.onnx
+*.rknn
+
+# Editors and operating systems
+.DS_Store
+.idea/
+*.swp
+
+# Agent-local state; keep the checked-in rule adapters.
+.claude/
+.gemini/
+.codex-history/
+.claude-code-history/
+.gstack/

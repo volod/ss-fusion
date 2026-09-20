@@ -1,14 +1,14 @@
 """Unit tests for zone CRUD and zone history."""
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 class _Row(dict):

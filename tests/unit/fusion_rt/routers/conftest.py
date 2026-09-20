@@ -1,13 +1,13 @@
 """Shared fixtures for v1 router unit tests."""
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 NOW_ISO = NOW.isoformat()
 
 
@@ -116,14 +116,12 @@ def mock_pool():
 @pytest.fixture
 def app_with_pool(mock_pool):
     pool, conn = mock_pool
-    with patch("selfsuvis.pipeline.core.settings"):
-        with patch("selfsuvis.app.state.validate_settings"):
-            from fastapi import FastAPI
+    from fastapi import FastAPI
 
-            from selfsuvis.fusion_rt.routers.v1 import router
+    from selfsuvis.fusion_rt.routers.v1 import router
 
-            app = FastAPI()
-            app.include_router(router)
-            app.state.db_pool = pool
-            app.state.sse_subscribers = {}
+    app = FastAPI()
+    app.include_router(router)
+    app.state.db_pool = pool
+    app.state.sse_subscribers = {}
     return app, pool, conn

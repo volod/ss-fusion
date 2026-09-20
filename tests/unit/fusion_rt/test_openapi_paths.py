@@ -18,4 +18,5 @@ def test_fusion_rt_openapi_includes_moved_routes() -> None:
     assert "/site/threat" in paths
     assert "/site/synthesis" in paths
     assert "/site/cameras" not in paths
-    assert any(getattr(route, "path", None) == "/site/stream" for route in app.routes)
+    # FastAPI wraps included routers; websocket routes are on the original router.
+    assert any(getattr(route, "path", None) == "/site/stream" for route in site_router.routes)

@@ -1,0 +1,72 @@
+[project]
+name = "ss-fusion-workspace"
+version = "0.1.0"
+description = "ss-fusion workspace: research pipeline, model factory, fusion-rt, ss-perception, ss-mapping"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ss-perception",
+    "ss-mapping",
+    "ss-fusion",
+    "fusion-rt",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.16,<0.17",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
+
+[tool.uv.sources]
+ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.1.0" }
+ss-perception = { workspace = true }
+ss-mapping = { workspace = true }
+ss-fusion = { workspace = true }
+fusion-rt = { workspace = true }
+
+[tool.ss-split]
+siblings = []
+allow-imports = ["selfsuvis", "ssv_vdp"]
+
+[tool.ruff]
+cache-dir = ".data/.ruff_cache"
+line-length = 100
+src = ["packages", "apps", "tests"]
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["selfsuvis", "ssv_vdp", "ss_kit", "ss_contracts"]
+
+[tool.pytest.ini_options]
+cache_dir = ".data/.pytest_cache"
+testpaths = ["tests"]
+pythonpath = [
+    "packages/ss-perception/src",
+    "packages/ss-mapping/src",
+    "packages/ss-fusion/src",
+    "apps/fusion-rt/src",
+    ".",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::FutureWarning",
+]
+markers = [
+    "slow: marks tests as slow (deselect with -m 'not slow')",
+    "heavy: needs torch, opencv, ffmpeg, or other vision/ML deps",
+    "benchmark: performance benchmarks",
+    "gpu: requires a CUDA GPU",
+    "integration: requires running Docker services",
+]

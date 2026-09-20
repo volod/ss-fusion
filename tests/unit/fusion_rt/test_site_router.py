@@ -1,6 +1,6 @@
 """GET /site/state and /site/threat on fusion-rt."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -30,7 +30,7 @@ def test_site_state_and_threat() -> None:
         snap.ingest_sensor_state(
             SensorState(
                 dev_eui="aabb",
-                last_seen=datetime(2026, 9, 19, 8, 0, tzinfo=timezone.utc),
+                last_seen=datetime(2026, 9, 19, 8, 0, tzinfo=UTC),
                 reading_count=1,
                 temperature_c=20.0,
             )

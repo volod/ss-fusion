@@ -1,7 +1,7 @@
 """FusionContractConsumer dispatches camera-event and sensor-event payloads."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from selfsuvis.fusion_rt.mqtt_consumer import FusionContractConsumer
 from ss_kit.mqtt import TopicBuilder
@@ -38,7 +38,7 @@ async def test_handle_message_dispatches_sensor_and_camera() -> None:
         "score": 0.8,
         "top_score": 0.8,
         "event_type": "new",
-        "started_at": datetime(2026, 9, 19, 8, 0, tzinfo=timezone.utc).isoformat(),
+        "started_at": datetime(2026, 9, 19, 8, 0, tzinfo=UTC).isoformat(),
         "has_snapshot": True,
         "has_clip": False,
         "region": {},

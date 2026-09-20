@@ -1,5 +1,6 @@
 import os
 from argparse import Namespace
+from pathlib import Path
 
 from ssv_vdp.local_env import apply_local_env
 
@@ -47,6 +48,8 @@ def _make_args(**overrides):
         sam_model="auto",
         no_rfdetr=False,
         rfdetr_model="base",
+        video=None,
+        videos_dir=None,
     )
     base.update(overrides)
     return Namespace(**base)
@@ -99,3 +102,21 @@ def test_apply_local_env_sets_scenetok_arg_from_env_when_unspecified(monkeypatch
     apply_local_env(args)
 
     assert args.scenetok is True
+
+
+def test_apply_local_env_binds_single_video_file(monkeypatch, tmp_path):
+    monkeypatch.delenv("DATA_DIR", raising=False)
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"not-a-real-mp4")
+    extra = tmp_path / "other.mp4"
+    extra.write_bytes(b"sibling")
+    out = tmp_path / "run"
+
+    args = _make_args(output_dir=str(out), video=str(video), videos_dir=str(tmp_path))
+    apply_local_env(args)
+
+    staged = Path(args.videos_dir)
+    assert staged.is_dir()
+    assert (staged / "clip.mp4").is_symlink()
+    assert (staged / "clip.mp4").resolve() == video.resolve()
+    assert not (staged / "other.mp4").exists()

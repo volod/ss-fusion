@@ -6,7 +6,7 @@ Run with: pytest tests/integration/ -m integration
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -25,7 +25,7 @@ def headers():
 
 
 async def test_seed_rule_and_events_trigger_incident(headers):
-    ts = datetime.now(timezone.utc).isoformat()
+    ts = datetime.now(UTC).isoformat()
     async with httpx.AsyncClient(timeout=15.0) as client:
         await client.post(
             f"{API_URL}/api/v1/zones",

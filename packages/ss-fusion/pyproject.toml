@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ss-fusion"
+version = "0.1.0"
+description = "Research pipeline, state estimation, training, analytics, visualization"
+requires-python = ">=3.11"
+dependencies = [
+    "ss-perception",
+    "ss-mapping",
+    "ss-common",
+    "jinja2>=3.1",
+    "langgraph>=0.2",
+    "langchain-core>=0.3",
+    "langsmith>=0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.16,<0.17",
+]
+
+[project.scripts]
+ssv = "ssv_vdp.cli:main"
+ssv-export = "ssv_vdp.scripts.export_onnx:main"
+ssv-gallery = "ssv_vdp.scripts.build_gallery:main"
+ssv-split-audio = "ssv_vdp.scripts.split_drone_audio_data:main"
+ssv-play-drone = "ssv_vdp.scripts.play_drone_sound:main"
+ssv-prepare-audio = "ssv_vdp.scripts.prepare_audio_data:main"
+ssv-models = "selfsuvis.scripts.prepare_models:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ssv_vdp" = ["py.typed"]
+
+[tool.uv.sources]
+ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.1.0" }
+ss-perception = { workspace = true }
+ss-mapping = { workspace = true }

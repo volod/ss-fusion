@@ -9,9 +9,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[5]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[5]
+FUSION_SRC = PROJECT_ROOT / "packages" / "ss-fusion" / "src"
+PERCEPTION_SRC = PROJECT_ROOT / "packages" / "ss-perception" / "src"
+for _src in (str(FUSION_SRC), str(PERCEPTION_SRC)):
+    if _src not in sys.path:
+        sys.path.insert(0, _src)
 
 
 def _write_frame(path: Path, color: tuple[int, int, int]) -> None:
@@ -32,7 +35,7 @@ _STUB_MODULE_NAMES = [
 
 def _load_steps_module():
     module_name = "ssv_vdp.steps.gemma_tracking"
-    module_path = ROOT / "src/ssv_vdp/steps/gemma_tracking.py"
+    module_path = FUSION_SRC / "ssv_vdp/steps/gemma_tracking.py"
 
     # Save originals so we can restore them after loading (prevent contamination
     # of later tests that import real pipeline.core).
@@ -42,7 +45,7 @@ def _load_steps_module():
         sys.modules.pop(name, None)
 
     pipeline_pkg = types.ModuleType("pipeline")
-    pipeline_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline")]
+    pipeline_pkg.__path__ = [str(PERCEPTION_SRC / "selfsuvis/pipeline")]
     sys.modules["pipeline"] = pipeline_pkg
 
     settings = types.SimpleNamespace(
@@ -60,7 +63,7 @@ def _load_steps_module():
     sys.modules["selfsuvis.pipeline.core"] = core_mod
 
     vision_pkg = types.ModuleType("selfsuvis.pipeline.vision")
-    vision_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline/vision")]
+    vision_pkg.__path__ = [str(PERCEPTION_SRC / "selfsuvis/pipeline/vision")]
     sys.modules["selfsuvis.pipeline.vision"] = vision_pkg
 
     rfdetr_mod = types.ModuleType("selfsuvis.pipeline.vision.rfdetr")
@@ -98,13 +101,13 @@ def _load_steps_module():
     sys.modules["selfsuvis.pipeline.vision.rfdetr"] = rfdetr_mod
 
     workflows_pkg = types.ModuleType("selfsuvis.pipeline.workflows")
-    workflows_pkg.__path__ = [str(ROOT / "src/selfsuvis/pipeline/workflows")]
+    workflows_pkg.__path__ = []
     sys.modules["selfsuvis.pipeline.workflows"] = workflows_pkg
 
     # Stub the perception package so its __init__.py (which imports embed.py →
     # OpenCLIPEmbedder → heavy pipeline deps) is never executed.
     perception_pkg = types.ModuleType("ssv_vdp.steps.perception")
-    perception_pkg.__path__ = [str(ROOT / "src/ssv_vdp/steps/perception")]
+    perception_pkg.__path__ = [str(FUSION_SRC / "ssv_vdp/steps/perception")]
     sys.modules["ssv_vdp.steps.perception"] = perception_pkg
 
     common_mod = types.ModuleType("ssv_vdp.steps.common")
@@ -118,17 +121,18 @@ def _load_steps_module():
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-
-    # Restore all stubbed entries except the loaded module itself so that
-    # subsequent tests can import real pipeline.core / pipeline etc.
-    for k, v in saved.items():
-        if k == module_name:
-            continue  # keep the freshly loaded module
-        if v is None:
-            sys.modules.pop(k, None)
-        else:
-            sys.modules[k] = v
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        # Restore all stubbed entries except the loaded module itself so that
+        # subsequent tests can import real pipeline.core / pipeline etc.
+        for k, v in saved.items():
+            if k == module_name:
+                continue  # keep the freshly loaded module
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
 
     return module
 

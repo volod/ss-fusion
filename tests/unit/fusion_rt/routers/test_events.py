@@ -1,14 +1,14 @@
 """Unit tests for POST /api/v1/events/{modality}."""
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 _VALID_BODY = {
     "ts": NOW.isoformat(),
     "zone_id": "north-gate",
