@@ -19,7 +19,7 @@ from importlib import resources
 
 from selfsuvis.fusion_rt.config import fusion_settings
 from selfsuvis.pipeline.core import get_logger
-from selfsuvis.pipeline.fusion.utils import probability_union
+from selfsuvis.pipeline.core.prob import probability_union
 
 logger = get_logger(__name__)
 

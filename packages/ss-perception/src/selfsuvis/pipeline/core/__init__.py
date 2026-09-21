@@ -16,6 +16,7 @@ from .gpu_utils import is_cuda_oom, pipeline_device_arg, resolve_device
 from .log_analytics import get_log_analytics
 from .logging import configure_logging, get_logger
 from .preflight import log_preflight, run_local_preflight, run_production_preflight
+from .prob import probability_union
 from .sidecars import HttpSidecarClient, load_jsonl_sidecar, load_video_jsonl_sidecar, sidecar_path
 from .utils import (
     RateTimer,
@@ -56,6 +57,7 @@ __all__ = [
     "load_video_jsonl_sidecar",
     "now_iso",
     "pipeline_device_arg",
+    "probability_union",
     "REALTIME_ENGINE_IMAGES",
     "resolve_allowed_path",
     "resolve_allowed_paths_for_walk",

@@ -3,6 +3,8 @@
 ss-fusion is the GPU-host research pipeline, model factory, and site-operations fusion runtime.
 It publishes `ss-perception` and `ss-mapping` as packages that ss-video pins. It pins
 [`volod/ss-common`](https://github.com/volod/ss-common) tag `v0.1.0`.
+Workspace members are version `0.2.1` so downstream pins can move without
+keeping fusion-rt coupled to the research-pipeline distribution.
 
 This document owns product behavior, boundaries, evaluations, and the
 [capability registry](#capability-registry). The [forward plan](../impl/plan.md) owns work that
@@ -37,21 +39,23 @@ research-and-operations surface; details live in
 
 ## Standalone CI
 
-**Problem.** GitHub Actions runs a minutes-long light job (`make ci-github`: no torch, no locked
-vision install). A clone of this repository may still fail a locked `uv sync` or the fusion-rt
-Docker suite, which are not part of that job.
+**Problem.** GitHub Actions is a minutes-long light job (`make ci-github`: no torch, no
+locked vision install). That job does not prove a locked `uv sync` or the fusion-rt
+Docker suite.
 
-**Behavior.** After [volod/ss-fusion](https://github.com/volod/ss-fusion) exists, a clone of this
-repository completes locked `uv sync --group dev`, `make ci`, and the fusion-rt Docker tests.
-GitHub Actions stays the light job.
+**Behavior.** A clone of this repository completes locked `uv sync --group dev`,
+`make ci`, and `make test-fusion-rt`. GitHub Actions stays the light job.
+`make standalone-build` writes `$DATA_DIR/standalone-build/build.log` ending in PASS.
 
-**Boundary.** Does not install the vision extra, does not re-run the CUDA `ssv` golden, and does
-not change fusion algorithms. Compose files that still live only in ss-video are copied here if
-the Docker suite needs them.
+**Boundary.** Does not install the vision extra, does not re-run the CUDA `ssv` golden,
+and does not change fusion algorithms. The slim fusion-rt compose stack lives in this
+repository under `docker/fusion-rt/`. fusion-rt does not depend on the `ss-fusion`
+research-pipeline distribution.
 
-**Evaluation.** `make ci` is green on the clone; fusion-rt Docker tests are green; the log is under
-`$DATA_DIR/standalone-build/`. Valid negative result: if GitHub-hosted runners cannot run the
-Docker suite, the circle runs on a self-hosted clone of this repository and is recorded.
+**Evaluation.** `make ci` is green; fusion-rt Docker tests are green; the log is under
+`$DATA_DIR/standalone-build/`. Valid negative result: GitHub-hosted runners do not run
+the Docker suite; the circle runs on a self-hosted clone of this repository and is
+recorded. Current state: [standalone CI](../impl/current/standalone-ci.md).
 
 ## Pipeline kernel
 
@@ -84,7 +88,7 @@ without behavior change stay on the legacy orchestrator and are listed.
 | # | Capability | Status | How it is evaluated | Implementation |
 | --- | --- | --- | --- | --- |
 | 1 | `research-pipeline` | shipped | Local run emits `analysis_summary.json` with modality coverage; step unit tests | [Local pipeline](../impl/current/local-pipeline.md) |
-| 2 | `standalone-ci` | planned | Locked `make ci` and fusion-rt Docker tests on a clone of this repository | -- |
+| 2 | `standalone-ci` | shipped | Locked `make ci` and fusion-rt Docker tests on a clone of this repository | [Standalone CI](../impl/current/standalone-ci.md) |
 | 3 | `pipeline-kernel` | planned | Spec reproduces legacy run; ledger contract; shed-order fixture | -- |
 
 ## Extending this specification

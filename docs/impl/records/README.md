@@ -3,7 +3,8 @@
 Copy a record template when a plan task starts. `make lint-spec-plan` accepts a dependency on a
 finished task only when its record exists here.
 
-Next unused sequence: `0001`.
+Next unused sequence: `0002`.
 
 | Record | Scope | Result |
 | --- | --- | --- |
+| [0001-standalone-ci-ss-fusion-standalone-build.md](0001-standalone-ci-ss-fusion-standalone-build.md) | `standalone-ci` / `ss-fusion-standalone-build` | accepted |

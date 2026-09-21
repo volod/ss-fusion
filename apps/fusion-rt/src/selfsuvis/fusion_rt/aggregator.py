@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from selfsuvis.pipeline.core.freshness import downweight_score, expire_event
-from selfsuvis.pipeline.fusion.utils import probability_union
+from selfsuvis.pipeline.core.prob import probability_union
 
 from .degraded_mode import apply_degraded_mode_to_threat, evaluate_degraded_mode
 from .event_access import (

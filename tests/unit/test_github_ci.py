@@ -21,6 +21,7 @@ def test_makefile_ci_github_is_not_the_locked_install() -> None:
     assert "\nci-github: github-bootstrap" in text
     assert "test-github:" in text
     assert "tests/unit/fusion_rt" in text
+    assert "tests/unit/test_standalone_ci.py" in text
     assert "\nci: bootstrap lint" in text
 
 

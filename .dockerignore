@@ -1,0 +1,14 @@
+.data
+.venv
+.git
+**/.git
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache
+docs
+*.pt
+*.onnx
+*.rknn
+*.whl

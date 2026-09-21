@@ -42,6 +42,8 @@ Heavy native builds cap parallelism with `ss-kit max-jobs`. Compiled wheels are 
 
 - `make ci` — locked install, lint, doc-link and spec-plan checks, light unit tests
 - `make ci-github` — GitHub gate: no torch, fusion-rt and workspace tests only
+- `make test-fusion-rt` — slim fusion-rt Docker suite (postgres, redis, mosquitto)
+- `make standalone-build` — locked sync, `make ci`, fusion-rt Docker tests; log under `$DATA_DIR/standalone-build/`
 - `make test-unit` — full unit tests (needs a CUDA venv with vision deps)
 - `ssv --mode local --video tests/assets/vid_testsrc.mp4` — local research pipeline
 - `.venv/bin/uvicorn selfsuvis.fusion_rt.app:app --host 0.0.0.0 --port 8001` — fusion-rt

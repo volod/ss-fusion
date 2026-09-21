@@ -1,5 +1,6 @@
 """Pydantic models for fusion-rt v1 API endpoints."""
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -8,7 +9,7 @@ VALID_MODALITIES = {"camera", "audio", "rf", "thermal", "vibration", "custom"}
 
 
 class EventEnvelope(BaseModel):
-    ts: str = Field(..., description="ISO 8601 event timestamp")
+    ts: datetime = Field(..., description="ISO 8601 event timestamp")
     zone_id: str = Field(..., min_length=1)
     sensor_id: str = Field(..., min_length=1)
     confidence: float = Field(..., ge=0.0, le=1.0)

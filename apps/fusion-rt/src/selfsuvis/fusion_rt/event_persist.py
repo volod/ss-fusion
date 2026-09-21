@@ -32,7 +32,7 @@ def _as_mapping(obj: Any) -> dict[str, Any]:
     return {}
 
 
-def _parse_ts(value: Any) -> datetime:
+def parse_ts(value: Any) -> datetime:
     if isinstance(value, datetime):
         dt = value
     else:
@@ -63,7 +63,7 @@ def sensor_event_to_site_row(event: Any, *, zone_id: str) -> dict[str, Any]:
         payload.get("confidence"), 0.85 if payload.get("motion") else 0.7
     )
     return {
-        "ts": _parse_ts(data.get("event_time")),
+        "ts": parse_ts(data.get("event_time")),
         "zone_id": zone_id,
         "sensor_id": str(data.get("node_id") or "unknown"),
         "modality": modality,
@@ -76,7 +76,7 @@ def sensor_event_to_site_row(event: Any, *, zone_id: str) -> dict[str, Any]:
 def camera_event_to_site_row(event: Any, *, zone_id: str) -> dict[str, Any]:
     data = _as_mapping(event)
     return {
-        "ts": _parse_ts(data.get("started_at")),
+        "ts": parse_ts(data.get("started_at")),
         "zone_id": zone_id,
         "sensor_id": str(data.get("camera") or "unknown"),
         "modality": "camera",

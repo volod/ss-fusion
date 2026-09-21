@@ -1,0 +1,79 @@
+# Slim fusion-rt stack: postgres, redis, mosquitto, fusion-rt.
+# No video API, worker, Qdrant, or vision extra. Host ports are not published so this
+# stack can run beside ss-video. Tests talk on the compose network.
+name: ss-fusion-rt-test
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: selfsuvis
+      POSTGRES_PASSWORD: selfsuvis
+      POSTGRES_DB: selfsuvis
+    volumes:
+      - ${STANDALONE_DATA:-../../.data/standalone-build}/postgres:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U selfsuvis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  fusion-rt:
+    build:
+      context: ../..
+      dockerfile: docker/fusion-rt/Dockerfile
+    image: ss-fusion-rt:local
+    command: ["uvicorn", "selfsuvis.fusion_rt.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - APP_ENV=test
+      - DATA_DIR=/app/data
+      - DATABASE_URL=postgresql://selfsuvis:selfsuvis@postgres:5432/selfsuvis
+      - FUSION_DATABASE_URL=postgresql://selfsuvis:selfsuvis@postgres:5432/selfsuvis_fusion
+      - REDIS_URL=redis://redis:6379/0
+      - CORRELATOR_REDIS_URL=redis://redis:6379/1
+      - WEBHOOK_REDIS_URL=redis://redis:6379/2
+      - HEALTH_REDIS_URL=redis://redis:6379/3
+      - CORRELATOR_ENABLED=true
+      - CORRELATOR_POLL_INTERVAL_S=1
+      - API_AUTH_REQUIRED=false
+      - API_KEY=
+      - HOME=/app/cache
+      - XDG_CACHE_HOME=/app/cache
+      - LOGNAME=app
+      - COOP_MQTT_HOST=mosquitto
+      - COOP_MQTT_PORT=1883
+      - COOP_MQTT_USER=
+      - COOP_MQTT_PASSWORD=
+      - COOP_MQTT_TLS=false
+      - COOP_SITE_ID=local
+    volumes:
+      - ${STANDALONE_DATA:-../../.data/standalone-build}:/app/data
+      - ${STANDALONE_DATA:-../../.data/standalone-build}/cache:/app/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 25s

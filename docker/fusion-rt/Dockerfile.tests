@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+# HTTP-client tests only. Built from this workspace.
+# Do not install workspace packages or the vision extra.
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN python -m venv "$VIRTUAL_ENV"
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --prefer-binary \
+      pytest \
+      requests \
+      httpx \
+      aiomqtt \
+      "ss-common[mqtt] @ git+https://github.com/volod/ss-common.git@v0.1.0"
+
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+COPY --from=builder /opt/venv /opt/venv
+COPY tests/docker ./tests
+COPY tests/assets/contracts ./tests/assets/contracts
+COPY docker/fusion-rt/pytest.ini /app/pytest.ini
+
+ENV PYTEST_CACHE_DIR=/tmp/.pytest_cache
+ENV ASSETS_DIR=/app/tests/assets
+
+CMD ["pytest", "tests/test_fusion_rt.py", "-q"]

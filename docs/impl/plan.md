@@ -9,30 +9,6 @@ Capability groups follow registry order in both lanes.
 
 ## Agent Implementation Tasks
 
-### Standalone CI -- `standalone-ci`
-
-#### ss-fusion-standalone-build
-
-GitHub CI is a minutes-long light job, so the locked install and fusion-rt Docker circle are not
-proven on a clone of this repository.
-
-- Serves: `standalone-ci` -- [Standalone CI](../design/spec.md#standalone-ci)
-- Agent status: RUN NEEDED
-- Dependencies: none.
-- User-visible outcome: a clone of [volod/ss-fusion](https://github.com/volod/ss-fusion) completes
-  the full build circle: locked `uv sync`, `make ci`, and fusion-rt Docker tests.
-- Scope boundary: in scope -- work in this published repository; `uv sync --locked --group dev`;
-  `make ci`; the fusion-rt Docker suite (`make test-fusion-rt`, or compose and Dockerfiles added
-  here if they still live only in ss-video); the log under `$DATA_DIR/standalone-build/`. Out of
-  scope -- the vision extra and CUDA `ssv` golden run; ss-video flatten; creating or tagging the
-  GitHub repository.
-- Data and artifact paths: `$DATA_DIR/standalone-build/`.
-- Execution path: clone `https://github.com/volod/ss-fusion`; `uv sync --locked --group dev` and
-  `make ci`; fusion-rt Docker tests; the log file ends with PASS.
-- Acceptance gates: locked sync completes on the published clone; `make ci` is green; fusion-rt
-  Docker tests are green; the log is under `$DATA_DIR/standalone-build/`.
-- Documentation target: `docs/impl/current.md`.
-
 ### Pipeline kernel -- `pipeline-kernel`
 
 #### kernel-reference-runtime

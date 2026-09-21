@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fusion-rt"
-version = "0.1.0"
+version = "0.2.1"
 description = "Site-operations fusion runtime: correlator, rules, zones, incidents, threat, scene synthesis"
 requires-python = ">=3.11"
 dependencies = [
@@ -16,9 +16,9 @@ dependencies = [
     "sse-starlette>=1.6",
     "httpx>=0.27",
     "python-multipart>=0.0.9",
+    "PyYAML>=6.0",
     "ss-common[web,mqtt]",
     "ss-perception",
-    "ss-fusion",
 ]
 
 [project.optional-dependencies]
@@ -38,4 +38,3 @@ namespaces = true
 [tool.uv.sources]
 ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.1.0" }
 ss-perception = { workspace = true }
-ss-fusion = { workspace = true }
