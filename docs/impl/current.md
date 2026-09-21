@@ -22,7 +22,7 @@ ss-fusion is a uv workspace. `make ci` is the gate. Runtime data lives under `$D
 Workspace members (`ss-perception`, `ss-mapping`, `ss-fusion`, `fusion-rt`) are version `0.2.1`.
 `selfsuvis` is a pkgutil namespace package (`extend_path`) so ss-video can install
 `ss-perception` and `ss-mapping` and keep `from selfsuvis.pipeline.core import ...`.
-ss-common is git tag `v0.1.0`, not a path sibling. `[tool.ss-split] siblings = []`.
+ss-common is git tag `v0.2.1`, not a path sibling. `[tool.ss-split] siblings = []`.
 
 Console scripts (`ssv`, `ssv-export`, `ssv-gallery`, audio helpers, `ssv-models`) are on
 `ss-fusion`. fusion-rt is `uvicorn selfsuvis.fusion_rt.app:app` on port 8001.

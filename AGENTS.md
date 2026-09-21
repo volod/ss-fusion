@@ -17,7 +17,7 @@ integration-specific routing.
 - **Secrets:** Never commit credentials or include them in logs, tests, fixtures, or documentation.
 - **Dependencies:** Add the smallest justified dependency. Update `uv.lock` in the same change.
 - **ASCII:** Use ASCII in logs, docs, comments, and generated shell output.
-- Pin ss-common at git tag `v0.1.0`. Do not take a path sibling.
+- Pin ss-common at git tag `v0.2.1`. Do not take a path sibling.
 - Torch is not a locked dependency. CUDA wheels are installed by the host install path that
   matches the detected driver (same rule as the parent video repository).
 

@@ -16,11 +16,17 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+SS_COMMON_TAG = "v0.2.1"
+
+
 def test_ss_common_pin_is_published_tag() -> None:
     text = _read(ROOT_PYPROJECT)
-    assert 'ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.1.0" }' in text
+    assert (
+        f'ss-common = {{ git = "https://github.com/volod/ss-common", tag = "{SS_COMMON_TAG}" }}'
+        in text
+    )
     makefile = _read(MAKEFILE)
-    assert "SS_COMMON_TAG ?= v0.1.0" in makefile
+    assert f"SS_COMMON_TAG ?= {SS_COMMON_TAG}" in makefile
     assert "ss-common.git@$(SS_COMMON_TAG)" in makefile
 
 
@@ -60,5 +66,5 @@ def test_fusion_rt_images_are_slim() -> None:
     assert "--runtime" in install
     assert "no torch" in install
     assert "packages/ss-fusion" not in install
-    assert "v0.1.0" in install
-    assert "v0.1.0" in tests_df
+    assert f"ss-common.git@{SS_COMMON_TAG}" in install
+    assert f"ss-common.git@{SS_COMMON_TAG}" in tests_df

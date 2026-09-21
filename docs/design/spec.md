@@ -2,7 +2,7 @@
 
 ss-fusion is the GPU-host research pipeline, model factory, and site-operations fusion runtime.
 It publishes `ss-perception` and `ss-mapping` as packages that ss-video pins. It pins
-[`volod/ss-common`](https://github.com/volod/ss-common) tag `v0.1.0`.
+[`volod/ss-common`](https://github.com/volod/ss-common) tag `v0.2.1`.
 Workspace members are version `0.2.1` so downstream pins can move without
 keeping fusion-rt coupled to the research-pipeline distribution.
 

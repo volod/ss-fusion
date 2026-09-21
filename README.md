@@ -4,7 +4,7 @@ Research pipeline, model factory, shared perception and mapping packages, and th
 site-operations service.
 
 This tree is a uv workspace. Pin ss-common at
-[`volod/ss-common`](https://github.com/volod/ss-common) tag `v0.1.0`.
+[`volod/ss-common`](https://github.com/volod/ss-common) tag `v0.2.1`.
 Workspace members are version `0.2.1`.
 
 ```bash

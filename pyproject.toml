@@ -25,7 +25,7 @@ package = false
 members = ["packages/*", "apps/*"]
 
 [tool.uv.sources]
-ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.1.0" }
+ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.2.1" }
 ss-perception = { workspace = true }
 ss-mapping = { workspace = true }
 ss-fusion = { workspace = true }

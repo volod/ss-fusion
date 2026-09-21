@@ -516,7 +516,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "redis", specifier = ">=5.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
-    { name = "ss-common", extras = ["web", "mqtt"], git = "https://github.com/volod/ss-common?tag=v0.1.0" },
+    { name = "ss-common", extras = ["web", "mqtt"], git = "https://github.com/volod/ss-common?tag=v0.2.1" },
     { name = "ss-perception", editable = "packages/ss-perception" },
     { name = "sse-starlette", specifier = ">=1.6" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.27" },
@@ -2263,8 +2263,8 @@ wheels = [
 
 [[package]]
 name = "ss-common"
-version = "0.1.0"
-source = { git = "https://github.com/volod/ss-common?tag=v0.1.0#4493f669a6804426acebd5d82fe976c3fc3dbf06" }
+version = "0.2.1"
+source = { git = "https://github.com/volod/ss-common?tag=v0.2.1#255837301437c84c253627499c2f8ae9c9953c03" }
 dependencies = [
     { name = "pydantic" },
 ]
@@ -2310,7 +2310,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
-    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.1.0" },
+    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.2.1" },
     { name = "ss-mapping", editable = "packages/ss-mapping" },
     { name = "ss-perception", editable = "packages/ss-perception" },
 ]
@@ -2423,7 +2423,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
     { name = "scikit-image", specifier = ">=0.22" },
     { name = "scikit-learn", specifier = ">=1.4" },
-    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.1.0" },
+    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.2.1" },
     { name = "tqdm", specifier = ">=4.66" },
 ]
 provides-extras = ["dev"]

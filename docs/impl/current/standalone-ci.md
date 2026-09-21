@@ -10,7 +10,7 @@ Record: [0001-standalone-ci-ss-fusion-standalone-build](../records/0001-standalo
 
 | Command | Does |
 | --- | --- |
-| `uv sync --locked --group dev` | Locked workspace install (ss-common git tag `v0.1.0`) |
+| `uv sync --locked --group dev` | Locked workspace install (ss-common git tag `v0.2.1`) |
 | `make ci` | Locked install, Ruff, doc-links, spec-plan, `--ci-light` unit tests |
 | `make test-fusion-rt` | Postgres, Redis, Mosquitto, fusion-rt image from this tree, HTTP/MQTT tests |
 | `make standalone-build` | The three gates above; log under `$DATA_DIR/standalone-build/build.log` |
@@ -23,7 +23,7 @@ GitHub CI is unchanged: `.github/workflows/ci.yml` runs `make ci-github` with a
 
 Compose lives under `docker/fusion-rt/` (not ss-video). The runtime image
 (`docker/fusion-rt/Dockerfile`) installs `ss-perception` and `fusion-rt` from the
-local tree plus ss-common `v0.1.0`. It does not install `ss-fusion` (langgraph)
+local tree plus ss-common `v0.2.1`. It does not install `ss-fusion` (langgraph)
 or the vision extra. The tests image is an HTTP/MQTT client
 (`tests/docker/test_fusion_rt.py`).
 

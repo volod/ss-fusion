@@ -12,7 +12,7 @@ unexport VIRTUAL_ENV
 
 export RUFF_CACHE_DIR := $(DATA_ROOT)/cache/ruff
 export UV_CACHE_DIR ?= $(DATA_ROOT)/uv-cache
-SS_COMMON_TAG ?= v0.1.0
+SS_COMMON_TAG ?= v0.2.1
 FUSION_RT_COMPOSE := docker compose -p ss-fusion-rt-test \
 	-f $(PROJECT_ROOT)/docker/fusion-rt/docker-compose.yml \
 	-f $(PROJECT_ROOT)/docker/fusion-rt/docker-compose.test.yml

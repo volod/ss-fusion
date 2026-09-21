@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
       requests \
       httpx \
       aiomqtt \
-      "ss-common[mqtt] @ git+https://github.com/volod/ss-common.git@v0.1.0"
+      "ss-common[mqtt] @ git+https://github.com/volod/ss-common.git@v0.2.1"
 
 FROM python:3.11-slim
 

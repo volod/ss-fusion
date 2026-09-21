@@ -7,7 +7,7 @@ set -eu
 # Usage:
 #   sh install-python.sh --runtime     fusion-rt (no torch, no langgraph)
 SPEC="${1:-.}"
-SS_COMMON_GIT="${SS_COMMON_GIT:-git+https://github.com/volod/ss-common.git@v0.1.0}"
+SS_COMMON_GIT="${SS_COMMON_GIT:-git+https://github.com/volod/ss-common.git@v0.2.1}"
 ROOT="${PROJECT_ROOT:-/src}"
 
 if [ "$SPEC" != "--runtime" ]; then
