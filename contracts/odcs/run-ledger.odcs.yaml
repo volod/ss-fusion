@@ -1,0 +1,310 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: run-ledger
+version: 1.0.0
+status: active
+name: Run ledger
+domain: pipeline
+description:
+  purpose: >-
+    Record of one planned and executed pipeline run: spec hash, shed list,
+    per-step latency and quality, and content-hashed artifacts.
+schema:
+  - name: run_ledger
+    logicalType: object
+    physicalType: file
+    customProperties:
+      - property: schemaGeneration
+        value:
+          pydantic: {className: RunLedger}
+    properties:
+      - name: run_id
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Run identifier.
+        logicalTypeOptions: {minLength: 1}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 1}}
+      - name: spec_id
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Pipeline spec id.
+        logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 2}}
+      - name: spec_version
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Spec version.
+        logicalTypeOptions: {pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 3}}
+      - name: spec_hash
+        logicalType: string
+        physicalType: string
+        required: true
+        description: SHA-256 of the canonical spec JSON.
+        logicalTypeOptions: {pattern: '^[0-9a-f]{64}$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 4}}
+      - name: started_at
+        logicalType: timestamp
+        physicalType: timestamp
+        required: true
+        description: Run start time, UTC.
+        logicalTypeOptions: {timezone: true}
+        customProperties:
+          - property: ssBinding
+            value: {timeBase: utc}
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 5}}
+      - name: finished_at
+        logicalType: timestamp
+        physicalType: timestamp
+        required: true
+        description: Run finish time, UTC.
+        logicalTypeOptions: {timezone: true}
+        customProperties:
+          - property: ssBinding
+            value: {timeBase: utc}
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 6}}
+      - name: status
+        logicalType: string
+        physicalType: string
+        required: true
+        description: completed or failed.
+        logicalTypeOptions: {pattern: '^(completed|failed)$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 7}}
+      - name: completeness
+        logicalType: number
+        physicalType: double
+        required: true
+        description: Enabled steps that were not shed, over enabled steps.
+        logicalTypeOptions: {minimum: 0, maximum: 1}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 8}}
+      - name: plan_order
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Topological order of enabled steps before shed.
+        items:
+          logicalType: string
+          physicalType: string
+          description: A step id.
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 9}}
+      - name: shed_steps
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Steps dropped for the latency budget, in shed order.
+        items:
+          logicalType: object
+          physicalType: record
+          description: One step dropped to meet the latency budget.
+          properties:
+            - name: step_id
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Shed step id.
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: reason
+              logicalType: string
+              physicalType: string
+              required: true
+              description: over_budget or depends_on_shed colon id.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 10}, recordName: ShedRecord}
+      - name: steps
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Per-step records including skipped and shed.
+        items:
+          logicalType: object
+          physicalType: record
+          description: Per-step execution record.
+          properties:
+            - name: step_id
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Step id.
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: manifest_version
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Manifest version used.
+              logicalTypeOptions: {pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+            - name: tier
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Selected tier.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 3}}
+            - name: status
+              logicalType: string
+              physicalType: string
+              required: true
+              description: completed, skipped, shed, or failed.
+              logicalTypeOptions: {pattern: '^(completed|skipped|shed|failed)$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 4}}
+            - name: latency_ms
+              logicalType: integer
+              physicalType: long
+              required: true
+              description: Measured or planned latency.
+              logicalTypeOptions: {minimum: 0}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 5}}
+            - name: vram_mb
+              logicalType: integer
+              physicalType: int
+              required: true
+              description: Nominal VRAM from the selected tier.
+              logicalTypeOptions: {minimum: 0}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 6}}
+            - name: quality
+              logicalType: number
+              physicalType: double
+              required: true
+              description: Tier quality metric.
+              logicalTypeOptions: {minimum: 0, maximum: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 7}}
+            - name: degradation
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Degradation note; empty when none.
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 8}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 11}, recordName: LedgerStep}
+      - name: artifacts
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Content-hashed files under the run directory; empty when none.
+        items:
+          logicalType: object
+          physicalType: record
+          description: One content-hashed output file.
+          properties:
+            - name: path
+              logicalType: string
+              physicalType: string
+              required: true
+              description: POSIX path relative to the run directory.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: sha256
+              logicalType: string
+              physicalType: string
+              required: true
+              description: SHA-256 of the file, lowercase hex.
+              logicalTypeOptions: {pattern: '^[0-9a-f]{64}$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 12}, recordName: LedgerArtifact}
+      - name: artifact_count
+        logicalType: integer
+        physicalType: long
+        required: true
+        description: Number of hashed artifacts.
+        logicalTypeOptions: {minimum: 0}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 13}}
+      - name: inventory_sha256
+        logicalType: string
+        physicalType: string
+        required: true
+        description: SHA-256 of the canonical path plus digest listing.
+        logicalTypeOptions: {pattern: '^[0-9a-f]{64}$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 14}}
+      - name: coverage
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Florence/Qwen/ASR/OCR coverage string; empty when not a local run.
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 15}}
+      - name: n_frames
+        logicalType: integer
+        physicalType: int
+        required: true
+        description: Frame count from analysis_summary.
+        logicalTypeOptions: {minimum: 0}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 16}}
+      - name: video_artifact_count
+        logicalType: integer
+        physicalType: long
+        required: true
+        description: Legacy analysis_summary artifact_count; 0 when absent.
+        logicalTypeOptions: {minimum: 0}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 17}}
+      - name: video_artifact_list
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Relative paths under the video output directory.
+        items:
+          logicalType: string
+          physicalType: string
+          description: A relative POSIX path.
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 18}}

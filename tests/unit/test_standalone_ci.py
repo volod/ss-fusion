@@ -33,6 +33,7 @@ def test_ss_common_pin_is_published_tag() -> None:
 def test_workspace_member_versions_are_021() -> None:
     assert 'version = "0.2.1"' in _read(ROOT_PYPROJECT)
     assert 'version = "0.2.1"' in _read(FUSION_RT_PYPROJECT)
+    assert 'version = "0.2.1"' in _read(ROOT / "packages" / "ss-kernel" / "pyproject.toml")
 
 
 def test_fusion_rt_does_not_depend_on_ss_fusion() -> None:

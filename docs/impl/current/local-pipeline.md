@@ -25,7 +25,8 @@ service reachability before any heavy work starts.
 
 `pipeline/graph.py` builds a LangGraph state machine over `PipelineState`
 (`pipeline/state.py`); `pipeline/runner.py` (`run_local()`) drives it with
-per-phase helpers under `pipeline/runner_helpers/`.
+per-phase helpers under `pipeline/runner_helpers/`. The reference kernel wraps the
+same `run_local` path for `wrap: legacy` steps; see [kernel.md](kernel.md).
 
 ```
 Phase 1: init -> extract_frames -> index_vectors

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ss-kernel"
+version = "0.2.1"
+description = "Python reference kernel: pipeline spec, planning, batch execution, run ledger"
+requires-python = ">=3.11"
+dependencies = [
+    "ss-common",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.16,<0.17",
+]
+
+[project.scripts]
+ss-kernel = "ss_kernel.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"ss_kernel" = ["py.typed", "data/*.yaml"]
+
+[tool.uv.sources]
+ss-common = { git = "https://github.com/volod/ss-common", tag = "v0.2.1" }

@@ -12,6 +12,7 @@ make ci-github
 make ci
 make test-fusion-rt
 ssv --mode local --video tests/assets/vid_testsrc.mp4
+ss-kernel run specs/deep-investigation.yaml --video tests/assets/vid_testsrc.mp4
 .venv/bin/uvicorn selfsuvis.fusion_rt.app:app --host 0.0.0.0 --port 8001
 ```
 

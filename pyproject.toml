@@ -9,6 +9,7 @@ dependencies = [
     "ss-mapping",
     "ss-fusion",
     "fusion-rt",
+    "ss-kernel",
 ]
 
 [dependency-groups]
@@ -30,10 +31,11 @@ ss-perception = { workspace = true }
 ss-mapping = { workspace = true }
 ss-fusion = { workspace = true }
 fusion-rt = { workspace = true }
+ss-kernel = { workspace = true }
 
 [tool.ss-split]
 siblings = []
-allow-imports = ["selfsuvis", "ssv_vdp"]
+allow-imports = ["selfsuvis", "ssv_vdp", "ss_kernel"]
 
 [tool.ruff]
 cache-dir = ".data/.ruff_cache"
@@ -46,7 +48,7 @@ select = ["E", "F", "W", "I", "UP"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["selfsuvis", "ssv_vdp", "ss_kit", "ss_contracts"]
+known-first-party = ["selfsuvis", "ssv_vdp", "ss_kit", "ss_contracts", "ss_kernel"]
 
 [tool.pytest.ini_options]
 cache_dir = ".data/.pytest_cache"
@@ -55,6 +57,7 @@ pythonpath = [
     "packages/ss-perception/src",
     "packages/ss-mapping/src",
     "packages/ss-fusion/src",
+    "packages/ss-kernel/src",
     "apps/fusion-rt/src",
     ".",
 ]

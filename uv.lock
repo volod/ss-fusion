@@ -13,6 +13,7 @@ members = [
     "fusion-rt",
     "ss-fusion",
     "ss-fusion-workspace",
+    "ss-kernel",
     "ss-mapping",
     "ss-perception",
 ]
@@ -2323,6 +2324,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fusion-rt" },
     { name = "ss-fusion" },
+    { name = "ss-kernel" },
     { name = "ss-mapping" },
     { name = "ss-perception" },
 ]
@@ -2338,6 +2340,7 @@ dev = [
 requires-dist = [
     { name = "fusion-rt", editable = "apps/fusion-rt" },
     { name = "ss-fusion", editable = "packages/ss-fusion" },
+    { name = "ss-kernel", editable = "packages/ss-kernel" },
     { name = "ss-mapping", editable = "packages/ss-mapping" },
     { name = "ss-perception", editable = "packages/ss-perception" },
 ]
@@ -2348,6 +2351,30 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "ruff", specifier = ">=0.16,<0.17" },
 ]
+
+[[package]]
+name = "ss-kernel"
+version = "0.2.1"
+source = { editable = "packages/ss-kernel" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "ss-common" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
+    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.2.1" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "ss-mapping"

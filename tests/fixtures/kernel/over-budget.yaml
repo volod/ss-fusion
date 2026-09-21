@@ -1,0 +1,35 @@
+spec_id: over-budget
+version: "1.0.0"
+name: Latency shed fixture
+inputs:
+  - {name: video, type: path, required: false}
+steps:
+  - step_id: alpha
+    manifest_id: demo-alpha
+    tier: cpu
+    depends_on: []
+    enabled: true
+    parameters: {}
+  - step_id: beta
+    manifest_id: demo-beta
+    tier: cpu
+    depends_on: [alpha]
+    enabled: true
+    parameters: {}
+  - step_id: gamma
+    manifest_id: demo-gamma
+    tier: cpu
+    depends_on: [alpha]
+    enabled: true
+    parameters: {}
+sla:
+  latency_budget_ms: 150
+  min_completeness: 0.0
+  shed_order: [gamma, beta]
+envelope:
+  device_class: cpu
+  max_vram_mb: 0
+  max_latency_ms: 10000
+outputs:
+  - {name: ledger, path: ledger.json}
+parameters: {}

@@ -81,7 +81,8 @@ work.
 **Evaluation.** `deep-investigation.yaml` reproduces the legacy local run's modality coverage and
 artifact list; the ledger validates against its contract; a fixture spec over its latency budget
 sheds steps in declared order and records it. Valid negative result: steps that cannot be wrapped
-without behavior change stay on the legacy orchestrator and are listed.
+without behavior change stay on the legacy orchestrator and are listed. Current state:
+[pipeline kernel](../impl/current/kernel.md).
 
 ## Capability Registry
 
@@ -89,7 +90,7 @@ without behavior change stay on the legacy orchestrator and are listed.
 | --- | --- | --- | --- | --- |
 | 1 | `research-pipeline` | shipped | Local run emits `analysis_summary.json` with modality coverage; step unit tests | [Local pipeline](../impl/current/local-pipeline.md) |
 | 2 | `standalone-ci` | shipped | Locked `make ci` and fusion-rt Docker tests on a clone of this repository | [Standalone CI](../impl/current/standalone-ci.md) |
-| 3 | `pipeline-kernel` | planned | Spec reproduces legacy run; ledger contract; shed-order fixture | -- |
+| 3 | `pipeline-kernel` | shipped | Spec reproduces legacy run; ledger contract; shed-order fixture | [Pipeline kernel](../impl/current/kernel.md) |
 
 ## Extending this specification
 

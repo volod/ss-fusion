@@ -1,0 +1,268 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: pipeline-spec
+version: 1.0.0
+status: active
+name: Pipeline spec
+domain: pipeline
+description:
+  purpose: >-
+    A pipeline as data: inputs, steps with selected tiers, SLA (latency budget,
+    completeness, shed order), resource envelope, and declared outputs.
+schema:
+  - name: pipeline_spec
+    logicalType: object
+    physicalType: file
+    customProperties:
+      - property: schemaGeneration
+        value:
+          pydantic: {className: PipelineSpec}
+    properties:
+      - name: spec_id
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Pipeline spec id.
+        logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 1}}
+      - name: version
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Spec version.
+        logicalTypeOptions: {pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 2}}
+      - name: name
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Human-readable spec name.
+        logicalTypeOptions: {minLength: 1}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 3}}
+      - name: inputs
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Declared inputs.
+        items:
+          logicalType: object
+          physicalType: record
+          description: One declared pipeline input.
+          properties:
+            - name: name
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Input name.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: type
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Port type (path, string, json).
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9_]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+            - name: required
+              logicalType: boolean
+              physicalType: boolean
+              required: true
+              description: Whether the input must be supplied.
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 3}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 4}, recordName: SpecInput}
+      - name: steps
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Steps in authoring order.
+        items:
+          logicalType: object
+          physicalType: record
+          description: One step in a pipeline spec.
+          properties:
+            - name: step_id
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Step id unique in this spec.
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: manifest_id
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Step manifest id.
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+            - name: tier
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Selected tier name from the manifest.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 3}}
+            - name: depends_on
+              logicalType: array
+              physicalType: array
+              required: true
+              description: Step ids that must complete before this step.
+              items:
+                logicalType: string
+                physicalType: string
+                description: A step id.
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 4}}
+            - name: enabled
+              logicalType: boolean
+              physicalType: boolean
+              required: true
+              description: False excludes the step from the plan (skip, not shed).
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 5}}
+            - name: parameters
+              logicalType: object
+              physicalType: json
+              required: true
+              description: Parameter values for this step; empty when none.
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 6}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 5}, recordName: SpecStep}
+      - name: sla
+        logicalType: object
+        physicalType: record
+        required: true
+        description: Latency budget and shed order.
+        properties:
+          - name: latency_budget_ms
+            logicalType: integer
+            physicalType: long
+            required: true
+            description: Maximum planned sum of selected-tier latency_ms.
+            logicalTypeOptions: {minimum: 1}
+            customProperties:
+              - property: fieldGeneration
+                value: {proto: {fieldNumber: 1}}
+          - name: min_completeness
+            logicalType: number
+            physicalType: double
+            required: true
+            description: Minimum fraction of enabled steps that must remain after shedding.
+            logicalTypeOptions: {minimum: 0, maximum: 1}
+            customProperties:
+              - property: fieldGeneration
+                value: {proto: {fieldNumber: 2}}
+          - name: shed_order
+            logicalType: array
+            physicalType: array
+            required: true
+            description: Enabled step ids to drop first when the latency budget is exceeded.
+            items:
+              logicalType: string
+              physicalType: string
+              description: A step id.
+            customProperties:
+              - property: fieldGeneration
+                value: {proto: {fieldNumber: 3}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 6}, recordName: SpecSla}
+      - name: envelope
+        logicalType: object
+        physicalType: record
+        required: true
+        description: Resource envelope the planner checks selected tiers against.
+        properties:
+          - name: device_class
+            logicalType: string
+            physicalType: string
+            required: true
+            description: cpu, cuda, or edge.
+            logicalTypeOptions: {pattern: '^(cpu|cuda|edge)$'}
+            customProperties:
+              - property: fieldGeneration
+                value: {proto: {fieldNumber: 1}}
+          - name: max_vram_mb
+            logicalType: integer
+            physicalType: int
+            required: true
+            description: VRAM ceiling for any selected tier.
+            logicalTypeOptions: {minimum: 0}
+            customProperties:
+              - property: fieldGeneration
+                value: {proto: {fieldNumber: 2}}
+          - name: max_latency_ms
+            logicalType: integer
+            physicalType: long
+            required: true
+            description: Hard ceiling; must be at least sla.latency_budget_ms.
+            logicalTypeOptions: {minimum: 1}
+            customProperties:
+              - property: fieldGeneration
+                value: {proto: {fieldNumber: 3}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 7}, recordName: SpecEnvelope}
+      - name: outputs
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Declared outputs.
+        items:
+          logicalType: object
+          physicalType: record
+          description: A declared output path relative to the run directory.
+          properties:
+            - name: name
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Output name.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: path
+              logicalType: string
+              physicalType: string
+              required: true
+              description: POSIX path relative to the run directory.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 8}, recordName: SpecOutput}
+      - name: parameters
+        logicalType: object
+        physicalType: json
+        required: true
+        description: Spec-level parameters (legacy CLI flags for the local adapter).
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 9}}

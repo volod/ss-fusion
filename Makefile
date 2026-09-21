@@ -39,6 +39,7 @@ github-bootstrap: ## Light venv for GitHub CI (no torch, no uv sync --locked)
 		-e "$(PROJECT_ROOT)/packages/ss-perception" \
 		-e "$(PROJECT_ROOT)/packages/ss-mapping" \
 		-e "$(PROJECT_ROOT)/packages/ss-fusion" \
+		-e "$(PROJECT_ROOT)/packages/ss-kernel" \
 		-e "$(PROJECT_ROOT)/apps/fusion-rt"
 	@uv pip install --python "$(VENV)" \
 		"pytest>=8.0" "pytest-asyncio>=0.23" "ruff>=0.16,<0.17" \
@@ -68,7 +69,7 @@ test: ## Light unit tests (no torch/cv2/ffmpeg); needs `make bootstrap`
 
 test-github: ## Minimal GitHub suite: workspace smoke + fusion-rt HTTP units
 	@"$(PY)" -m pytest tests/unit/test_workspace.py tests/unit/fusion_rt tests/unit/test_github_ci.py \
-		tests/unit/test_standalone_ci.py \
+		tests/unit/test_standalone_ci.py tests/unit/kernel \
 		$(PYTEST_CACHE) --ci-light -q
 
 test-unit: ## Full unit tests (needs a CUDA venv with vision deps)
