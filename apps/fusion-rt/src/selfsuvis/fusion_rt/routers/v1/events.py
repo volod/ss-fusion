@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request
 
 from selfsuvis.fusion_rt.db import get_db_pool
 from selfsuvis.fusion_rt.deps import require_sensor_key, sensor_rate_limit
+from selfsuvis.fusion_rt.event_persist import parse_ts
 from selfsuvis.fusion_rt.routers.v1.schemas import EventEnvelope, SiteEventResponse
 from selfsuvis.pipeline.core import get_logger, resolve_allowed_path
 from selfsuvis.pipeline.storage.common import decoded_json, jsonb
@@ -49,7 +50,7 @@ async def ingest_event(
             RETURNING event_id, ts, zone_id, sensor_id, modality, confidence,
                       payload, artifact_uri, created_at
             """,
-            body.ts,
+            parse_ts(body.ts),
             body.zone_id,
             body.sensor_id,
             modality,

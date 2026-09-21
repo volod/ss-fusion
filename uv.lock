@@ -13,6 +13,7 @@ members = [
     "fusion-rt",
     "ss-fusion",
     "ss-fusion-workspace",
+    "ss-kernel",
     "ss-mapping",
     "ss-perception",
 ]
@@ -481,7 +482,7 @@ wheels = [
 
 [[package]]
 name = "fusion-rt"
-version = "0.1.0"
+version = "0.2.1"
 source = { editable = "apps/fusion-rt" }
 dependencies = [
     { name = "aiomqtt" },
@@ -489,9 +490,9 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "redis" },
     { name = "ss-common", extra = ["mqtt", "web"] },
-    { name = "ss-fusion" },
     { name = "ss-perception" },
     { name = "sse-starlette" },
     { name = "uvicorn", extra = ["standard"] },
@@ -513,10 +514,10 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "redis", specifier = ">=5.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
-    { name = "ss-common", extras = ["web", "mqtt"], git = "https://github.com/volod/ss-common?tag=v0.1.0" },
-    { name = "ss-fusion", editable = "packages/ss-fusion" },
+    { name = "ss-common", extras = ["web", "mqtt"], git = "https://github.com/volod/ss-common?tag=v0.2.1" },
     { name = "ss-perception", editable = "packages/ss-perception" },
     { name = "sse-starlette", specifier = ">=1.6" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.27" },
@@ -2263,8 +2264,8 @@ wheels = [
 
 [[package]]
 name = "ss-common"
-version = "0.1.0"
-source = { git = "https://github.com/volod/ss-common?tag=v0.1.0#4493f669a6804426acebd5d82fe976c3fc3dbf06" }
+version = "0.2.1"
+source = { git = "https://github.com/volod/ss-common?tag=v0.2.1#255837301437c84c253627499c2f8ae9c9953c03" }
 dependencies = [
     { name = "pydantic" },
 ]
@@ -2282,7 +2283,7 @@ web = [
 
 [[package]]
 name = "ss-fusion"
-version = "0.1.0"
+version = "0.2.1"
 source = { editable = "packages/ss-fusion" }
 dependencies = [
     { name = "jinja2" },
@@ -2310,7 +2311,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
-    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.1.0" },
+    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.2.1" },
     { name = "ss-mapping", editable = "packages/ss-mapping" },
     { name = "ss-perception", editable = "packages/ss-perception" },
 ]
@@ -2318,11 +2319,12 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "ss-fusion-workspace"
-version = "0.1.0"
+version = "0.2.1"
 source = { virtual = "." }
 dependencies = [
     { name = "fusion-rt" },
     { name = "ss-fusion" },
+    { name = "ss-kernel" },
     { name = "ss-mapping" },
     { name = "ss-perception" },
 ]
@@ -2338,6 +2340,7 @@ dev = [
 requires-dist = [
     { name = "fusion-rt", editable = "apps/fusion-rt" },
     { name = "ss-fusion", editable = "packages/ss-fusion" },
+    { name = "ss-kernel", editable = "packages/ss-kernel" },
     { name = "ss-mapping", editable = "packages/ss-mapping" },
     { name = "ss-perception", editable = "packages/ss-perception" },
 ]
@@ -2350,8 +2353,32 @@ dev = [
 ]
 
 [[package]]
+name = "ss-kernel"
+version = "0.2.1"
+source = { editable = "packages/ss-kernel" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "ss-common" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
+    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.2.1" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "ss-mapping"
-version = "0.1.0"
+version = "0.2.1"
 source = { editable = "packages/ss-mapping" }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2381,7 +2408,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "ss-perception"
-version = "0.1.0"
+version = "0.2.1"
 source = { editable = "packages/ss-perception" }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2423,7 +2450,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
     { name = "scikit-image", specifier = ">=0.22" },
     { name = "scikit-learn", specifier = ">=1.4" },
-    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.1.0" },
+    { name = "ss-common", git = "https://github.com/volod/ss-common?tag=v0.2.1" },
     { name = "tqdm", specifier = ">=4.66" },
 ]
 provides-extras = ["dev"]

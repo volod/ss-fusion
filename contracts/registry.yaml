@@ -1,0 +1,18 @@
+# Kernel contracts authored in this repository using ss-common ODCS v3.1 rules.
+# Runtime models: packages/ss-kernel/src/ss_kernel/contracts.py
+# Not yet in ss-common tag v0.2.1; owner is ss-fusion.
+registryVersion: 1
+jsonSchemaIdBase: urn:ss:contracts
+modelsDir: ../packages/ss-kernel/src/ss_kernel
+generatedDir: generated
+goldenDir: ../tests/assets/contracts/golden
+contracts:
+  pipeline-spec:
+    odcs: odcs/pipeline-spec.odcs.yaml
+    owner: ss-fusion
+  step-manifest:
+    odcs: odcs/step-manifest.odcs.yaml
+    owner: ss-fusion
+  run-ledger:
+    odcs: odcs/run-ledger.odcs.yaml
+    owner: ss-fusion

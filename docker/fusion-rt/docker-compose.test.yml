@@ -1,0 +1,26 @@
+services:
+  fusion-rt:
+    environment:
+      - CORRELATOR_POLL_INTERVAL_S=1
+      - API_AUTH_REQUIRED=false
+  tests:
+    build:
+      context: ../..
+      dockerfile: docker/fusion-rt/Dockerfile.tests
+    environment:
+      - FUSION_RT_URL=http://fusion-rt:8000
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - COOP_SITE_ID=local
+      - ASSETS_DIR=/app/tests/assets
+      - RUN_API_TESTS=1
+      - HOME=/app/cache
+      - XDG_CACHE_HOME=/app/cache
+      - PYTEST_CACHE_DIR=/tmp/.pytest_cache
+    volumes:
+      - ${STANDALONE_DATA:-../../.data/standalone-build}/cache:/app/cache
+    depends_on:
+      fusion-rt:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started

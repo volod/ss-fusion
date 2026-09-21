@@ -1,0 +1,267 @@
+spec_id: deep-investigation
+version: "1.0.0"
+name: Local research pipeline (golden skip set)
+inputs:
+  - {name: video, type: path, required: true}
+steps:
+  - step_id: extract-frames
+    manifest_id: extract-frames
+    tier: cuda
+    depends_on: []
+    enabled: true
+    parameters: {}
+  - step_id: index-vectors
+    manifest_id: index-vectors
+    tier: cuda
+    depends_on: [extract-frames]
+    enabled: true
+    parameters: {}
+  - step_id: gemma-analysis
+    manifest_id: gemma-analysis
+    tier: cuda
+    depends_on: [index-vectors]
+    enabled: true
+    parameters: {}
+  - step_id: florence-caption
+    manifest_id: florence-caption
+    tier: cuda
+    depends_on: [gemma-analysis]
+    enabled: true
+    parameters: {}
+  - step_id: asr
+    manifest_id: asr
+    tier: cuda
+    depends_on: [florence-caption]
+    enabled: false
+    parameters: {}
+  - step_id: ocr
+    manifest_id: ocr
+    tier: cuda
+    depends_on: [asr]
+    enabled: false
+    parameters: {}
+  - step_id: depth
+    manifest_id: depth
+    tier: cuda
+    depends_on: [ocr]
+    enabled: false
+    parameters: {}
+  - step_id: detection
+    manifest_id: detection
+    tier: cuda
+    depends_on: [depth]
+    enabled: false
+    parameters: {}
+  - step_id: yolo-sam
+    manifest_id: yolo-sam
+    tier: cuda
+    depends_on: [detection]
+    enabled: false
+    parameters: {}
+  - step_id: gemma-tracking
+    manifest_id: gemma-tracking
+    tier: cuda
+    depends_on: [yolo-sam]
+    enabled: false
+    parameters: {}
+  - step_id: world-model
+    manifest_id: world-model
+    tier: cuda
+    depends_on: [gemma-tracking]
+    enabled: false
+    parameters: {}
+  - step_id: qwen-caption
+    manifest_id: qwen-caption
+    tier: cuda
+    depends_on: [world-model]
+    enabled: false
+    parameters: {}
+  - step_id: unidrive
+    manifest_id: unidrive
+    tier: cuda
+    depends_on: [qwen-caption]
+    enabled: false
+    parameters: {}
+  - step_id: scenetok
+    manifest_id: scenetok
+    tier: cuda
+    depends_on: [unidrive]
+    enabled: false
+    parameters: {}
+  - step_id: cosmos3
+    manifest_id: cosmos3
+    tier: cuda
+    depends_on: [scenetok]
+    enabled: false
+    parameters: {}
+  - step_id: base-search
+    manifest_id: base-search
+    tier: cuda
+    depends_on: [cosmos3]
+    enabled: true
+    parameters: {}
+  - step_id: map-3d
+    manifest_id: map-3d
+    tier: cuda
+    depends_on: [base-search]
+    enabled: false
+    parameters: {}
+  - step_id: physical-state
+    manifest_id: physical-state
+    tier: cuda
+    depends_on: [map-3d]
+    enabled: true
+    parameters: {}
+  - step_id: field-state
+    manifest_id: field-state
+    tier: cuda
+    depends_on: [physical-state]
+    enabled: true
+    parameters: {}
+  - step_id: threat-primitives
+    manifest_id: threat-primitives
+    tier: cuda
+    depends_on: [field-state]
+    enabled: true
+    parameters: {}
+  - step_id: ssl-finetune
+    manifest_id: ssl-finetune
+    tier: cuda
+    depends_on: [threat-primitives]
+    enabled: true
+    parameters: {}
+  - step_id: distill
+    manifest_id: distill
+    tier: cuda
+    depends_on: [ssl-finetune]
+    enabled: false
+    parameters: {}
+  - step_id: distill-stage2
+    manifest_id: distill-stage2
+    tier: cuda
+    depends_on: [distill]
+    enabled: false
+    parameters: {}
+  - step_id: onnx-export
+    manifest_id: onnx-export
+    tier: cuda
+    depends_on: [distill-stage2]
+    enabled: true
+    parameters: {}
+  - step_id: ft-search
+    manifest_id: ft-search
+    tier: cuda
+    depends_on: [onnx-export]
+    enabled: true
+    parameters: {}
+  - step_id: compare
+    manifest_id: compare
+    tier: cuda
+    depends_on: [ft-search]
+    enabled: true
+    parameters: {}
+  - step_id: multi-model-compare
+    manifest_id: multi-model-compare
+    tier: cuda
+    depends_on: [compare]
+    enabled: true
+    parameters: {}
+  - step_id: local-threat
+    manifest_id: local-threat
+    tier: cuda
+    depends_on: [multi-model-compare]
+    enabled: true
+    parameters: {}
+  - step_id: policy
+    manifest_id: policy
+    tier: cuda
+    depends_on: [local-threat]
+    enabled: true
+    parameters: {}
+  - step_id: synthesis
+    manifest_id: synthesis
+    tier: cuda
+    depends_on: [policy]
+    enabled: true
+    parameters: {}
+  - step_id: agentic-audit
+    manifest_id: agentic-audit
+    tier: cuda
+    depends_on: [synthesis]
+    enabled: true
+    parameters: {}
+  - step_id: drone-detection
+    manifest_id: drone-detection
+    tier: cuda
+    depends_on: [agentic-audit]
+    enabled: true
+    parameters: {}
+  - step_id: drone-audio
+    manifest_id: drone-audio
+    tier: cuda
+    depends_on: [drone-detection]
+    enabled: true
+    parameters: {}
+  - step_id: drau-eval
+    manifest_id: drau-eval
+    tier: cuda
+    depends_on: [drone-audio]
+    enabled: true
+    parameters: {}
+  - step_id: model-advisor
+    manifest_id: model-advisor
+    tier: cuda
+    depends_on: [drau-eval]
+    enabled: true
+    parameters: {}
+sla:
+  latency_budget_ms: 3600000
+  min_completeness: 0.25
+  shed_order:
+    - cosmos3
+    - scenetok
+    - unidrive
+    - qwen-caption
+    - world-model
+    - drone-audio
+    - drone-detection
+    - drau-eval
+    - distill-stage2
+    - distill
+    - map-3d
+    - yolo-sam
+    - gemma-tracking
+    - asr
+    - ocr
+    - depth
+    - detection
+    - onnx-export
+    - ssl-finetune
+    - synthesis
+    - agentic-audit
+envelope:
+  device_class: cuda
+  max_vram_mb: 16384
+  max_latency_ms: 7200000
+outputs:
+  - {name: ledger, path: ledger.json}
+  - {name: analysis_summary, path: output}
+parameters:
+  legacy_cli:
+    device: cuda
+    epochs: 1
+    no_qdrant: true
+    no_asr: true
+    no_ocr: true
+    no_depth: true
+    no_detection: true
+    no_world_model: true
+    no_unidrive: true
+    no_qwen: true
+    no_scenetok: true
+    no_yolo: true
+    no_sam: true
+    no_rfdetr: true
+    no_sfm: true
+    no_gsplat: true
+    no_distill: true

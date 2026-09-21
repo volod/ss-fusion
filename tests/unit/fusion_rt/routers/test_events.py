@@ -75,6 +75,8 @@ def test_post_valid_event(conn):
         resp = client.post("/events/camera", json=_VALID_BODY)
         assert resp.status_code == 200
         assert "event_id" in resp.json()
+        bind_ts = conn.fetchrow.await_args.args[1]
+        assert isinstance(bind_ts, datetime)
 
 
 def test_post_unknown_modality(conn):

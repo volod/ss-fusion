@@ -1,0 +1,38 @@
+{
+  "event_id": "1789804800.512345-k3p9qz",
+  "camera": "entrance",
+  "label": "person",
+  "score": 0.8125,
+  "top_score": 0.84375,
+  "event_type": "new",
+  "started_at": "2026-09-19T08:00:00.500000Z",
+  "has_snapshot": true,
+  "has_clip": false,
+  "region": {
+    "x": 0.25,
+    "y": 0.125,
+    "width": 0.5,
+    "height": 0.75
+  },
+  "raw": {
+    "type": "new",
+    "before": {},
+    "after": {
+      "id": "1789804800.512345-k3p9qz",
+      "camera": "entrance",
+      "label": "person",
+      "score": 0.8125,
+      "top_score": 0.84375,
+      "start_time": 1789804800.5,
+      "end_time": null,
+      "has_snapshot": true,
+      "has_clip": false,
+      "region": {
+        "x": 0.25,
+        "y": 0.125,
+        "width": 0.5,
+        "height": 0.75
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+manifests:
+  - manifest_id: demo-alpha
+    version: "1.0.0"
+    name: Demo alpha
+    ports_in:
+      - {name: run_dir, type: path}
+    ports_out:
+      - {name: marker, type: path}
+    tiers:
+      - {name: cpu, device_class: cpu, latency_ms: 100, vram_mb: 0, quality: 1.0}
+    binding: "python:ss_kernel.demo:write_marker"
+    skip_flags: []
+    wrap: independent
+  - manifest_id: demo-beta
+    version: "1.0.0"
+    name: Demo beta
+    ports_in:
+      - {name: run_dir, type: path}
+    ports_out:
+      - {name: marker, type: path}
+    tiers:
+      - {name: cpu, device_class: cpu, latency_ms: 100, vram_mb: 0, quality: 1.0}
+    binding: "python:ss_kernel.demo:write_marker"
+    skip_flags: []
+    wrap: independent
+  - manifest_id: demo-gamma
+    version: "1.0.0"
+    name: Demo gamma
+    ports_in:
+      - {name: run_dir, type: path}
+    ports_out:
+      - {name: marker, type: path}
+    tiers:
+      - {name: cpu, device_class: cpu, latency_ms: 100, vram_mb: 0, quality: 1.0}
+    binding: "python:ss_kernel.demo:write_marker"
+    skip_flags: []
+    wrap: independent

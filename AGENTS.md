@@ -17,7 +17,7 @@ integration-specific routing.
 - **Secrets:** Never commit credentials or include them in logs, tests, fixtures, or documentation.
 - **Dependencies:** Add the smallest justified dependency. Update `uv.lock` in the same change.
 - **ASCII:** Use ASCII in logs, docs, comments, and generated shell output.
-- Pin ss-common at git tag `v0.1.0`. Do not take a path sibling.
+- Pin ss-common at git tag `v0.2.1`. Do not take a path sibling.
 - Torch is not a locked dependency. CUDA wheels are installed by the host install path that
   matches the detected driver (same rule as the parent video repository).
 
@@ -30,6 +30,7 @@ This repository is a uv workspace:
 | `packages/ss-perception` | `ss-perception` | `selfsuvis.pipeline.core`, `vision`, `labeling`, `models`, frame I/O, vector index |
 | `packages/ss-mapping` | `ss-mapping` | `selfsuvis.pipeline.mapping` except ICP global-map fusion |
 | `packages/ss-fusion` | `ss-fusion` | `ssv_vdp`, state estimation, training, analysis, analytics, visualization, model factory |
+| `packages/ss-kernel` | `ss-kernel` | `ss_kernel` reference kernel (spec, plan, batch execute, run ledger) |
 | `apps/fusion-rt` | `fusion-rt` | `selfsuvis.fusion_rt` FastAPI service |
 
 `selfsuvis` is a pkgutil namespace package shared across members. Runtime data belongs under
@@ -42,8 +43,11 @@ Heavy native builds cap parallelism with `ss-kit max-jobs`. Compiled wheels are 
 
 - `make ci` — locked install, lint, doc-link and spec-plan checks, light unit tests
 - `make ci-github` — GitHub gate: no torch, fusion-rt and workspace tests only
+- `make test-fusion-rt` — slim fusion-rt Docker suite (postgres, redis, mosquitto)
+- `make standalone-build` — locked sync, `make ci`, fusion-rt Docker tests; log under `$DATA_DIR/standalone-build/`
 - `make test-unit` — full unit tests (needs a CUDA venv with vision deps)
 - `ssv --mode local --video tests/assets/vid_testsrc.mp4` — local research pipeline
+- `ss-kernel run specs/deep-investigation.yaml --video tests/assets/vid_testsrc.mp4` — reference kernel
 - `.venv/bin/uvicorn selfsuvis.fusion_rt.app:app --host 0.0.0.0 --port 8001` — fusion-rt
 
 ## Documentation lifecycle

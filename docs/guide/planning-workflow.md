@@ -137,4 +137,4 @@ Current-state pages retain decisions and results. The plan never becomes a chang
 | `make plan-status` | Task counts by lane and status, and the next eligible task per lane |
 
 Both lint targets run inside `make ci`. The implementation lives in `ss_kit.quality`
-from ss-common tag `v0.1.0`. When a check fails, fix the documents, not the checker.
+from ss-common tag `v0.2.1`. When a check fails, fix the documents, not the checker.

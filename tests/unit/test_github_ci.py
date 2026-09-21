@@ -21,6 +21,8 @@ def test_makefile_ci_github_is_not_the_locked_install() -> None:
     assert "\nci-github: github-bootstrap" in text
     assert "test-github:" in text
     assert "tests/unit/fusion_rt" in text
+    assert "tests/unit/test_standalone_ci.py" in text
+    assert "tests/unit/kernel" in text
     assert "\nci: bootstrap lint" in text
 
 
@@ -36,3 +38,4 @@ def test_github_bootstrap_skips_locked_sync() -> None:
     assert "uv sync" not in recipes
     assert "--no-deps" in recipes
     assert "--clear" in recipes
+    assert "packages/ss-kernel" in recipes

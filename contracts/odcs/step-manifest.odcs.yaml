@@ -1,0 +1,198 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: step-manifest
+version: 1.0.0
+status: active
+name: Step manifest
+domain: pipeline
+description:
+  purpose: >-
+    A versioned pipeline step: typed ports, parameter-bearing tiers with a cost
+    model, and a python: or http: binding.
+schema:
+  - name: step_manifest
+    logicalType: object
+    physicalType: file
+    customProperties:
+      - property: schemaGeneration
+        value:
+          pydantic: {className: StepManifest}
+    properties:
+      - name: manifest_id
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Manifest id.
+        logicalTypeOptions: {pattern: '^[a-z][a-z0-9-]*$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 1}}
+      - name: version
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Manifest version.
+        logicalTypeOptions: {pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 2}}
+      - name: name
+        logicalType: string
+        physicalType: string
+        required: true
+        description: Human-readable step name.
+        logicalTypeOptions: {minLength: 1}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 3}}
+      - name: ports_in
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Input ports.
+        items:
+          logicalType: object
+          physicalType: record
+          description: A typed step port.
+          properties:
+            - name: name
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Port name.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: type
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Port type.
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9_]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 4}, recordName: ManifestPort}
+      - name: ports_out
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Output ports.
+        items:
+          logicalType: object
+          physicalType: record
+          description: A typed step port.
+          properties:
+            - name: name
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Port name.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: type
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Port type.
+              logicalTypeOptions: {pattern: '^[a-z][a-z0-9_]*$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 5}, recordName: ManifestPortOut}
+      - name: tiers
+        logicalType: array
+        physicalType: array
+        required: true
+        description: Tiers with cost and quality.
+        items:
+          logicalType: object
+          physicalType: record
+          description: Cost model and quality for one device class.
+          properties:
+            - name: name
+              logicalType: string
+              physicalType: string
+              required: true
+              description: Tier name.
+              logicalTypeOptions: {minLength: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 1}}
+            - name: device_class
+              logicalType: string
+              physicalType: string
+              required: true
+              description: cpu, cuda, or edge.
+              logicalTypeOptions: {pattern: '^(cpu|cuda|edge)$'}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 2}}
+            - name: latency_ms
+              logicalType: integer
+              physicalType: long
+              required: true
+              description: Nominal latency for planning.
+              logicalTypeOptions: {minimum: 0}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 3}}
+            - name: vram_mb
+              logicalType: integer
+              physicalType: int
+              required: true
+              description: Nominal VRAM for the envelope check.
+              logicalTypeOptions: {minimum: 0}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 4}}
+            - name: quality
+              logicalType: number
+              physicalType: double
+              required: true
+              description: Quality metric in 0..1.
+              logicalTypeOptions: {minimum: 0, maximum: 1}
+              customProperties:
+                - property: fieldGeneration
+                  value: {proto: {fieldNumber: 5}}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 6}, recordName: ManifestTier}
+      - name: binding
+        logicalType: string
+        physicalType: string
+        required: true
+        description: python:module:function or an http(s) URL.
+        logicalTypeOptions:
+          {pattern: '^(python:[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*|https?://.+)'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 7}}
+      - name: skip_flags
+        logicalType: array
+        physicalType: array
+        required: true
+        description: ssv --no-* flags overlaid when this step is shed.
+        items:
+          logicalType: string
+          physicalType: string
+          description: A CLI flag without the leading dashes, or with no- prefix.
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 8}}
+      - name: wrap
+        logicalType: string
+        physicalType: string
+        required: true
+        description: independent runs via the binding; legacy stays on the monolith.
+        logicalTypeOptions: {pattern: '^(independent|legacy)$'}
+        customProperties:
+          - property: fieldGeneration
+            value: {proto: {fieldNumber: 9}}
